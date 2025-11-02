@@ -1,0 +1,303 @@
+import { useState, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
+
+function Profile() {
+  const { user, profile, updateProfile, signOut } = useAuth()
+  const [editing, setEditing] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [formData, setFormData] = useState({
+    username: '',
+    full_name: '',
+    bio: '',
+    handicap: '',
+    location: ''
+  })
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        username: profile.username || '',
+        full_name: profile.full_name || '',
+        bio: profile.bio || '',
+        handicap: profile.handicap || '',
+        location: profile.location || ''
+      })
+    }
+  }, [profile])
+
+  // Add null check after useEffect
+  if (!user) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="bg-white rounded-lg shadow p-6">
+          <p>Please log in to view your profile</p>
+        </div>
+      </div>
+    )
+  }
+
+  const handleSave = async () => {
+    setLoading(true)
+    setMessage('')
+
+    // Validate username
+    if (formData.username && !/^[a-zA-Z0-9_]{3,20}$/.test(formData.username)) {
+      setMessage('Username must be 3-20 characters, letters, numbers, and underscores only')
+      setLoading(false)
+      return
+    }
+
+    const { data, error } = await updateProfile({
+      username: formData.username.toLowerCase().trim(),
+      full_name: formData.full_name.trim(),
+      bio: formData.bio.trim(),
+      handicap: formData.handicap ? parseInt(formData.handicap) : null,
+      location: formData.location.trim()
+    })
+
+    if (error) {
+      setMessage(error.message)
+    } else {
+      setMessage('Profile updated successfully!')
+      setEditing(false)
+      setTimeout(() => setMessage(''), 3000)
+    }
+    setLoading(false)
+  }
+
+  const stats = [
+    { label: 'Rounds', value: profile?.rounds_count || 0 },
+    { label: 'Followers', value: profile?.followers_count || 0 },
+    { label: 'Following', value: profile?.following_count || 0 }
+  ]
+
+  return (
+    <div className="max-w-4xl mx-auto p-4">
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        {/* Header with avatar */}
+        <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-8">
+          <div className="flex items-center gap-4">
+            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-3xl font-bold text-green-600 shadow-lg">
+              {profile?.avatar_url ? (
+                <img 
+                  src={profile.avatar_url} 
+                  alt="Avatar" 
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <span>{profile?.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}</span>
+              )}
+            </div>
+            <div className="text-white">
+              <h1 className="text-2xl font-bold">
+                {profile?.full_name || profile?.username || 'Golfer'}
+              </h1>
+              {profile?.username && (
+                <p className="text-green-100">@{profile.username}</p>
+              )}
+              {profile?.location && (
+                <p className="text-green-100 flex items-center gap-1 mt-1">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {profile.location}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 border-b border-gray-200">
+          {stats.map((stat, index) => (
+            <div key={index} className="p-4 text-center border-r last:border-r-0 border-gray-200">
+              <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
+              <div className="text-sm text-gray-600">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Profile content */}
+        <div className="p-6">
+          {message && (
+            <div className={`mb-4 p-3 rounded-lg text-sm ${
+              message.includes('success') 
+                ? 'bg-green-50 text-green-700 border border-green-200' 
+                : 'bg-red-50 text-red-700 border border-red-200'
+            }`}>
+              {message}
+            </div>
+          )}
+
+          {!editing ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-gray-600">Email</p>
+                  <p className="font-medium">{user?.email}</p>
+                </div>
+
+                {user?.phone && (
+                  <div>
+                    <p className="text-sm text-gray-600">Phone</p>
+                    <p className="font-medium">{user.phone}</p>
+                  </div>
+                )}
+
+                <div>
+                  <p className="text-sm text-gray-600">Handicap</p>
+                  <p className="font-medium">
+                    {profile?.handicap !== null ? profile.handicap : 'Not set'}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-600">Member Since</p>
+                  <p className="font-medium">
+                    {profile?.created_at 
+                      ? new Date(profile.created_at).toLocaleDateString()
+                      : 'Recently joined'}
+                  </p>
+                </div>
+              </div>
+
+              {profile?.bio && (
+                <div>
+                  <p className="text-sm text-gray-600 mb-1">About</p>
+                  <p className="text-gray-800">{profile.bio}</p>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setEditing(true)}
+                  className="flex-1 sm:flex-initial px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+                >
+                  Edit Profile
+                </button>
+                
+                <button
+                  onClick={signOut}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.username}
+                    onChange={(e) => setFormData({...formData, username: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="johndoe"
+                    pattern="[a-zA-Z0-9_]{3,20}"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    3-20 characters, letters, numbers, underscores
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({...formData, full_name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="John Doe"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Handicap
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.handicap}
+                    onChange={(e) => setFormData({...formData, handicap: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="15"
+                    min="0"
+                    max="54"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.location}
+                    onChange={(e) => setFormData({...formData, location: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="New York, NY"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Bio
+                </label>
+                <textarea
+                  value={formData.bio}
+                  onChange={(e) => setFormData({...formData, bio: e.target.value.slice(0, 280)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  rows="3"
+                  placeholder="Tell us about your golf journey..."
+                  maxLength={280}
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.bio.length}/280 characters
+                </p>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="flex-1 sm:flex-initial px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium"
+                >
+                  {loading ? 'Saving...' : 'Save Changes'}
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setEditing(false)
+                    setMessage('')
+                    setFormData({
+                      username: profile?.username || '',
+                      full_name: profile?.full_name || '',
+                      bio: profile?.bio || '',
+                      handicap: profile?.handicap || '',
+                      location: profile?.location || ''
+                    })
+                  }}
+                  disabled={loading}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default Profile

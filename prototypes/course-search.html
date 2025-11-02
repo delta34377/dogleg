@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dogleg - Course Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* Loading animation */
+        .spinner {
+            border: 3px solid #e5e7eb;
+            border-top: 3px solid #10b981;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-4xl mx-auto p-4">
+        <!-- Header -->
+        <div class="bg-green-700 text-white p-6 rounded-t-lg">
+            <h1 class="text-3xl font-bold">⛳ Dogleg Course Search</h1>
+            <p class="mt-2">Search from 22,563 golf courses across 16,367 clubs in the United States</p>
+        </div>
+
+        <!-- Search Tabs -->
+        <div class="bg-white border-x border-gray-200">
+            <div class="flex border-b">
+                <button id="tab-name" onclick="switchTab('name')" class="flex-1 py-3 px-4 font-semibold bg-green-50 text-green-700 border-b-2 border-green-700">
+                    Search by Name
+                </button>
+                <button id="tab-location" onclick="switchTab('location')" class="flex-1 py-3 px-4 font-semibold text-gray-600 hover:bg-gray-50">
+                    Search by Location
+                </button>
+                <button id="tab-nearby" onclick="switchTab('nearby')" class="flex-1 py-3 px-4 font-semibold text-gray-600 hover:bg-gray-50">
+                    Find Nearby
+                </button>
+            </div>
+
+            <!-- Search Panels -->
+            <div class="p-6">
+                <!-- Name Search -->
+                <div id="panel-name" class="search-panel">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Search by Club or Course Name
+                    </label>
+                    <div class="flex gap-2">
+                        <input 
+                            type="text" 
+                            id="nameSearch" 
+                            placeholder="e.g., Pebble Beach, Augusta National..."
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                            onkeyup="handleEnter(event, 'searchByName')"
+                        >
+                        <button onclick="searchByName()" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            Search
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Location Search -->
+                <div id="panel-location" class="search-panel hidden">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Enter City, State, Zip Code, or combination
+                    </label>
+                    <div class="flex gap-2">
+                        <input 
+                            type="text" 
+                            id="locationSearch" 
+                            placeholder="e.g., Orlando  |  Orlando, FL  |  32789"
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                            onkeyup="handleEnter(event, 'searchByLocation')"
+                        >
+                        <button onclick="searchByLocation()" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            Search
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">
+                        Examples: "Scottsdale" | "Scottsdale, AZ" | "85255" | "Chicago, Illinois"
+                    </p>
+                </div>
+
+                <!-- Nearby Search -->
+                <div id="panel-nearby" class="search-panel hidden">
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <p class="text-sm text-blue-800">
+                            📍 Click "Get My Location" to find courses within 15 miles of you
+                        </p>
+                    </div>
+                    <button onclick="searchNearby()" class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">
+                        Get My Location & Find Courses
+                    </button>
+                    <div id="location-status" class="mt-4 text-center text-gray-600"></div>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="loading" class="hidden mt-6 flex justify-center">
+                    <div class="spinner"></div>
+                </div>
+
+                <!-- Results Count -->
+                <div id="results-count" class="mt-6 text-sm text-gray-600"></div>
+
+                <!-- Results -->
+                <div id="results" class="mt-6 space-y-4">
+                    <!-- Results will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // CONFIGURATION - UPDATE THESE!
+        // ============================================
+        const SUPABASE_URL = 'https://egnnjhlbnlhvudgopzvq.supabase.co'; // From your .env file
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVnbm5qaGxibmxodnVkZ29wenZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5Njg3NTgsImV4cCI6MjA3NjU0NDc1OH0.yYxBrOm0eTiyCwCkzAsg2iIHuKrL9123t5a2mYtRMbQ'; // From your .env file
+        
+        // Initialize Supabase
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // ============================================
+        // TAB SWITCHING
+        // ============================================
+        function switchTab(tab) {
+            // Update tab styles
+            document.querySelectorAll('[id^="tab-"]').forEach(t => {
+                t.classList.remove('bg-green-50', 'text-green-700', 'border-b-2', 'border-green-700');
+                t.classList.add('text-gray-600');
+            });
+            document.getElementById(`tab-${tab}`).classList.remove('text-gray-600');
+            document.getElementById(`tab-${tab}`).classList.add('bg-green-50', 'text-green-700', 'border-b-2', 'border-green-700');
+
+            // Show correct panel
+            document.querySelectorAll('.search-panel').forEach(p => p.classList.add('hidden'));
+            document.getElementById(`panel-${tab}`).classList.remove('hidden');
+            
+            // Clear results when switching tabs
+            document.getElementById('results').innerHTML = '';
+            document.getElementById('results-count').innerHTML = '';
+        }
+
+        // ============================================
+        // SEARCH BY NAME
+        // ============================================
+        async function searchByName() {
+            const searchTerm = document.getElementById('nameSearch').value.trim();
+            if (!searchTerm) {
+                alert('Please enter a club or course name');
+                return;
+            }
+
+            showLoading(true);
+            const startTime = Date.now();
+
+            try {
+                // Search in both clubs and courses
+                const { data: clubResults, error: clubError } = await supabaseClient
+                    .from('clubs')
+                    .select(`
+                        club_id,
+                        club_name,
+                        city,
+                        state,
+                        courses!inner(
+                            course_id,
+                            course_name,
+                            num_holes,
+                            total_par
+                        )
+                    `)
+                    .ilike('club_name', `%${searchTerm}%`)
+                    .limit(20);
+
+                const { data: courseResults, error: courseError } = await supabaseClient
+                    .from('courses')
+                    .select(`
+                        course_id,
+                        course_name,
+                        num_holes,
+                        total_par,
+                        clubs!inner(
+                            club_id,
+                            club_name,
+                            city,
+                            state
+                        )
+                    `)
+                    .ilike('course_name', `%${searchTerm}%`)
+                    .limit(20);
+
+                if (clubError) throw clubError;
+                if (courseError) throw courseError;
+
+                // Combine and format results
+                const allResults = [];
+                
+                // Add club results
+                if (clubResults) {
+                    clubResults.forEach(club => {
+                        club.courses.forEach(course => {
+                            allResults.push({
+                                club_id: club.club_id,
+                                club_name: club.club_name,
+                                city: club.city,
+                                state: club.state,
+                                course_id: course.course_id,
+                                course_name: course.course_name,
+                                num_holes: course.num_holes,
+                                total_par: course.total_par,
+                                match_type: 'club'
+                            });
+                        });
+                    });
+                }
+
+                // Add course results (avoiding duplicates)
+                if (courseResults) {
+                    courseResults.forEach(course => {
+                        const exists = allResults.find(r => r.course_id === course.course_id);
+                        if (!exists) {
+                            allResults.push({
+                                club_id: course.clubs.club_id,
+                                club_name: course.clubs.club_name,
+                                city: course.clubs.city,
+                                state: course.clubs.state,
+                                course_id: course.course_id,
+                                course_name: course.course_name,
+                                num_holes: course.num_holes,
+                                total_par: course.total_par,
+                                match_type: 'course'
+                            });
+                        }
+                    });
+                }
+
+                const searchTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                displayResults(allResults, `Found ${allResults.length} courses in ${searchTime}s`);
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                alert('Search failed: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // ============================================
+        // SEARCH BY LOCATION
+        // ============================================
+        async function searchByLocation() {
+            const input = document.getElementById('locationSearch').value.trim();
+            
+            if (!input) {
+                alert('Please enter a location (city, state, zip code, or combination)');
+                return;
+            }
+
+            showLoading(true);
+            const startTime = Date.now();
+
+            try {
+                // Parse the input
+                let city = '';
+                let state = '';
+                let zipCode = '';
+
+                // Check if it's a zip code (3-5 digits)
+                if (/^\d{3,5}$/.test(input)) {
+                    zipCode = input;
+                    // If it starts with 0, also create version without leading zero
+                    if (input.startsWith('0')) {
+                        zipCode = parseInt(input).toString(); // This removes leading zeros
+                    }
+                } 
+                // Check if it contains a comma (city, state format)
+                else if (input.includes(',')) {
+                    const parts = input.split(',').map(p => p.trim());
+                    city = parts[0];
+                    state = parts[1] || '';
+                }
+                // Check if last word might be a 2-letter state (like "westport ct")
+                else {
+                    const words = input.split(' ').filter(w => w.length > 0);
+                    const lastWord = words[words.length - 1];
+                    
+                    // If last word is 2 letters and there are multiple words, treat as city + state
+                    if (lastWord && lastWord.length === 2 && words.length > 1) {
+                        state = lastWord.toUpperCase();
+                        city = words.slice(0, -1).join(' ');
+                    }
+                    // Single 2-letter word is just a state
+                    else if (input.length === 2) {
+                        state = input.toUpperCase();
+                    } 
+                    // Otherwise treat as city
+                    else {
+                        city = input;
+                    }
+                }
+
+                console.log('Parsed input:', { city, state, zipCode });  // Debug log
+
+                let query = supabaseClient
+                    .from('clubs')
+                    .select(`
+                        club_id,
+                        club_name,
+                        city,
+                        state,
+                        postal_code,
+                        courses!inner(
+                            course_id,
+                            course_name,
+                            num_holes,
+                            total_par
+                        )
+                    `);
+
+                // Build the query based on what we parsed
+                if (zipCode) {
+                    // Database has zips WITHOUT leading zeros (Excel issue)
+                    // So "06880" is stored as "6880"
+                    const strippedZip = parseInt(input).toString(); // Remove leading zeros
+                    
+                    // Search for both versions
+                    const conditions = [
+                        `postal_code.eq.${strippedZip}`,      // Without leading zeros (main format)
+                        `postal_code.eq.${input}`,            // Original input (just in case)
+                        `postal_code.like.${strippedZip}-%`   // With zip+4 extension
+                    ];
+                    query = query.or(conditions.join(','));
+                    console.log('Searching for zip:', strippedZip, '(stripped from', input + ')');
+                } else {
+                    if (city && state) {
+                        // Both city and state
+                        query = query.ilike('city', `%${city}%`);
+                        if (state.length === 2) {
+                            query = query.eq('state', state.toUpperCase());
+                        } else {
+                            query = query.ilike('state', `%${state}%`);
+                        }
+                    } else if (city) {
+                        // Just city - search both city and state fields
+                        query = query.or(`city.ilike.%${city}%,state.ilike.%${city}%`);
+                    } else if (state) {
+                        // Just state
+                        if (state.length === 2) {
+                            query = query.eq('state', state.toUpperCase());
+                        } else {
+                            query = query.ilike('state', `%${state}%`);
+                        }
+                    }
+                }
+
+                const { data: clubs, error } = await query.limit(50);
+                
+                if (error) {
+                    console.error('Query error:', error);
+                    throw error;
+                }
+
+                console.log(`Found ${clubs?.length || 0} clubs`);  // Debug log
+
+                // If zip search returned nothing, try a broader search
+                if (zipCode && (!clubs || clubs.length === 0)) {
+                    console.log('No results for zip, checking if postal codes exist...');
+                    
+                    // Check if ANY postal codes exist in the database
+                    const { data: sampleZips } = await supabaseClient
+                        .from('clubs')
+                        .select('postal_code')
+                        .not('postal_code', 'is', null)
+                        .limit(10);
+                    
+                    console.log('Sample postal codes in DB:', sampleZips);
+                    
+                    // Show helpful message
+                    const results = [];
+                    const searchTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                    displayResults(results, `No courses found for zip ${zipCode}. Postal codes may not be available in the database.`);
+                    return;
+                }
+
+                // Format results
+                const results = [];
+                clubs?.forEach(club => {
+                    club.courses.forEach(course => {
+                        results.push({
+                            club_id: club.club_id,
+                            club_name: club.club_name,
+                            city: club.city,
+                            state: club.state,
+                            course_id: course.course_id,
+                            course_name: course.course_name,
+                            num_holes: course.num_holes,
+                            total_par: course.total_par
+                        });
+                    });
+                });
+
+                const searchTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                displayResults(results, `Found ${results.length} courses in ${searchTime}s`);
+                
+            } catch (error) {
+                console.error('Location search error:', error);
+                alert('Search failed: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+
+        // ============================================
+        // SEARCH NEARBY
+        // ============================================
+        async function searchNearby() {
+            if (!navigator.geolocation) {
+                alert('Geolocation is not supported by your browser');
+                return;
+            }
+
+            document.getElementById('location-status').innerHTML = '🔍 Getting your location...';
+            
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    document.getElementById('location-status').innerHTML = 
+                        `📍 Your location: ${lat.toFixed(4)}, ${lng.toFixed(4)}<br>Searching nearby courses...`;
+                    
+                    showLoading(true);
+                    const startTime = Date.now();
+
+                    try {
+                        // OPTIMIZED: Get all data in one call
+                        const { data: results, error } = await supabaseClient
+                            .rpc('search_golf_courses', {
+                                search_text: '',
+                                user_lat: lat,
+                                user_lng: lng,
+                                max_distance_miles: 15
+                            });
+
+                        if (error) throw error;
+
+                        // Format and sort results (already have all the data we need!)
+                        const formattedResults = results
+                            .map(r => ({
+                                club_id: r.club_id,
+                                club_name: r.club_name,
+                                course_id: r.course_id,
+                                course_name: r.course_name,
+                                city: r.city,
+                                state: r.state,
+                                num_holes: r.num_holes || 18,
+                                total_par: r.total_par,
+                                distance: r.distance_miles
+                            }))
+                            .sort((a, b) => a.distance - b.distance)
+                            .slice(0, 20); // Get top 20 closest
+                        
+                        const searchTime = ((Date.now() - startTime) / 1000).toFixed(2);
+                        displayResults(
+                            formattedResults, 
+                            `Found ${results.length} courses within 15 miles in ${searchTime}s`,
+                            true
+                        );
+                        
+                    } catch (error) {
+                        console.error('Nearby search error:', error);
+                        alert('Search failed: ' + error.message);
+                    } finally {
+                        showLoading(false);
+                    }
+                },
+                (error) => {
+                    document.getElementById('location-status').innerHTML = 
+                        '❌ Unable to get location: ' + error.message;
+                }
+            );
+        }
+
+        // ============================================
+        // DISPLAY RESULTS
+        // ============================================
+        function displayResults(results, countText, showDistance = false) {
+            const resultsDiv = document.getElementById('results');
+            const countDiv = document.getElementById('results-count');
+            
+            countDiv.innerHTML = `<strong>${countText}</strong>`;
+            
+            if (results.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        No courses found. Try a different search.
+                    </div>
+                `;
+                return;
+            }
+
+            resultsDiv.innerHTML = results.map(course => `
+                <div class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <h3 class="font-bold text-lg text-green-700">
+                                ${course.course_name || 'Course Name N/A'}
+                            </h3>
+                            <p class="text-gray-700 font-medium">
+                                ${course.club_name || 'Club Name N/A'}
+                            </p>
+                            <p class="text-sm text-gray-600 mt-1">
+                                📍 ${course.city || 'City N/A'}, ${course.state || 'State N/A'}
+                            </p>
+                            <div class="flex gap-4 mt-2 text-sm">
+                                <span class="text-gray-600">
+                                    Holes: <strong>${course.num_holes || 18}</strong>
+                                </span>
+                                ${course.total_par ? `
+                                    <span class="text-gray-600">
+                                        Par: <strong>${course.total_par}</strong>
+                                    </span>
+                                ` : ''}
+                            </div>
+                        </div>
+                        ${showDistance && course.distance !== undefined ? `
+                            <div class="text-right">
+                                <div class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+                                    ${course.distance.toFixed(1)} mi
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="mt-3 flex gap-2">
+                        <button onclick="selectCourse('${course.course_id}')" class="text-sm bg-green-600 text-white px-4 py-1 rounded hover:bg-green-700">
+                            Select Course
+                        </button>
+                        <button onclick="viewTees('${course.course_id}')" class="text-sm bg-gray-200 text-gray-700 px-4 py-1 rounded hover:bg-gray-300">
+                            View Tees
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ============================================
+        // HELPER FUNCTIONS
+        // ============================================
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('hidden', !show);
+        }
+
+        function handleEnter(event, action) {
+            if (event.key === 'Enter') {
+                window[action]();
+            }
+        }
+
+        function selectCourse(courseId) {
+            console.log('Selected course:', courseId);
+            alert(`Course ${courseId} selected - This would start score entry flow`);
+        }
+
+        async function viewTees(courseId) {
+            try {
+                const { data: tees, error } = await supabaseClient
+                    .from('tees')
+                    .select('*')
+                    .eq('course_id', courseId);
+                
+                if (error) throw error;
+                
+                const teeInfo = tees.map(t => 
+                    `${t.tee_name || t.tee_color}: ${t.total_length || 'N/A'} ${t.measure_unit || 'yards'}, Slope: ${t.slope || 'N/A'}, Rating: ${t.course_rating || 'N/A'}`
+                ).join('\n');
+                
+                alert(`Tee Options (${tees.length}):\n\n${teeInfo}`);
+            } catch (error) {
+                alert('Error loading tees: ' + error.message);
+            }
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Course Search Ready - Update SUPABASE_URL and SUPABASE_ANON_KEY!');
+        });
+    </script>
+</body>
+</html>

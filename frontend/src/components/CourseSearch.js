@@ -323,8 +323,8 @@ function CourseSearch() {
     <div className="max-w-4xl mx-auto p-4">
       {/* Header */}
       <div className="bg-green-700 text-white p-6 rounded-t-lg">
-        <h1 className="text-3xl font-bold">⛳ Dogleg Course Search</h1>
-        <p className="mt-2">Search from 22,563 golf courses across 16,367 clubs in the United States</p>
+        <h1 className="text-3xl font-bold">⛳ Course Search</h1>
+        <p className="mt-2">Search from over 22,000 golf courses in the United States</p>
       </div>
 
       {/* Search Tabs */}

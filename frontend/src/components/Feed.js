@@ -96,13 +96,14 @@ const Feed = forwardRef((props, ref) => {
             ...round,
             reactions: reactionCounts,
             comments: roundComments.map(c => ({
-              id: c.id,
-              text: c.content || c.comment_text,
-              author: c.profiles?.username || c.profiles?.full_name || 'Anonymous',
-              author_avatar: c.profiles?.avatar_url,
-              date: c.created_at,
-              user_id: c.user_id
-            })),
+  id: c.id,
+  text: c.content || c.comment_text,
+  author: c.profiles?.username || c.profiles?.full_name || 'Anonymous',
+  author_username: c.profiles?.username || null,  // <-- ADD THIS LINE
+  author_avatar: c.profiles?.avatar_url,
+  date: c.created_at,
+  user_id: c.user_id
+})),
             userReacted: myReactions || [],
             isFollowing: followStatuses[round.user_id] || false,
             source: round.source || 'following',
@@ -209,6 +210,7 @@ const Feed = forwardRef((props, ref) => {
                 id: data.id,
                 text: data.content,
                 author: data.profiles?.username || data.profiles?.full_name || 'Anonymous',
+                  author_username: data.profiles?.username || null,  // <-- ADD THIS LINE
                 author_avatar: data.profiles?.avatar_url,
                 date: data.created_at,
                 user_id: data.user_id
@@ -358,75 +360,85 @@ const Feed = forwardRef((props, ref) => {
 
   // EXACT CommentsSection from MyRounds
   const CommentsSection = ({ round, roundId }) => {
-    const [showAllComments, setShowAllComments] = useState(false)
-    const [newComment, setNewComment] = useState('')
-    
-    const comments = round.comments || []
-    const visibleComments = showAllComments ? comments : comments.slice(-3)
-    
-    const handleSubmit = (e) => {
-      e.preventDefault()
-      addComment(roundId, newComment)
-      setNewComment('')
-    }
-    
-    return (
-      <div className="pt-4">
-        <div className="bg-gray-50 rounded-lg p-4">
-          {comments.length > 3 && !showAllComments && (
-            <button
-              onClick={() => setShowAllComments(true)}
-              className="text-sm text-blue-600 hover:text-blue-700 mb-2"
-            >
-              View {comments.length - 3} more comment{comments.length - 3 !== 1 ? 's' : ''}
-            </button>
-          )}
-          
-          {visibleComments.length > 0 && (
-            <div className="space-y-2 mb-3">
-              {visibleComments.map(comment => (
-                <div key={comment.id} className="bg-white rounded p-2">
-                  <div className="flex gap-2">
-                    <div className="flex-1">
+  const [showAllComments, setShowAllComments] = useState(false)
+  const [newComment, setNewComment] = useState('')
+  
+  const comments = round.comments || []
+  const visibleComments = showAllComments ? comments : comments.slice(-3)
+  
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    addComment(roundId, newComment)
+    setNewComment('')
+  }
+  
+  return (
+    <div className="pt-4">
+      <div className="bg-gray-50 rounded-lg p-4">
+        {comments.length > 3 && !showAllComments && (
+          <button
+            onClick={() => setShowAllComments(true)}
+            className="text-sm text-blue-600 hover:text-blue-700 mb-2"
+          >
+            View {comments.length - 3} more comment{comments.length - 3 !== 1 ? 's' : ''}
+          </button>
+        )}
+        
+        {visibleComments.length > 0 && (
+          <div className="space-y-2 mb-3">
+            {visibleComments.map(comment => (
+              <div key={comment.id} className="bg-white rounded p-2">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    {/* Make username clickable if we have the username */}
+                    {comment.author_username && comment.author_username !== 'Anonymous' ? (
+                      <button
+                        onClick={() => navigate(`/profile/${comment.author_username}`)}
+                        className="font-semibold text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        {comment.author}
+                      </button>
+                    ) : (
                       <span className="font-semibold text-sm text-blue-600">{comment.author}</span>
-                      <span className="text-gray-500 text-xs ml-2">• {formatDate(comment.date)}</span>
-                      <p className="text-sm mt-0.5">{comment.text}</p>
-                    </div>
+                    )}
+                    <span className="text-gray-500 text-xs ml-2">• {formatDate(comment.date)}</span>
+                    <p className="text-sm mt-0.5">{comment.text}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-          
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value.slice(0, 280))}
-                placeholder="Add a comment..."
-                maxLength={280}
-                className="w-full px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-              {newComment.length > 250 && (
-                <span className="absolute right-3 top-2 text-xs text-gray-500">
-                  {280 - newComment.length}
-                </span>
-              )}
-            </div>
-            {newComment.trim() && (
-              <button
-                type="submit"
-                className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 text-sm font-medium"
-              >
-                Post
-              </button>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value.slice(0, 280))}
+              placeholder="Add a comment..."
+              maxLength={280}
+              className="w-full px-3 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            {newComment.length > 250 && (
+              <span className="absolute right-3 top-2 text-xs text-gray-500">
+                {280 - newComment.length}
+              </span>
             )}
-          </form>
-        </div>
+          </div>
+          {newComment.trim() && (
+            <button
+              type="submit"
+              className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 text-sm font-medium"
+            >
+              Post
+            </button>
+          )}
+        </form>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
   // EXACT Scorecard from MyRounds
   const Scorecard = ({ round }) => {

@@ -39,81 +39,93 @@ const Feed = forwardRef((props, ref) => {
   }
 
   const loadFeed = async (loadMore = false) => {
-  if (isLoading) return
-  
-  setIsLoading(true)
-  const currentOffset = loadMore ? offset : 0
-  
-  // ONE CALL instead of multiple!
-  const { data: feedData, error } = await roundsService.getFeedWithDiscovery(10, currentOffset, 'mixed', 0.3)
-  
-  if (!error && feedData) {
-    const feedRounds = feedData.rounds || []
+    if (isLoading) return
     
-    if (feedRounds.length < 10) {
-      setHasMore(false)
-    }
+    setIsLoading(true)
+    const currentOffset = loadMore ? offset : 0
     
-    const roundIds = feedRounds.map(r => r.id)
+    // Get feed rounds with discovery
+    const { data: feedData, error } = await roundsService.getFeedWithDiscovery(10, currentOffset, 'mixed', 0.3)
     
-    if (roundIds.length > 0) {
-      // Get follow statuses in one batch call
-      const uniqueUserIds = [...new Set(feedRounds.map(r => r.user_id).filter(id => id !== user?.id))]
-      const followStatuses = uniqueUserIds.length > 0 
-        ? await followService.getFollowStatuses(uniqueUserIds)
-        : {}
+    if (!error && feedData) {
+      const feedRounds = feedData.rounds || []
       
-      const formattedRounds = feedRounds.map(round => {
-        // Use the data we already fetched from the RPC
-        const roundReactions = feedData.reactions?.filter(r => r.round_id === round.id) || []
-        const reactionCounts = {
-          fire: 0, clap: 0, dart: 0, goat: 0,
-          vomit: 0, clown: 0, skull: 0, laugh: 0
-        }
+      if (feedRounds.length < 10) {
+        setHasMore(false)
+      }
+      
+      const roundIds = feedRounds.map(r => r.id)
+      
+      if (roundIds.length > 0) {
+        // IMPORTANT FIX: Fetch reactions, comments, and userReactions separately
+        // since getFeedWithDiscovery might not include them
+        const [reactionsData, commentsData, userReactionsData] = await Promise.all([
+          roundsService.getReactions(roundIds),
+          roundsService.getComments(roundIds),
+          user ? roundsService.getUserReactions(roundIds) : { data: [] }
+        ])
         
-        roundReactions.forEach(r => {
-          if (reactionCounts.hasOwnProperty(r.reaction_type)) {
-            reactionCounts[r.reaction_type]++
+        const reactions = reactionsData.data || []
+        const comments = commentsData.data || []
+        const userReactions = userReactionsData.data || []
+        
+        // Get follow statuses in one batch call
+        const uniqueUserIds = [...new Set(feedRounds.map(r => r.user_id).filter(id => id !== user?.id))]
+        const followStatuses = uniqueUserIds.length > 0 
+          ? await followService.getFollowStatuses(uniqueUserIds)
+          : {}
+        
+        const formattedRounds = feedRounds.map(round => {
+          // Use the separately fetched reactions/comments
+          const roundReactions = reactions.filter(r => r.round_id === round.id) || []
+          const reactionCounts = {
+            fire: 0, clap: 0, dart: 0, goat: 0,
+            vomit: 0, clown: 0, skull: 0, laugh: 0
+          }
+          
+          roundReactions.forEach(r => {
+            if (reactionCounts.hasOwnProperty(r.reaction_type)) {
+              reactionCounts[r.reaction_type]++
+            }
+          })
+          
+          const roundComments = comments.filter(c => c.round_id === round.id) || []
+          const myReactions = userReactions.filter(r => r.round_id === round.id).map(r => r.reaction_type) || []
+          
+          return {
+            ...round,
+            reactions: reactionCounts,
+            comments: roundComments.map(c => ({
+              id: c.id,
+              text: c.content || c.comment_text,
+              author: c.profiles?.username || c.profiles?.full_name || 'Anonymous',
+              author_avatar: c.profiles?.avatar_url,
+              date: c.created_at,
+              user_id: c.user_id
+            })),
+            userReacted: myReactions || [],
+            isFollowing: followStatuses[round.user_id] || false,
+            source: round.source || 'following',
+            reason: round.reason || null
           }
         })
         
-        const roundComments = feedData.comments?.filter(c => c.round_id === round.id) || []
-        const myReactions = feedData.userReactions?.filter(r => r.round_id === round.id).map(r => r.reaction_type) || []
-        
-        return {
-  ...round,
-  reactions: reactionCounts,
-  comments: roundComments.map(c => ({
-    id: c.id,
-    text: c.content || c.comment_text,
-    author: c.profiles?.username || c.profiles?.full_name || 'Anonymous',
-    author_avatar: c.profiles?.avatar_url,
-    date: c.created_at,
-    user_id: c.user_id
-  })),
-  userReacted: myReactions || [],
-  isFollowing: followStatuses[round.user_id] || false,
-  source: round.source || 'following',  // <-- ADD THIS LINE
-  reason: round.reason || null           // <-- ADD THIS LINE
-}
-      })
-      
-      if (loadMore) {
-        setRounds(prev => {
-          const existingIds = new Set(prev.map(r => r.id))
-          const newRounds = formattedRounds.filter(r => !existingIds.has(r.id))
-          return [...prev, ...newRounds]
-        })
-        setOffset(prev => prev + feedRounds.length)
-      } else {
-        setRounds(formattedRounds)
-        setOffset(feedRounds.length)
+        if (loadMore) {
+          setRounds(prev => {
+            const existingIds = new Set(prev.map(r => r.id))
+            const newRounds = formattedRounds.filter(r => !existingIds.has(r.id))
+            return [...prev, ...newRounds]
+          })
+          setOffset(prev => prev + feedRounds.length)
+        } else {
+          setRounds(formattedRounds)
+          setOffset(feedRounds.length)
+        }
       }
     }
+    
+    setIsLoading(false)
   }
-  
-  setIsLoading(false)
-}
 
   // Load more rounds when scrolling
   const handleScroll = useCallback(() => {
@@ -138,47 +150,47 @@ const Feed = forwardRef((props, ref) => {
   }, [])
 
   const toggleReaction = async (roundId, reaction) => {
-  // Store previous state in case we need to revert
-  const previousRounds = rounds
-  
-  // Optimistically update UI immediately
-  setRounds(prevRounds =>
-    prevRounds.map(round => {
-      if (round.id === roundId) {
-        const newReactions = { ...round.reactions }
-        const newUserReacted = [...round.userReacted]
-        
-        // Check if user already reacted
-        const hasReacted = round.userReacted.includes(reaction)
-        
-        if (hasReacted) {
-          // Remove reaction
-          newReactions[reaction] = Math.max(0, newReactions[reaction] - 1)
-          const index = newUserReacted.indexOf(reaction)
-          if (index > -1) newUserReacted.splice(index, 1)
-        } else {
-          // Add reaction
-          newReactions[reaction] = (newReactions[reaction] || 0) + 1
-          newUserReacted.push(reaction)
+    // Store previous state in case we need to revert
+    const previousRounds = rounds
+    
+    // Optimistically update UI immediately
+    setRounds(prevRounds =>
+      prevRounds.map(round => {
+        if (round.id === roundId) {
+          const newReactions = { ...round.reactions }
+          const newUserReacted = [...round.userReacted]
+          
+          // Check if user already reacted
+          const hasReacted = round.userReacted.includes(reaction)
+          
+          if (hasReacted) {
+            // Remove reaction
+            newReactions[reaction] = Math.max(0, newReactions[reaction] - 1)
+            const index = newUserReacted.indexOf(reaction)
+            if (index > -1) newUserReacted.splice(index, 1)
+          } else {
+            // Add reaction
+            newReactions[reaction] = (newReactions[reaction] || 0) + 1
+            newUserReacted.push(reaction)
+          }
+          
+          return { ...round, reactions: newReactions, userReacted: newUserReacted }
         }
-        
-        return { ...round, reactions: newReactions, userReacted: newUserReacted }
-      }
-      return round
-    })
-  )
-  
-  // Now save to database
-  const { error } = await roundsService.saveReaction(roundId, reaction)
-  
-  // If error, revert the optimistic update
-  if (error) {
-    console.error('Failed to save reaction:', error)
-    setRounds(previousRounds)
-    // Optionally show a toast/alert to user
+        return round
+      })
+    )
+    
+    // Now save to database
+    const { error } = await roundsService.saveReaction(roundId, reaction)
+    
+    // If error, revert the optimistic update
+    if (error) {
+      console.error('Failed to save reaction:', error)
+      setRounds(previousRounds)
+      // Optionally show a toast/alert to user
+    }
+    // If success, do nothing - UI already updated
   }
-  // If success, do nothing - UI already updated
-}
 
   const [commentInputs, setCommentInputs] = useState({})
   

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -15,9 +15,21 @@ import ResetPassword from './components/ResetPassword'
 // Main authenticated app with navigation
 function AuthenticatedApp() {
   const [activeView, setActiveView] = useState('feed')
+  const feedRef = useRef(null)
   const { user, profile, signOut, loading } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  
+  // Handle Feed tab click - refresh if already on feed
+  const handleFeedClick = () => {
+    if (activeView === 'feed' && feedRef.current) {
+      // Already on feed, trigger refresh and scroll to top
+      feedRef.current.refresh()
+    } else {
+      // Not on feed, just switch to feed
+      setActiveView('feed')
+    }
+  }
   
   // Check if we're on a user profile page
   const isUserProfilePage = location.pathname.startsWith('/profile/') && location.pathname !== '/profile'
@@ -218,7 +230,7 @@ function AuthenticatedApp() {
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             <button
-              onClick={() => setActiveView('feed')}
+              onClick={handleFeedClick}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
               <span className="text-2xl">🏌️</span>
@@ -266,7 +278,7 @@ function AuthenticatedApp() {
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 md:hidden">
         <div className="grid grid-cols-3 h-16">
           <button
-            onClick={() => setActiveView('feed')}
+            onClick={handleFeedClick}
             className={`flex flex-col items-center justify-center gap-1 ${
               activeView === 'feed' ? 'text-green-600' : 'text-gray-600'
             }`}
@@ -308,7 +320,7 @@ function AuthenticatedApp() {
         <div className="max-w-4xl mx-auto">
           <div className="flex">
             <button
-              onClick={() => setActiveView('feed')}
+              onClick={handleFeedClick}
               className={`flex-1 py-4 px-4 text-center font-medium transition-colors ${
                 activeView === 'feed'
                   ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
@@ -354,7 +366,7 @@ function AuthenticatedApp() {
 
       {/* Main Content */}
       <div className="pt-4 pb-20 md:pb-4">
-        {activeView === 'feed' && <Feed />}
+        {activeView === 'feed' && <Feed ref={feedRef} />}
         {activeView === 'search' && <CourseSearch />}
         {activeView === 'rounds' && <MyRounds />}
         {activeView === 'profile' && <Profile />}

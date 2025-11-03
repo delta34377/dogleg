@@ -27,16 +27,26 @@ I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Strava
 - ✅ Comments showing as Anonymous (fixed get_feed_with_everything and get_my_rounds_with_everything RPCs)
 - ✅ Foreign key constraints (notifications, follows tables now properly reference profiles)
 - ✅ Navigation on user profiles (mobile working, desktop pending)
+- ✅ Infinite loading on tab switch (useRef solution in AuthContext)
+- ✅ Login after logout bug (proper SIGNED_IN event handling)
+- ✅ Navigation on user profiles (mobile and desktop working)
+- ✅ **Smart Blended Feed implemented** - 70/30 mix of following/discovery content
+- ✅ **Discovery content with indicators** - Shows why users see suggested rounds
+- ✅ **Deployed to Vercel** - Live at https://dogleg-eta.vercel.app/
+
 
 # Feed Strategy Decision
-**Implementing Smart Blended Feed (Single Feed)**:
-- Following rounds always appear first/prioritized
-- Fill with discovery content when following runs out:
-  - Rounds from local area (within 50 miles)
-  - Rounds from courses user has played
-  - Popular rounds (lots of reactions/comments)
-  - Recent rounds from similar skill level
-- Subtle indicators for discovery content ("Near you", "Popular", etc.)
+**Latest Feed Implementation
+**Smart Blended Feed Algorithm:**
+- Single "For You" feed with intelligent content mixing
+- 70% following content, 30% discovery content
+- Discovery sources:
+  - 📍 Near courses you've played (same course/club)
+  - 🔥 Popular rounds (3+ reactions or 2+ comments)
+- Scoring algorithm: `0.6 * recency + 0.3 * engagement + 0.1 * affinity`
+- Waterfall fill: When following content is sparse, discovery fills the gap
+- SQL RPC function: `get_feed_with_discovery`
+- No empty feeds for new users
 
 
 ## Tech Stack

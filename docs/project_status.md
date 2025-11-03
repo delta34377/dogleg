@@ -38,13 +38,18 @@
 - ✅ Comments showing usernames (fixed RPC functions)
 - ✅ Database foreign keys properly configured (profiles table)
 - ✅ Notifications table RLS policies
+- ✅ Smart Blended Feed with discovery content
+- ✅ Discovery indicators on feed cards
+- ✅ Deployed to Vercel (production environment)
+- ✅ Git/GitHub repository setup with auto-deploy
+- ✅ Mobile PWA fully functional
 
 
 ## 🔄 Currently Working On
-- Ready for deployment to Vercel
+- Live in production at https://dogleg.vercel.app
+- Monitoring user engagement with discovery content
 
 ## Next Steps
-- Deploy to Vercel
 - Add user discovery ("Find Golfers to Follow")
 - Add following/followers functionality
 - Push notifications
@@ -52,11 +57,14 @@
 
 ## 🎯 Current Decisions
 
-### Feed Strategy: Smart Blended Feed
-- Single feed that intelligently blends content
-- Following rounds prioritized
-- Discovery content fills in (local, popular, similar skill)
-- No empty states for new users
+### 📊 Feed Algorithm Details
+- **Function**: `get_feed_with_discovery` (PostgreSQL RPC)
+- **Mix**: 70% following, 30% discovery
+- **Discovery Sources**: 
+  - Rounds from courses/clubs user has played
+  - Popular rounds (high engagement)
+- **Ranking**: Time-decay scoring with engagement weight
+- **No user location required** - uses course locations instead
 
 ### Navigation: 3 Tabs
 - Feed, Add Round, My Rounds

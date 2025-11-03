@@ -19,24 +19,30 @@
 
 ## 📱 Feed Architecture
 
-### Smart Blended Feed Strategy
-We use a single, intelligent feed that combines:
+### Smart Blended Feed (Implemented November 2024)
+Our "For You" feed intelligently mixes content for maximum engagement:
 
-**Priority Content (Always First):**
-- Rounds from users you follow
-- Your own rounds
+**Algorithm**: 
+- **70% Following Content**: Rounds from people you follow
+- **30% Discovery Content**: Suggested rounds to discover new golfers
+- **Smart Ranking**: `Score = 0.6 * recency + 0.3 * engagement + 0.1 * affinity`
 
-**Discovery Content (Fills In):**
-- Rounds from your local area (50 mile radius)
-- Rounds from courses you've played
-- Popular rounds (high engagement)
-- Rounds from similar skill levels
+**Discovery Sources**:
+- 📍 **Near courses you've played**: Rounds from same/nearby courses
+- 🔥 **Popular rounds**: High engagement content (3+ reactions or 2+ comments)
 
-**Key Benefits:**
-- No empty states for new users
-- Natural content discovery
-- Encourages following
-- Location-relevant content
+**Key Features**:
+- No empty feeds for new users
+- Waterfall fill when following content is sparse
+- Explainable discovery (users see why content is suggested)
+- Single database call for performance
+- No user location required
+
+### Technical Implementation
+- **RPC Function**: `get_feed_with_discovery`
+- **Service Method**: `roundsService.getFeedWithDiscovery()`
+- **Component**: `Feed.js` with discovery indicators
+- **Database indexes**: Optimized for course, engagement, and time-based queries
 
 ## 🎨 Design Decisions
 

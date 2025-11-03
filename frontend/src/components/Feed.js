@@ -1,17 +1,30 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { roundsService } from '../services/roundsService'
 import { followService } from '../services/followService'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import FollowButton from './FollowButton'
 
-function Feed() {
+const Feed = forwardRef((props, ref) => {
   const [rounds, setRounds] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [offset, setOffset] = useState(0)
   const { user } = useAuth()
   const navigate = useNavigate()
+
+  // Expose refresh method to parent component
+  useImperativeHandle(ref, () => ({
+    refresh: () => {
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      // Reset state and reload feed
+      setRounds([])
+      setOffset(0)
+      setHasMore(true)
+      loadFeed(false)
+    }
+  }))
 
   // Your exact reaction system from MyRounds
   const reactionEmojis = {
@@ -834,6 +847,6 @@ function Feed() {
       </div>
     </div>
   )
-}
+})
 
 export default Feed

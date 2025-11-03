@@ -191,7 +191,7 @@ function AuthScreen({ onSuccess }) {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
             <span className="text-3xl">🏌️</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Dogleg</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Dogleg.io</h1>
           <p className="text-gray-600 mt-2">
             {authMode === 'signin' && 'Welcome back!'}
             {authMode === 'signup' && 'Create your account'}

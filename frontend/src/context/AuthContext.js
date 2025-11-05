@@ -326,7 +326,7 @@ export const AuthProvider = ({ children }) => {
     updatePassword,
     updateProfile,
     loadProfile,
-  }), [user, profile, loading])
+  }), [user, profile, loading, rechecking])
 
   return (
     <AuthContext.Provider value={value}>

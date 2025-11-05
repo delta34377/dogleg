@@ -34,13 +34,6 @@ function AuthenticatedApp() {
   // Check if we're on a user profile page
   const isUserProfilePage = location.pathname.startsWith('/profile/') && location.pathname !== '/profile'
   
-  // Prevent re-render loops
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
-  }
-  
- 
-  
   // If on user profile page, show UserProfile with navigation
   if (isUserProfilePage) {
     return (

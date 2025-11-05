@@ -334,8 +334,8 @@ const Feed = forwardRef((props, ref) => {
   }
   
   return (
-    <div className="pt-4">
-      <div className="bg-gray-50 rounded-lg p-4">
+    <div className="pt-2">
+      <div className="bg-gray-50 rounded-lg p-3">
         {comments.length > 3 && !showAllComments && (
           <button
             onClick={() => setShowAllComments(true)}

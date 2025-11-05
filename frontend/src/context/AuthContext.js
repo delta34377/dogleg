@@ -17,6 +17,7 @@ export const AuthProvider = ({ children }) => {
   const recheckInFlightRef = useRef(false)
   const recheckTimeoutRef = useRef(null)
   const sessionExpRef = useRef(null)  // NEW: Track token expiry
+  const userRef = useRef(null)  // NEW: Always-current user for handlers
 
   useEffect(() => {
     mountedRef.current = true
@@ -39,6 +40,7 @@ export const AuthProvider = ({ children }) => {
       // Keep user object fresh for TOKEN_REFRESHED too
       const nextUser = session?.user ?? null
       setUser(nextUser)
+      userRef.current = nextUser  // Keep ref in sync
 
       const nextUserId = nextUser?.id || null
       if (nextUserId !== lastUserIdRef.current) {
@@ -76,6 +78,7 @@ export const AuthProvider = ({ children }) => {
         
         const nextUser = session?.user ?? null
         setUser(nextUser)
+        userRef.current = nextUser  // Keep ref in sync
 
         const nextUserId = nextUser?.id || null
         if (nextUserId !== lastUserIdRef.current) {
@@ -101,11 +104,19 @@ export const AuthProvider = ({ children }) => {
       
       // Check if we actually need to refresh
       const now = Math.floor(Date.now() / 1000)
-      const exp = sessionExpRef.current
-      const nearExpiry = exp ? (exp - now) <= 30 : !user
+      const rawExp = sessionExpRef.current
+      // Handle both number (UNIX) and string (ISO) formats
+      const expSec = 
+        typeof rawExp === 'number' 
+          ? rawExp
+          : typeof rawExp === 'string'
+            ? Math.floor(new Date(rawExp).getTime() / 1000)
+            : null
+      const hasUser = !!userRef.current  // Use ref to get current value
+      const nearExpiry = expSec ? (expSec - now) <= 30 : !hasUser
       
       // If user exists and token isn't expiring, skip the refresh
-      if (user && !nearExpiry) return
+      if (hasUser && !nearExpiry) return
       
       recheckInFlightRef.current = true
       setRechecking(true)
@@ -117,6 +128,7 @@ export const AuthProvider = ({ children }) => {
         const localUser = session?.user
         if (localUser) {
           setUser(prev => prev || localUser) // don't overwrite a non-null user
+          userRef.current = localUser  // Keep ref in sync
           const uid = localUser.id
           if (uid && uid !== lastUserIdRef.current) {
             lastUserIdRef.current = uid
@@ -141,8 +153,8 @@ export const AuthProvider = ({ children }) => {
     }
     
     const onPageShow = (e) => {
-      // Only trigger on bfcache restore or if no user
-      if ((e && e.persisted) || !user) kickRefocusRecheck()
+      // Only trigger on bfcache restore or if no user (read latest via ref)
+      if ((e && e.persisted) || !userRef.current) kickRefocusRecheck()
     }
 
     document.addEventListener('visibilitychange', onVisibility)
@@ -300,6 +312,7 @@ export const AuthProvider = ({ children }) => {
       if (!error) {
         lastUserIdRef.current = null
         setUser(null)
+        userRef.current = null  // Keep ref in sync
         setProfile(null)
       }
       return { error }

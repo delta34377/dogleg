@@ -76,7 +76,9 @@ function CourseSearch() {
       if (clubResults) {
         clubResults.forEach(club => {
           club.courses.forEach(course => {
-            allResults.push({
+                console.log('Course:', course.course_name, 'Club:', club.club_name, 'ID:', course.course_id)
+            
+                allResults.push({
               club_id: club.club_id,
               club_name: club.club_name,
               city: club.city,

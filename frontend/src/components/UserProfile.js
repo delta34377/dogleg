@@ -613,29 +613,32 @@ function UserProfile() {
           </div>
           
           {/* Legend */}
-          <div className="flex flex-wrap gap-3 text-xs mt-3 pt-3 border-t">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{backgroundColor: '#0d7d0d'}}></div>
-              <span className="text-gray-600">Eagle-</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{backgroundColor: '#4caf50'}}></div>
-              <span className="text-gray-600">Birdie</span>
-            </div>
-            <div className="text-gray-600">Par</div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{backgroundColor: '#ffcdd2'}}></div>
-              <span className="text-gray-600">Bogey</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{backgroundColor: '#ef5350'}}></div>
-              <span className="text-gray-600">Double</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{backgroundColor: '#c62828'}}></div>
-              <span className="text-gray-600">Triple+</span>
-            </div>
-          </div>
+<div className="flex flex-wrap gap-2 sm:gap-3 text-[9px] sm:text-xs mt-3 pt-3 border-t justify-left">
+  <div className="flex items-center gap-1">
+    <div className="w-3 h-3 rounded" style={{backgroundColor: '#0d7d0d'}}></div>
+    <span className="text-gray-600">Eagle-</span>
+  </div>
+  <div className="flex items-center gap-1">
+    <div className="w-3 h-3 rounded" style={{backgroundColor: '#4caf50'}}></div>
+    <span className="text-gray-600">Birdie</span>
+  </div>
+  <div className="flex items-center gap-1">
+    <div className="w-3 h-3 rounded border border-gray-300" style={{backgroundColor: 'white'}}></div>
+    <span className="text-gray-600">Par</span>
+  </div>
+  <div className="flex items-center gap-1">
+    <div className="w-3 h-3 rounded" style={{backgroundColor: '#ffcdd2'}}></div>
+    <span className="text-gray-600">Bogey</span>
+  </div>
+  <div className="flex items-center gap-1">
+    <div className="w-3 h-3 rounded" style={{backgroundColor: '#ef5350'}}></div>
+    <span className="text-gray-600">Double</span>
+  </div>
+  <div className="flex items-center gap-1">
+    <div className="w-3 h-3 rounded" style={{backgroundColor: '#c62828'}}></div>
+    <span className="text-gray-600">Triple+</span>
+  </div>
+</div>
         </div>
       </div>
     )

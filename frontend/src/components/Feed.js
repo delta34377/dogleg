@@ -580,7 +580,7 @@ const Feed = forwardRef((props, ref) => {
           </div>
           
           {/* Legend */}
-<div className="flex flex-wrap gap-2 sm:gap-3 text-[9px] sm:text-xs mt-3 pt-3 border-t justify-center">
+<div className="flex flex-wrap gap-2 sm:gap-3 text-[9px] sm:text-xs mt-3 pt-3 border-t justify-left">
   <div className="flex items-center gap-1">
     <div className="w-3 h-3 rounded" style={{backgroundColor: '#0d7d0d'}}></div>
     <span className="text-gray-600">Eagle-</span>

@@ -801,7 +801,7 @@ const Feed = forwardRef((props, ref) => {
                     </div>
 
                     {/* Share button */}
-                    <div className="flex gap-4 py-1.5 text-sm text-gray-600">
+                    <div className="flex gap-4 pb-0.5 pt-3 text-sm text-gray-600">
                       <button className="flex items-center gap-2 hover:text-gray-800">
                         <span>🔗</span>
                         <span>Share</span>

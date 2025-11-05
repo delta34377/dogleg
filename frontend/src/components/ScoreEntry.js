@@ -130,6 +130,25 @@ function ScoreEntry({ course, onComplete, onCancel }) {
       back9,
       total
     }))
+    
+    // Auto-advance to next hole for typical scores (2-9)
+    // Most golf scores are single digits between 2-9
+    const score = parseInt(value)
+    if (value.length === 1 && score >= 2 && score <= 9) {
+      // Find the next empty hole or just the next hole
+      const nextHoleIndex = holeIndex + 1
+      if (nextHoleIndex < 18) {
+        // Small delay to ensure state has updated
+        setTimeout(() => {
+          const nextInput = document.getElementById(`hole-input-${nextHoleIndex}`)
+          if (nextInput) {
+            nextInput.focus()
+            // Select all text in the next input for easy overwrite
+            nextInput.select()
+          }
+        }, 50)
+      }
+    }
   }
 
   // Clear all scores
@@ -483,6 +502,7 @@ date: roundData.date + 'T00:00:00',
                       type="number"
                       inputMode="numeric"
                       pattern="[0-9]*"
+                      id={`hole-input-${i}`}
                       value={roundData.holes[i]}
                       onChange={(e) => handleHoleScore(i, e.target.value)}
                       className="w-full px-1 py-2 text-center border rounded text-sm font-medium"
@@ -504,6 +524,7 @@ date: roundData.date + 'T00:00:00',
                       type="number"
                       inputMode="numeric"
                       pattern="[0-9]*"
+                      id={`hole-input-${i + 9}`}
                       value={roundData.holes[i + 9]}
                       onChange={(e) => handleHoleScore(i + 9, e.target.value)}
                       className="w-full px-1 py-2 text-center border rounded text-sm font-medium"

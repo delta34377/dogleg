@@ -223,8 +223,6 @@ function CourseSearch() {
       const formattedResults = []
       clubs?.forEach(club => {
         club.courses.forEach(course => {
-                          console.log('Course:', course.course_name, 'Club:', club.club_name, 'ID:', course.course_id)
-
           formattedResults.push({
             club_id: club.club_id,
             club_name: club.club_name,

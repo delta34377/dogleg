@@ -14,9 +14,11 @@ export const getDisplayName = (course) => {
       return str
         .toLowerCase()
         .split(' ')
-        .map(word => {
-          // Keep certain words lowercase
-          if (['of', 'at', 'the'].includes(word)) return word
+        .map((word, index) => {
+          // Keep certain words lowercase UNLESS they're the first word
+          if (index > 0 && ['of', 'at', 'the'].includes(word)) {
+            return word
+          }
           // Capitalize first letter of each word
           return word.charAt(0).toUpperCase() + word.slice(1)
         })

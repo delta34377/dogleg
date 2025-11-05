@@ -354,8 +354,8 @@ const toggleReaction = async (roundId, reaction) => {
   }
   
   return (
-    <div className="pt-4">
-      <div className="bg-gray-50 rounded-lg p-4">
+    <div className="pt-2">
+      <div className="bg-gray-50 rounded-lg p-3">
         {comments.length > 3 && !showAllComments && (
           <button
             onClick={() => setShowAllComments(true)}
@@ -867,8 +867,8 @@ const toggleReaction = async (roundId, reaction) => {
                         </div>
 
                         {/* Share button */}
-                        <div className="flex gap-4 py-3 text-sm text-gray-600">
-                          <button className="flex items-center gap-2 hover:text-gray-800">
+                                            <div className="flex gap-4 pb-0.5 pt-3 text-sm text-gray-600">
+                      <button className="flex items-center gap-2 hover:text-gray-800">
                             <span>🔗</span>
                             <span>Share</span>
                           </button>

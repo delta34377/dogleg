@@ -39,9 +39,7 @@ function AuthenticatedApp() {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>
   }
   
-  if (!user) {
-    return <Navigate to="/login" replace />
-  }
+ 
   
   // If on user profile page, show UserProfile with navigation
   if (isUserProfilePage) {

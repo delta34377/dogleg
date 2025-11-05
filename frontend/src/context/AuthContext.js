@@ -8,11 +8,16 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [rechecking, setRechecking] = useState(false) // ← NEW: hold UI briefly on refocus
 
   // Guards to prevent stale updates & duplicate profile loads
   const mountedRef = useRef(false)
   const lastUserIdRef = useRef(null)
   const profileSeqRef = useRef(0)
+  const recheckInFlightRef = useRef(false)
+  const recheckTimeoutRef = useRef(null)
+
+
 
   useEffect(() => {
     mountedRef.current = true
@@ -41,6 +46,17 @@ export const AuthProvider = ({ children }) => {
           loadProfileLatest(nextUserId)
         }
       }
+
+      // If we were in a refocus hold, end it as soon as auth resolves either way
+      if (recheckInFlightRef.current &&
+          (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED')) {
+        recheckInFlightRef.current = false
+        setRechecking(false)
+        if (recheckTimeoutRef.current) {
+          clearTimeout(recheckTimeoutRef.current)
+          recheckTimeoutRef.current = null
+        }
+      }      
 
       // No matter what the event is, the app can render now
       resolveLoadingOnce()
@@ -72,10 +88,60 @@ export const AuthProvider = ({ children }) => {
         resolveLoadingOnce()
       })
 
+   // 3) On tab focus/visibility/page-show, briefly hold UI and seed from local session
+    const kickRefocusRecheck = async (source) => {
+      if (!mountedRef.current || recheckInFlightRef.current) return
+      recheckInFlightRef.current = true
+      setRechecking(true)
+      try {
+        // Seed from local session quickly (do NOT force user to null here)
+        const { data: { session } } = await supabase.auth.getSession()
+        const localUser = session?.user
+        if (localUser) {
+          setUser(prev => prev || localUser) // don't overwrite a non-null user
+          const uid = localUser.id
+          if (uid && uid !== lastUserIdRef.current) {
+            lastUserIdRef.current = uid
+            await loadProfileLatest(uid)
+          }
+        }
+      } catch (e) {
+        console.warn('refocus getSession error:', e)
+      } finally {
+        // Fail-safe: if no auth event arrives quickly, end the hold
+        recheckTimeoutRef.current = setTimeout(() => {
+          recheckInFlightRef.current = false
+          setRechecking(false)
+          recheckTimeoutRef.current = null
+        }, 800)
+      }
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') kickRefocusRecheck('visibility')
+    }
+    const onFocus = () => kickRefocusRecheck('focus')
+    const onPageShow = () => kickRefocusRecheck('pageshow') // covers iOS/Safari bfcache
+
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('pageshow', onPageShow)
+
+
+
+
+
     // Proper cleanup (no Promise returns)
     return () => {
       mountedRef.current = false
       subscription?.unsubscribe()
+      +      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('pageshow', onPageShow)
+      if (recheckTimeoutRef.current) {
+        clearTimeout(recheckTimeoutRef.current)
+        recheckTimeoutRef.current = null
+      }
     }
   }, [])
 
@@ -249,6 +315,7 @@ export const AuthProvider = ({ children }) => {
     user,
     profile,
     loading,
+    rechecking,  // ← expose recheck/hold flag
     signUp,
     signIn,
     signInWithPhone,

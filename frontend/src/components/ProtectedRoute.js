@@ -2,9 +2,9 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth()
+  const { user, loading, rechecking } = useAuth()
 
-  if (loading) {
+  if (loading || rechecking) {
     // Show loading spinner while checking auth status
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">

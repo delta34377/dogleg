@@ -8,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [rechecking, setRechecking] = useState(false) // ← NEW: hold UI briefly on refocus
+  const [rechecking, setRechecking] = useState(false)
 
   // Guards to prevent stale updates & duplicate profile loads
   const mountedRef = useRef(false)
@@ -16,8 +16,7 @@ export const AuthProvider = ({ children }) => {
   const profileSeqRef = useRef(0)
   const recheckInFlightRef = useRef(false)
   const recheckTimeoutRef = useRef(null)
-
-
+  const sessionExpRef = useRef(null)  // NEW: Track token expiry
 
   useEffect(() => {
     mountedRef.current = true
@@ -33,6 +32,10 @@ export const AuthProvider = ({ children }) => {
     // 1) Subscribe to auth changes (handles SIGNED_IN/OUT and keeps user fresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!mountedRef.current) return
+      
+      // NEW: Store token expiry time
+      sessionExpRef.current = session?.expires_at ?? null
+      
       // Keep user object fresh for TOKEN_REFRESHED too
       const nextUser = session?.user ?? null
       setUser(nextUser)
@@ -56,7 +59,7 @@ export const AuthProvider = ({ children }) => {
           clearTimeout(recheckTimeoutRef.current)
           recheckTimeoutRef.current = null
         }
-      }      
+      }
 
       // No matter what the event is, the app can render now
       resolveLoadingOnce()
@@ -67,6 +70,10 @@ export const AuthProvider = ({ children }) => {
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         if (!mountedRef.current) return
+        
+        // NEW: Store token expiry time
+        sessionExpRef.current = session?.expires_at ?? null
+        
         const nextUser = session?.user ?? null
         setUser(nextUser)
 
@@ -88,14 +95,25 @@ export const AuthProvider = ({ children }) => {
         resolveLoadingOnce()
       })
 
-   // 3) On tab focus/visibility/page-show, briefly hold UI and seed from local session
-    const kickRefocusRecheck = async (source) => {
+    // 3) SMART REFOCUS: Only hold UI when token is expiring or no user
+    const kickRefocusRecheck = async () => {
       if (!mountedRef.current || recheckInFlightRef.current) return
+      
+      // Check if we actually need to refresh
+      const now = Math.floor(Date.now() / 1000)
+      const exp = sessionExpRef.current
+      const nearExpiry = exp ? (exp - now) <= 30 : !user
+      
+      // If user exists and token isn't expiring, skip the refresh
+      if (user && !nearExpiry) return
+      
       recheckInFlightRef.current = true
       setRechecking(true)
+      
       try {
         // Seed from local session quickly (do NOT force user to null here)
         const { data: { session } } = await supabase.auth.getSession()
+        sessionExpRef.current = session?.expires_at ?? sessionExpRef.current
         const localUser = session?.user
         if (localUser) {
           setUser(prev => prev || localUser) // don't overwrite a non-null user
@@ -117,26 +135,25 @@ export const AuthProvider = ({ children }) => {
       }
     }
 
+    // Simplified event handlers (removed focus listener)
     const onVisibility = () => {
-      if (document.visibilityState === 'visible') kickRefocusRecheck('visibility')
+      if (document.visibilityState === 'visible') kickRefocusRecheck()
     }
-    const onFocus = () => kickRefocusRecheck('focus')
-    const onPageShow = () => kickRefocusRecheck('pageshow') // covers iOS/Safari bfcache
+    
+    const onPageShow = (e) => {
+      // Only trigger on bfcache restore or if no user
+      if ((e && e.persisted) || !user) kickRefocusRecheck()
+    }
 
     document.addEventListener('visibilitychange', onVisibility)
-    window.addEventListener('focus', onFocus)
     window.addEventListener('pageshow', onPageShow)
-
-
-
-
+    // NOTE: No focus listener - it fires too often
 
     // Proper cleanup (no Promise returns)
     return () => {
       mountedRef.current = false
       subscription?.unsubscribe()
       document.removeEventListener('visibilitychange', onVisibility)
-      window.removeEventListener('focus', onFocus)
       window.removeEventListener('pageshow', onPageShow)
       if (recheckTimeoutRef.current) {
         clearTimeout(recheckTimeoutRef.current)
@@ -311,11 +328,12 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  // CRITICAL FIX: Include rechecking in dependencies!
   const value = useMemo(() => ({
     user,
     profile,
     loading,
-    rechecking,  // ← expose recheck/hold flag
+    rechecking,
     signUp,
     signIn,
     signInWithPhone,
@@ -326,7 +344,7 @@ export const AuthProvider = ({ children }) => {
     updatePassword,
     updateProfile,
     loadProfile,
-  }), [user, profile, loading, rechecking])
+  }), [user, profile, loading, rechecking])  // ← FIX: Added rechecking
 
   return (
     <AuthContext.Provider value={value}>

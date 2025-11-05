@@ -4,7 +4,10 @@ import { useAuth } from '../context/AuthContext'
 function ProtectedRoute({ children }) {
   const { user, loading, rechecking } = useAuth()
 
-  if (loading || rechecking) {
+  // Only show spinner in two cases:
+  // 1. Initial loading
+  // 2. No user AND rechecking (avoids spinner when user exists)
+  if (loading || (!user && rechecking)) {
     // Show loading spinner while checking auth status
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">

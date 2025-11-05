@@ -3,7 +3,31 @@
 
 export const getDisplayName = (course) => {
   let courseName = course.course_name
-  const clubName = course.club_name
+  let clubName = course.club_name
+  
+  // FIX: Convert ALL CAPS to Proper Case
+  const toProperCase = (str) => {
+    if (!str) return str
+    
+    // Check if string is ALL CAPS (more than 2 consecutive caps)
+    if (str === str.toUpperCase() && str.length > 2) {
+      return str
+        .toLowerCase()
+        .split(' ')
+        .map(word => {
+          // Keep certain words lowercase
+          if (['of', 'at', 'the'].includes(word)) return word
+          // Capitalize first letter of each word
+          return word.charAt(0).toUpperCase() + word.slice(1)
+        })
+        .join(' ')
+    }
+    return str
+  }
+  
+  // Apply proper casing to both course and club names
+  courseName = toProperCase(courseName)
+  clubName = toProperCase(clubName)
   
   // Handle missing or unknown names
   if (!courseName || courseName === 'Unknown Course' || courseName === 'Course Name N/A') {
@@ -16,7 +40,7 @@ export const getDisplayName = (course) => {
   const singleWordsThatNeedCourse = [
     'Old', 'New', 'North', 'South', 'East', 'West',
     'Championship', 'Palmer', 'Club', 'Woodfield',
-    'Executive', 'Blue', 'Red', 'Gold', 'Silver'
+    'Executive', 'Blue', 'Red', 'Gold', 'Silver', 'Executive'
   ]
   
   // If it's a single word that commonly should have "Course" after it

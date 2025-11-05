@@ -2,7 +2,7 @@
 // Handles single-course clubs, multi-course clubs, and "Unknown Course" entries
 
 export const getDisplayName = (course) => {
-  const courseName = course.course_name
+  let courseName = course.course_name
   const clubName = course.club_name
   
   // Handle missing or unknown names
@@ -12,17 +12,22 @@ export const getDisplayName = (course) => {
   
   if (!clubName) return courseName
   
-  // Check for common course identifiers that should be preserved
-  const preservedNames = ['Old Course', 'New Course', 'North Course', 'South Course', 'East Course', 'West Course', 'Championship Course']
-  const isPreservedName = preservedNames.some(name => 
-    courseName.toLowerCase().includes(name.toLowerCase())
-  )
+  // FIX: Only fix specific patterns where "Club" should be "Course"
+  // These are common course naming conventions that got corrupted
+  const shouldBeCoursPatterns = [
+    'Old Club',
+    'New Club', 
+    'North Club',
+    'South Club',
+    'East Club',
+    'West Club',
+    'Palmer Club',
+    'Championship Club'
+  ]
   
-  // If it's a preserved name pattern, always show both
-  if (isPreservedName && courseName.toLowerCase() !== clubName.toLowerCase()) {
-    return `${courseName} @ ${clubName}`
+  if (shouldBeCoursPatterns.includes(courseName)) {
+    courseName = courseName.replace(' Club', ' Course')
   }
-
   
   // Check if course name is very similar to club name (likely single course)
   // Clean up names for comparison

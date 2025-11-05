@@ -43,10 +43,21 @@
 - ✅ Deployed to Vercel (production environment)
 - ✅ Git/GitHub repository setup with auto-deploy
 - ✅ Mobile PWA fully functional
+- ✅ **Production-ready authentication system** 
+  - Smart tab focus handling with token expiry awareness
+  - Fixed stale closure bug in event handlers using userRef pattern
+  - Robust expires_at parsing for cross-Supabase-version compatibility
+  - Single-guard architecture (removed duplicate guards from AuthenticatedApp)
+  - Optimized refocus logic - only refreshes when token expires <30s
+  - No false logouts on mobile tab switches
+  - No full-page refreshes on quick tab switches
+  - Ctrl+R works without infinite loading
+  - Handles iOS Safari back/forward cache
+  - Fixed React useMemo dependencies for rechecking state
 
 
 ## 🔄 Currently Working On
-- Live in production at https://dogleg.vercel.app
+- Live in production at vercel app URL
 - Monitoring user engagement with discovery content
 
 ## Next Steps
@@ -65,6 +76,15 @@
   - Popular rounds (high engagement)
 - **Ranking**: Time-decay scoring with engagement weight
 - **No user location required** - uses course locations instead
+
+## Authentication Architecture
+- **Smart Refocus Logic**: Only refreshes session when token expires within 30 seconds
+- **userRef Pattern**: Prevents stale closures in event handlers
+- **Robust Parsing**: Handles expires_at as both UNIX timestamp and ISO string
+- **Single Guard Pattern**: ProtectedRoute is the only authentication guard
+- **Event Selection**: visibilitychange + pageshow (not focus - fires too often)
+
+
 
 ### Navigation: 3 Tabs
 - Feed, Add Round, My Rounds
@@ -92,6 +112,14 @@
 - Photos in 'round-photos' bucket
 - All user data properly associated via auth
 - No more localStorage - everything in database
+### Authentication Technical Notes
+- **Token Expiry Tracking**: sessionExpRef stores expires_at, checked on refocus
+- **Stale Closure Prevention**: userRef.current always has current user state
+- **Cross-Version Compatibility**: Handles both number and string expires_at formats
+- **Performance**: No unnecessary getSession() calls on quick tab switches
+- **React Best Practices**: Proper useMemo dependencies, cleanup in useEffect
+- **Mobile Optimization**: Visibility API + pageshow for all browser scenarios
+
 
 ## ❌ Blockers
 - None currently
@@ -104,3 +132,9 @@
 - Project Name: dogleg
 - Project URL: https://egnnjhlbnlhvudgopzvq.supabase.co
 - Auth configured with Google OAuth
+### Supabase Auth Configuration
+- Session expiry tracked and refreshed intelligently
+- Handles different expires_at formats across Supabase versions
+- Auth state listener as primary source of truth
+- Google OAuth configured with select_account prompt
+- Password reset flow with proper redirects

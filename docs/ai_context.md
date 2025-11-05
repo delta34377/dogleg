@@ -33,6 +33,20 @@ I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Strava
 - ✅ **Smart Blended Feed implemented** - 70/30 mix of following/discovery content
 - ✅ **Discovery content with indicators** - Shows why users see suggested rounds
 - ✅ **Deployed to Vercel** - Live at https://dogleg-eta.vercel.app/
+- ✅ **Mobile tab focus authentication completely resolved**
+  - Smart refocus logic with token expiry awareness (only refreshes when <30s to expiry)
+  - Fixed stale closure bug using userRef for event handlers
+  - Robust expires_at parsing handles both string and number formats from different Supabase versions
+  - Removed duplicate auth guards in AuthenticatedApp (single-guard pattern)
+  - Fixed React useMemo dependencies for rechecking state
+  - No more false logouts, infinite loading, or unnecessary refreshes on tab switches
+
+### Key Technical Decisions
+1. **userRef Pattern**: Event handlers in useEffect with [] deps use refs to avoid stale closures
+2. **Smart Refocus**: Only refresh when `tokenExpiry - now <= 30 seconds` OR no user
+3. **Robust Parsing**: Handle both `expires_at` as number (UNIX) and string (ISO)
+4. **Single Guard**: ProtectedRoute is the ONLY place that redirects to /login
+5. **Event Sources**: Use visibilitychange and pageshow, but NOT focus (fires too often)
 
 
 # Feed Strategy Decision
@@ -246,11 +260,24 @@ In PowerShell:
 What this does: [simple explanation]
 ```
 
-### ✅ AUTHENTICATION COMPLETE
-- Supabase Auth fully integrated
-- Email/password and Google OAuth working
+### ✅ AUTHENTICATION COMPLETE & PRODUCTION-READY
+- Supabase Auth fully integrated with email/password and Google OAuth
 - Password reset flow functional
-- All user data properly associated
+- **Smart session management:**
+  - Token expiry tracking prevents unnecessary refreshes
+  - Only refreshes when token expires within 30 seconds
+  - Handles both UNIX timestamp and ISO string expires_at formats
+  - userRef pattern prevents stale closures in event handlers
+- **Mobile-optimized:**
+  - No false logouts on tab switches
+  - No full-page refreshes on quick tab switches
+  - Handles iOS Safari back/forward cache
+  - Visibility API for modern browsers
+- **Single-guard architecture:**
+  - ProtectedRoute is sole auth guard
+  - No duplicate checks causing race conditions
+  - Smart loading states: `loading || (!user && rechecking)`
+
 
 ### Current Architecture
 ```
@@ -267,20 +294,30 @@ Database
 └── RLS policies enabled
 ```
 
-### Auth Implementation Notes
+## Auth Implementation Notes
 - Using auth state listener as primary source (more reliable than getSession)
 - getSession() can hang due to Supabase localStorage issues
 - Profile loading is non-blocking for better UX
 - Loading state managed independently from profile fetch
+- **Event handlers use userRef.current to avoid stale closures**
+- **expires_at parsing handles both number (UNIX) and string (ISO) formats**
+- **rechecking state properly included in useMemo dependencies**
+
 
 ### Fixed Issues
-- Infinite loading on tab switch - FIXED
-- Refresh (Ctrl+R) infinite loading - FIXED (auth listener approach)
+- Infinite loading on tab switch - FIXED (userRef for current state)
+- Refresh (Ctrl+R) infinite loading - FIXED (rechecking in useMemo deps)
 - User profile navigation - FIXED
 - Foreign key constraints pointing to wrong table - FIXED  
 - Email login not navigating - FIXED
 - Password reset hanging - FIXED with timeout workaround
 - Date timezone issues - FIXED
+- Tab focus false logouts - FIXED (smart refocus with token expiry check)
+- Unnecessary refreshes on tab switch - FIXED (only refreshes near expiry)
+- Stale closure in event handlers - FIXED (userRef pattern)
+- Different Supabase expires_at formats - FIXED (robust parsing)
+- Double auth guards causing races - FIXED (single-guard pattern)
+
 
 ### Environment Variables
 ```bash

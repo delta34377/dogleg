@@ -388,6 +388,8 @@ date: roundData.date + 'T00:00:00',
                 </label>
                 <input
                   type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={roundData.front9}
                   onChange={(e) => handleSimpleScoreChange('front9', e.target.value)}
                   className="w-full px-3 py-3 text-xl font-bold text-center border-2 rounded-lg focus:border-green-500 focus:outline-none"
@@ -403,6 +405,8 @@ date: roundData.date + 'T00:00:00',
                 </label>
                 <input
                   type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={roundData.back9}
                   onChange={(e) => handleSimpleScoreChange('back9', e.target.value)}
                   className="w-full px-3 py-3 text-xl font-bold text-center border-2 rounded-lg focus:border-green-500 focus:outline-none"
@@ -418,6 +422,8 @@ date: roundData.date + 'T00:00:00',
                 </label>
                 <input
                   type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={roundData.total}
                   onChange={(e) => handleSimpleScoreChange('total', e.target.value)}
                   className="w-full px-3 py-3 text-xl font-bold text-center border-2 rounded-lg focus:border-green-500 focus:outline-none bg-green-50"
@@ -475,6 +481,8 @@ date: roundData.date + 'T00:00:00',
                     <div className="text-xs text-center text-gray-500 mb-1">{i + 1}</div>
                     <input
                       type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={roundData.holes[i]}
                       onChange={(e) => handleHoleScore(i, e.target.value)}
                       className="w-full px-1 py-2 text-center border rounded text-sm font-medium"
@@ -494,6 +502,8 @@ date: roundData.date + 'T00:00:00',
                     <div className="text-xs text-center text-gray-500 mb-1">{i + 10}</div>
                     <input
                       type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={roundData.holes[i + 9]}
                       onChange={(e) => handleHoleScore(i + 9, e.target.value)}
                       className="w-full px-1 py-2 text-center border rounded text-sm font-medium"

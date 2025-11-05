@@ -106,6 +106,58 @@ users
 - **Database:** Supabase Cloud
 - **Domain:** dogleg.io (purchased)
 
+### 🔐 Authentication Architecture
+
+#### Production-Ready Session Management
+Our auth system implements enterprise-grade session handling optimized for mobile browsers:
+
+##### Smart Refocus Strategy
+- **Token Expiry Awareness**: Tracks JWT expiration, only refreshes when token expires within 30 seconds
+- **Stale Closure Prevention**: Uses `userRef` pattern to ensure event handlers always see current state
+- **Cross-Version Compatibility**: Handles `expires_at` as both UNIX timestamp (number) and ISO string
+- **Single Guard Pattern**: ProtectedRoute is the sole authentication guard (no duplicate checks)
+- **Event-Driven Updates**: Relies on Supabase's `onAuthStateChange` as source of truth
+
+##### Key Implementation Details
+```javascript
+// Smart refocus - only when actually needed
+const rawExp = sessionExpRef.current
+const expSec = typeof rawExp === 'number' ? rawExp : 
+               typeof rawExp === 'string' ? new Date(rawExp).getTime()/1000 : null
+const nearExpiry = expSec ? (expSec - now) <= 30 : !hasUser
+if (hasUser && !nearExpiry) return // Skip unnecessary refresh
+
+// Prevent stale closures in event handlers
+const userRef = useRef(null)  // Always current
+setUser(nextUser)
+userRef.current = nextUser  // Keep in sync
+
+// Smart loading states in ProtectedRoute
+if (loading || (!user && rechecking)) showSpinner()
+```
+
+##### Browser Compatibility
+- **Visibility API**: For tab focus/blur detection
+- **PageShow Event**: Handles Safari/iOS back-forward cache
+- **No Focus Event**: Avoided as it fires too frequently
+- **Mobile Optimized**: No false logouts or unnecessary refreshes
+
+##### Architecture Decisions
+1. **userRef Pattern**: Event handlers in `useEffect(() => {}, [])` use refs to avoid stale state
+2. **Token Threshold**: 30-second buffer before expiry triggers refresh
+3. **Robust Parsing**: Defensive handling of different Supabase version formats
+4. **Single Source of Truth**: Auth state listener, not getSession()
+5. **Non-blocking Profile**: Profile loads async without blocking auth
+
+#### Known Issues Resolved
+- ✅ Tab switch doesn't cause logout
+- ✅ No full refresh on quick tab switches  
+- ✅ Ctrl+R doesn't cause infinite loading
+- ✅ Mobile browser backgrounding handled properly
+- ✅ Works with all Supabase client versions
+- ✅ No race conditions from duplicate guards
+
+
 ## 📁 Project Structure
 
 ```
@@ -294,6 +346,18 @@ cd admin && open index.html
 1. `/docs/prototypes/mobile-score-entry.html` - Score entry flow
 2. `/admin/index.html` - Admin dashboard
 
+### Core Authentication Files
+1. `/src/context/AuthContext.js` - Smart session management with refocus logic
+2. `/src/components/ProtectedRoute.js` - Single auth guard for all routes
+3. `/src/App.js` - Routes structure (no duplicate guards in AuthenticatedApp)
+
+Key patterns to maintain:
+- Event handlers use `userRef.current`, not `user` from closure
+- `expires_at` parsing handles both number and string formats
+- `rechecking` state properly propagates via useMemo dependencies
+- Only ProtectedRoute redirects to /login
+
+
 ## 🚨 Important Notes
 
 ### Security
@@ -312,6 +376,28 @@ cd admin && open index.html
 - Use PostgreSQL full-text search
 - Cache frequently accessed data
 - Lazy load images
+
+### Authentication Best Practices
+- **NEVER add auth checks in child components** - causes race conditions
+- **Let ProtectedRoute handle all /login redirects** - single guard pattern
+- **userRef.current for event handlers** - prevents stale closures
+- **Token expiry tracked in sessionExpRef** - enables smart refresh
+- **rechecking must be in useMemo deps** - prevents infinite loading
+- **The 800ms fallback is a safety net** - auth events are primary
+
+### Debugging Auth Issues
+```javascript
+// Temporary debug helper (add to kickRefocusRecheck)
+console.log('Refocus check:', {
+  hasUser: !!userRef.current,
+  expiresAt: sessionExpRef.current,
+  expiresType: typeof sessionExpRef.current,
+  secondsUntilExpiry: expSec - now,
+  willRefresh: !hasUser || nearExpiry
+})
+```
+
+
 
 ## 💬 AI Context for Future Chats
 

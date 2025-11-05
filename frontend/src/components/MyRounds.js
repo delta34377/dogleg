@@ -354,8 +354,8 @@ const toggleReaction = async (roundId, reaction) => {
   }
   
   return (
-    <div className="pt-2">
-      <div className="bg-gray-50 rounded-lg p-3">
+    <div className={comments.length > 0 ? "pt-2" : "pt-0.5"}>
+      <div className={`bg-gray-50 rounded-lg ${comments.length > 0 ? "p-3" : "p-2"}`}>
         {comments.length > 3 && !showAllComments && (
           <button
             onClick={() => setShowAllComments(true)}

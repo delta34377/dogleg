@@ -135,7 +135,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       mountedRef.current = false
       subscription?.unsubscribe()
-      +      document.removeEventListener('visibilitychange', onVisibility)
+      document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('focus', onFocus)
       window.removeEventListener('pageshow', onPageShow)
       if (recheckTimeoutRef.current) {

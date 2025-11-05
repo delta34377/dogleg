@@ -801,9 +801,9 @@ const Feed = forwardRef((props, ref) => {
                     </div>
                   )}
 
-                  {/* Notes with comment emoji - EXACT AMBER STYLING */}
-                  {(round.comment || round.caption) && (
-                    <div className={`px-2 sm:px-4 ${!(normalizedRound.holes && normalizedRound.holes.some(h => h !== '')) && !(round.photo || round.photo_url) ? 'mt-2 sm:mt-4' : ''} pb-2 sm:pb-3`}>
+                 {/* Notes with comment emoji - EXACT AMBER STYLING */}
+{(round.comment || round.caption) && (
+  <div className={`px-2 sm:px-4 ${(normalizedRound.holes && normalizedRound.holes.some(h => h !== '')) || (round.photo || round.photo_url) ? 'mt-2 sm:mt-4' : ''} pb-2 sm:pb-3`}>
                       <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded">
                         <p className="text-sm">💬 {round.comment || round.caption}</p>
                       </div>

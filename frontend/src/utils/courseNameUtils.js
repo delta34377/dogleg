@@ -12,27 +12,16 @@ export const getDisplayName = (course) => {
   
   if (!clubName) return courseName
   
-  // DEBUG: Log before fix
-  console.log('Before fix:', courseName)
-  
-  // FIX: Expand the patterns to catch all "X Club" that should be "X Course"
-  // These are common course naming conventions that got corrupted
-  const shouldBeCoursePatterns = [
-    'Old Club',
-    'New Club', 
-    'North Club',
-    'South Club',
-    'East Club',
-    'West Club',
-    'Palmer Club',
-    'Championship Club',
-    'Club Club',  // Should be "Club Course"
-    'Woodfield Club'  // Add this one too
+  // FIX: Add "Course" to common single-word course names that are missing it
+  const singleWordsThatNeedCourse = [
+    'Old', 'New', 'North', 'South', 'East', 'West',
+    'Championship', 'Palmer', 'Club', 'Woodfield',
+    'Executive', 'Blue', 'Red', 'Gold', 'Silver'
   ]
   
-  if (shouldBeCoursePatterns.includes(courseName)) {
-    courseName = courseName.replace(' Club', ' Course')
-    console.log('After fix:', courseName)  // DEBUG
+  // If it's a single word that commonly should have "Course" after it
+  if (singleWordsThatNeedCourse.includes(courseName)) {
+    courseName = courseName + ' Course'
   }
   
   // Check if course name is very similar to club name (likely single course)
@@ -47,8 +36,6 @@ export const getDisplayName = (course) => {
     .replace(/[^a-z0-9]/g, ' ')
     .trim()
   
-  console.log('Clean course:', cleanCourse, 'Clean club:', cleanClub)  // DEBUG
-  
   // Get significant words (longer than 2 chars)
   const courseWords = cleanCourse.split(' ').filter(w => w.length > 2)
   const clubWords = cleanClub.split(' ').filter(w => w.length > 2)
@@ -61,13 +48,11 @@ export const getDisplayName = (course) => {
     
     // If 70% or more of course words match club words, it's probably single course
     if (matchingWords.length / courseWords.length >= 0.7) {
-      console.log('Returning just club name due to match')  // DEBUG
       return clubName // Just show club name for single course clubs
     }
   }
   
   // Multi-course club or distinct names - show "Course @ Club" format
-  console.log('Final return:', `${courseName} @ ${clubName}`)  // DEBUG
   return `${courseName} @ ${clubName}`
 }
 

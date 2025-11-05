@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../services/supabase'
 import ScoreEntry from './ScoreEntry'
+import { getDisplayName } from '../utils/courseNameUtils'
 
 function CourseSearch() {
   const [activeTab, setActiveTab] = useState('name')
@@ -463,11 +464,8 @@ function CourseSearch() {
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h3 className="font-bold text-lg text-green-700">
-                      {course.course_name || 'Course Name N/A'}
-                    </h3>
-                    <p className="text-gray-700 font-medium">
-                      {course.club_name || 'Club Name N/A'}
-                    </p>
+  {getDisplayName(course)}
+</h3>
                     <p className="text-sm text-gray-600 mt-1">
                       📍 {course.city || 'City N/A'}, {course.state || 'State N/A'}
                     </p>

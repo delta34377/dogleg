@@ -7,13 +7,12 @@ import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils'
 
 function SingleRound() {
-const { roundId } = useParams()  // This will now be the short code
+  const { roundId } = useParams()
   const [round, setRound] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
   const navigate = useNavigate()
   const [commentInputs, setCommentInputs] = useState({})
-  
 
   // Your exact reaction system from MyRounds
   const reactionEmojis = {
@@ -34,7 +33,7 @@ const { roundId } = useParams()  // This will now be the short code
   const loadSingleRound = async () => {
     setIsLoading(true)
     
-const { data: roundData, error: roundError } = await roundsService.getRoundByShortCode(roundId)
+    const { data: roundData, error: roundError } = await roundsService.getRoundByShortCode(roundId)
     
     if (!roundData || roundError) {
       setIsLoading(false)
@@ -42,7 +41,9 @@ const { data: roundData, error: roundError } = await roundsService.getRoundBySho
       return
     }
 
-    const roundIds = [roundId]
+    // Use the ACTUAL round ID (UUID) for fetching related data
+    const actualRoundId = roundData.id
+    const roundIds = [actualRoundId]
     
     const [reactionsData, commentsData, userReactionsData] = await Promise.all([
       roundsService.getReactions(roundIds),
@@ -59,7 +60,7 @@ const { data: roundData, error: roundError } = await roundsService.getRoundBySho
       ? await followService.getFollowStatuses(uniqueUserIds)
       : {}
     
-    const roundReactions = reactions.filter(r => r.round_id === roundId) || []
+    const roundReactions = reactions.filter(r => r.round_id === actualRoundId) || []
     const reactionCounts = {
       fire: 0, clap: 0, dart: 0, goat: 0,
       vomit: 0, clown: 0, skull: 0, laugh: 0
@@ -71,8 +72,8 @@ const { data: roundData, error: roundError } = await roundsService.getRoundBySho
       }
     })
     
-    const roundComments = comments.filter(c => c.round_id === roundId) || []
-    const myReactions = userReactions.filter(r => r.round_id === roundId).map(r => r.reaction_type) || []
+    const roundComments = comments.filter(c => c.round_id === actualRoundId) || []
+    const myReactions = userReactions.filter(r => r.round_id === actualRoundId).map(r => r.reaction_type) || []
     
     const formattedRound = {
       ...roundData,

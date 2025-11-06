@@ -16,7 +16,7 @@ import {
 function SingleRound() {
   const { roundId } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const [round, setRound] = useState(null)
   const [loading, setLoading] = useState(true)
   const [commentInput, setCommentInput] = useState('')
@@ -363,7 +363,7 @@ function SingleRound() {
 
   const vsPar = calculateVsPar(normalizedRound)
   const displayName = getDisplayName(round)
-  const profile = round.profiles
+  const roundProfile = round.profiles  // Renamed from 'profile' to avoid conflict
 
   // Comments component
   const CommentsSection = () => {
@@ -449,56 +449,130 @@ function SingleRound() {
 
   return (
     <div className="bg-gray-50 min-h-screen">
-      {/* Header */}
+      {/* Top Bar with User Info - EXACT COPY from UserProfile */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between h-14">
-            <button 
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              <span>Back</span>
-            </button>
-            
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🏌️</span>
-              <span className="font-bold text-xl text-green-700">Dogleg.io</span>
+              <button
+                onClick={() => navigate(-1)}
+                className="mr-2 p-1.5 hover:bg-gray-100 rounded-lg md:hidden"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <button
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
+                <span className="text-2xl">🏌️</span>
+                <span className="font-bold text-xl text-green-700">Dogleg.io</span>
+              </button>
             </div>
+            
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                {profile?.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt="Profile" 
+                    className="w-8 h-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-green-700 font-semibold">
+                      {profile?.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <span className="text-sm font-medium text-gray-700 hidden sm:block">
+                  {profile?.username || profile?.full_name || 'Profile'}
+                </span>
+              </button>
 
-            <div className="w-20"></div> {/* Spacer for centering */}
+              <button
+                onClick={signOut}
+                className="text-sm text-gray-600 hover:text-gray-900"
+                title="Sign out"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Navigation Bar - EXACT COPY from UserProfile */}
+      <div className="hidden md:block bg-white border-b border-gray-200 sticky top-14 z-40 shadow-sm">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex">
+            <button
+              onClick={() => navigate('/')}
+              className="flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xl">📰</span>
+                <span>Feed</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate('/')}
+              className="flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xl">➕</span>
+                <span>Add Round</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => navigate('/')}
+              className="flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xl">📊</span>
+                <span>My Rounds</span>
+              </div>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto p-2 sm:p-4 mt-4">
-        {/* Single round card - exact same display as Feed */}
-        <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="pt-4 pb-20 md:pb-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="space-y-4">
+            {/* Single round card - exact same display as Feed */}
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
           {/* User info with Follow button */}
           <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-2">
             <div className="flex items-center justify-between">
               <button
-                onClick={() => navigate(`/profile/${profile?.username}`)}
+                onClick={() => navigate(`/profile/${roundProfile?.username}`)}
                 className="flex items-center gap-2 hover:opacity-80"
               >
                 <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                  {profile?.avatar_url ? (
+                  {roundProfile?.avatar_url ? (
                     <img 
-                      src={profile.avatar_url} 
-                      alt={profile?.username} 
+                      src={roundProfile.avatar_url} 
+                      alt={roundProfile?.username} 
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
                     <span className="text-green-700 font-semibold text-xs">
-                      {profile?.username?.[0]?.toUpperCase() || '?'}
+                      {roundProfile?.username?.[0]?.toUpperCase() || '?'}
                     </span>
                   )}
                 </div>
                 <span className="text-sm text-gray-600">
-                  {profile?.username || 'Golfer'} posted a round
+                  {roundProfile?.username || 'Golfer'} posted a round
                 </span>
               </button>
               
@@ -506,7 +580,7 @@ function SingleRound() {
               {round.user_id !== user?.id && (
                 <FollowButton
                   targetUserId={round.user_id}
-                  targetUsername={profile?.username}
+                  targetUsername={roundProfile?.username}
                   initialFollowing={round.isFollowing}
                   onFollowChange={(newState) => handleFollowChange(round.user_id, newState)}
                   size="small"
@@ -623,7 +697,44 @@ function SingleRound() {
         </div>
       </div>
     </div>
-  )
+  </div>
+
+  {/* Bottom Navigation Bar (Mobile) - EXACT COPY from UserProfile */}
+  <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 md:hidden">
+    <div className="grid grid-cols-3 h-16">
+      <button
+        onClick={() => navigate('/')}
+        className="flex flex-col items-center justify-center gap-1 text-gray-600"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2 2 0 00-2-2h-2" />
+        </svg>
+        <span className="text-xs">Feed</span>
+      </button>
+
+      <button
+        onClick={() => navigate('/')}
+        className="flex flex-col items-center justify-center gap-1 text-gray-600"
+      >
+        <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center -mt-2">
+          <span className="text-white text-2xl">+</span>
+        </div>
+        <span className="text-xs">Add</span>
+      </button>
+
+      <button
+        onClick={() => navigate('/')}
+        className="flex flex-col items-center justify-center gap-1 text-gray-600"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        <span className="text-xs">Rounds</span>
+      </button>
+    </div>
+  </div>
+</div>
+)
 }
 
 export default SingleRound

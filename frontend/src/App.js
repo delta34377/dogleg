@@ -10,6 +10,7 @@ import Profile from './components/Profile'
 import Feed from './components/Feed'
 import UserProfile from './components/UserProfile'
 import ResetPassword from './components/ResetPassword'
+import SingleRound from './components/SingleRound'
 
 
 // Main authenticated app with navigation
@@ -385,6 +386,15 @@ function App() {
             }
           />
           
+          <Route 
+     path="/rounds/:roundId" 
+     element={
+       <ProtectedRoute>
+         <SingleRound />
+       </ProtectedRoute>
+     }
+   />
+
           {/* All other authenticated routes */}
           <Route 
             path="/*" 

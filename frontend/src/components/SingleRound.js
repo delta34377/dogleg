@@ -55,10 +55,11 @@ function SingleRound() {
     const comments = commentsData.data || []
     const userReactions = userReactionsData.data || []
     
-    const uniqueUserIds = [roundData.user_id].filter(id => id !== user?.id)
-    const followStatuses = uniqueUserIds.length > 0 
-      ? await followService.getFollowStatuses(uniqueUserIds)
-      : {}
+    // Only check follow status if round has a user_id and it's not the current user
+    let followStatuses = {}
+    if (roundData.user_id && roundData.user_id !== user?.id) {
+      followStatuses = await followService.getFollowStatuses([roundData.user_id])
+    }
     
     const roundReactions = reactions.filter(r => r.round_id === actualRoundId) || []
     const reactionCounts = {

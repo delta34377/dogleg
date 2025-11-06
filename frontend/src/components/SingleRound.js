@@ -7,12 +7,13 @@ import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils'
 
 function SingleRound() {
-  const { roundId } = useParams()
+const { roundId } = useParams()  // This will now be the short code
   const [round, setRound] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
   const navigate = useNavigate()
   const [commentInputs, setCommentInputs] = useState({})
+  
 
   // Your exact reaction system from MyRounds
   const reactionEmojis = {
@@ -33,7 +34,7 @@ function SingleRound() {
   const loadSingleRound = async () => {
     setIsLoading(true)
     
-    const { data: roundData, error: roundError } = await roundsService.getRound(roundId)
+const { data: roundData, error: roundError } = await roundsService.getRoundByShortCode(roundId)
     
     if (!roundData || roundError) {
       setIsLoading(false)

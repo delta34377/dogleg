@@ -231,6 +231,8 @@ getComments: async (roundIds) => {
   return { data, error }
 },
 
+
+
 // In roundsService.js, add this method:
 getFeedWithEverything: async (limit = 10, offset = 0) => {
   const { data: { user } } = await supabase.auth.getUser()
@@ -413,6 +415,23 @@ getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRat
   }
 },
 
+// Add this to roundsService.js
+getRoundByShortCode: async (shortCode) => {
+  const { data, error } = await supabase
+    .from('rounds')
+    .select(`
+      *,
+      profiles:user_id (
+        username,
+        full_name,
+        avatar_url
+      )
+    `)
+    .eq('short_code', shortCode)
+    .single()
+  
+  return { data, error }
+},
 
   // Get a single round with full details
   getRound: async (roundId) => {

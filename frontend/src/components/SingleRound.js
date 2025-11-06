@@ -32,16 +32,11 @@ function SingleRound() {
 
   const loadSingleRound = async () => {
     setIsLoading(true)
-    
-    console.log('Loading round with short code:', roundId)
-    
+        
     const { data: roundData, error: roundError } = await roundsService.getRoundByShortCode(roundId)
     
-    console.log('Round data received:', roundData)
-    console.log('Round error:', roundError)
     
     if (!roundData || roundError) {
-      console.log('No round data or error occurred')
       setIsLoading(false)
       setRound(null)
       return
@@ -49,9 +44,6 @@ function SingleRound() {
 
     // Use the ACTUAL round ID (UUID) for fetching related data
     const actualRoundId = roundData.id
-    console.log('Actual round ID:', actualRoundId)
-    console.log('Course pars:', roundData.course_pars)
-    console.log('Profiles:', roundData.profiles)
     
     const roundIds = [actualRoundId]
     
@@ -101,10 +93,6 @@ function SingleRound() {
       userReacted: myReactions || [],
       isFollowing: followStatuses[roundData.user_id] || false
     }
-    
-    console.log('Final formatted round:', formattedRound)
-    console.log('Reactions:', reactionCounts)
-    console.log('Comments:', roundComments)
     
     setRound(formattedRound)
     setIsLoading(false)

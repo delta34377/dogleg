@@ -79,7 +79,6 @@ const Feed = forwardRef((props, ref) => {
           : {}
         
         const formattedRounds = feedRounds.map(round => {
-            console.log('Round ID:', round.id, 'for', round.club_name) // ADD THIS
 
           // Use the separately fetched reactions/comments
           const roundReactions = reactions.filter(r => r.round_id === round.id) || []

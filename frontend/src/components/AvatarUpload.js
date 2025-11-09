@@ -84,11 +84,7 @@ function AvatarUpload({
   setShowModal(false)
   setIsUploading(true)
   setUploadProgress(0)
-    
-    setShowModal(false)
-    setIsUploading(true)
-    setUploadProgress(0)
-    
+  
     try {
       // Compress and resize image
       const compressedFile = await compressImage(file)

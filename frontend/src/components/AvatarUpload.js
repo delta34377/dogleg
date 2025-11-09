@@ -65,26 +65,11 @@ function AvatarUpload({
       alert('Image size must be less than 5MB')
       return
     }
-
-     // ADD THE DEBUG CODE HERE ==================
-  console.log('Current user:', user)
-  console.log('Supabase auth session:', await supabase.auth.getSession())
-  
-  const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
-  console.log('Available buckets:', buckets)
-  console.log('Buckets error:', bucketsError)
-  
-  const { data: files, error: listError } = await supabase.storage
-    .from('profile-pictures')
-    .list()
-  console.log('Files in avatars bucket:', files)
-  console.log('List error:', listError)
-  // END DEBUG CODE ============================
-  
-  setShowModal(false)
-  setIsUploading(true)
-  setUploadProgress(0)
-  
+    
+    setShowModal(false)
+    setIsUploading(true)
+    setUploadProgress(0)
+    
     try {
       // Compress and resize image
       const compressedFile = await compressImage(file)
@@ -92,7 +77,6 @@ function AvatarUpload({
       // Generate unique filename
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
-      const filePath = fileName
       
       // Upload to Supabase Storage
       setUploadProgress(30)
@@ -110,32 +94,31 @@ function AvatarUpload({
       setUploadProgress(50)
       
       // Upload new avatar
-const { data, error: uploadError } = await supabase.storage
-  .from('profile-pictures')
-  .upload(fileName, compressedFile, {
-    cacheControl: '3600',
-    upsert: true,
-    contentType: 'image/jpeg'  // Add explicit content type
-  })
+      const { data, error: uploadError } = await supabase.storage
+        .from('profile-pictures')
+        .upload(fileName, compressedFile, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: 'image/jpeg'
+        })
 
-if (uploadError) {
-  console.error('Upload error details:', uploadError)
-  throw uploadError
-}
+      if (uploadError) {
+        console.error('Upload error details:', uploadError)
+        throw uploadError
+      }
       
       setUploadProgress(70)
       
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('profile-pictures')
-        .getPublicUrl(filePath)
+        .getPublicUrl(fileName)
       
       // Update profile with new avatar URL
       setUploadProgress(90)
       
       const { error: updateError } = await updateProfile({
-        avatar_url: publicUrl,
-        profile_picture_url: publicUrl // Update both fields for compatibility
+        avatar_url: publicUrl
       })
       
       if (updateError) throw updateError
@@ -243,13 +226,12 @@ if (uploadError) {
       if (fileName && fileName.includes(user.id)) {
         await supabase.storage
           .from('profile-pictures')
-          .remove([`avatars/${fileName}`])
+          .remove([fileName])
       }
       
       // Update profile
       const { error } = await updateProfile({
-        avatar_url: null,
-        profile_picture_url: null
+        avatar_url: null
       })
       
       if (error) throw error

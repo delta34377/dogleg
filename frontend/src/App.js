@@ -11,7 +11,7 @@ import Feed from './components/Feed'
 import UserProfile from './components/UserProfile'
 import ResetPassword from './components/ResetPassword'
 import SingleRound from './components/SingleRound'
-import { getInitials } from '../utils/avatarUtils'
+import { getInitials } from './utils/avatarUtils'
 
 
 // Main authenticated app with navigation

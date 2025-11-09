@@ -95,14 +95,18 @@ function AvatarUpload({
       setUploadProgress(50)
       
       // Upload new avatar
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, compressedFile, {
-          cacheControl: '3600',
-          upsert: true
-        })
-      
-      if (uploadError) throw uploadError
+const { data, error: uploadError } = await supabase.storage
+  .from('avatars')
+  .upload(fileName, compressedFile, {
+    cacheControl: '3600',
+    upsert: true,
+    contentType: 'image/jpeg'  // Add explicit content type
+  })
+
+if (uploadError) {
+  console.error('Upload error details:', uploadError)
+  throw uploadError
+}
       
       setUploadProgress(70)
       

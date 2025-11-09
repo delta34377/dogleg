@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { getInitials } from '../utils/avatarUtils'
-
+import AvatarUpload from '../components/AvatarUpload'  // Add this import
 
 function Profile() {
   const { user, profile, updateProfile, signOut } = useAuth()
@@ -68,6 +68,12 @@ function Profile() {
     setLoading(false)
   }
 
+  // Handle successful avatar upload
+  const handleAvatarUpload = (newAvatarUrl) => {
+    setMessage('Profile picture updated successfully!')
+    setTimeout(() => setMessage(''), 3000)
+  }
+
   const stats = [
     { label: 'Rounds', value: profile?.rounds_count || 0 },
     { label: 'Followers', value: profile?.followers_count || 0 },
@@ -77,20 +83,17 @@ function Profile() {
   return (
     <div className="max-w-4xl mx-auto p-4">
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        {/* Header with avatar */}
+        {/* Header with avatar - UPDATED */}
         <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-8">
           <div className="flex items-center gap-4">
-            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-3xl font-bold text-green-600 shadow-lg">
-              {profile?.avatar_url ? (
-                <img 
-                  src={profile.avatar_url} 
-                  alt="Avatar" 
-                  className="w-full h-full rounded-full object-cover"
-                />
-              ) : (
-                <span>{getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}</span>
-              )}
-            </div>
+            {/* Replace old avatar div with AvatarUpload component */}
+            <AvatarUpload
+              size="lg"
+              editable={true}  // Always editable on profile page
+              profile={profile}
+              onUploadComplete={handleAvatarUpload}
+              className=""
+            />
             <div className="text-white">
               <h1 className="text-2xl font-bold">
                 {profile?.full_name || profile?.username || 'Golfer'}

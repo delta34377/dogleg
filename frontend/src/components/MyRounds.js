@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 import { getDisplayName } from '../utils/courseNameUtils' 
 import { getInitials } from '../utils/avatarUtils'
+import AvatarUpload from '../components/AvatarUpload'
 
 function MyRounds() {
   const { user, profile } = useAuth() 
@@ -654,19 +655,16 @@ const toggleReaction = async (roundId, reaction) => {
 <div className="bg-white rounded-lg shadow-sm mb-3 sm:mb-4">
   <div className="p-3 sm:p-6">
     <div className="flex flex-row items-center gap-3 sm:gap-4">
-      <div className="w-12 h-12 sm:w-20 sm:h-20 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-        {profile?.avatar_url ? (
-          <img 
-            src={profile.avatar_url} 
-            alt={profile?.username} 
-            className="w-full h-full rounded-full object-cover"
-          />
-        ) : (
-          <span className="text-green-700 font-semibold text-sm sm:text-2xl">
-            {getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}
-          </span>
-        )}
-      </div>
+      <AvatarUpload
+  size="md"
+  editable={true}
+  profile={profile}
+  onUploadComplete={(newUrl) => {
+    // Optional: Show success message
+    console.log('Avatar updated:', newUrl)
+  }}
+  className="sm:!w-20 sm:!h-20"  // Override size on larger screens
+/>
       <div className="flex-1 min-w-0">
         <h2 className="text-base sm:text-2xl font-bold truncate">{profile?.username || 'Golfer'}</h2>
         {profile?.full_name && (

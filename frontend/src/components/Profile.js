@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { getInitials } from '../utils/avatarUtils'
 import AvatarUpload from '../components/AvatarUpload'  // Add this import
 
 function Profile() {

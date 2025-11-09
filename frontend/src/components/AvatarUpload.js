@@ -22,7 +22,6 @@ function AvatarUpload({
 }) {
   const { user, updateProfile } = useAuth()
   const [isHovering, setIsHovering] = useState(false)
-  const [showMenu, setShowMenu] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const fileInputRef = useRef(null)
@@ -68,7 +67,6 @@ function AvatarUpload({
     
     setIsUploading(true)
     setUploadProgress(0)
-    setShowMenu(false)
     
     try {
       // Compress and resize image
@@ -211,65 +209,23 @@ function AvatarUpload({
     })
   }
 
-  // Handle remove avatar
-  const handleRemoveAvatar = async () => {
-    if (!user || !profile?.avatar_url) return
-    
-    if (!window.confirm('Are you sure you want to remove your profile picture?')) {
-      return
+  // Handle click to upload (no dropdown menu)
+  const handleAvatarClick = () => {
+    if (editable && !isUploading) {
+      fileInputRef.current?.click()
     }
-    
-    setIsUploading(true)
-    setShowMenu(false)
-    
-    try {
-      // Remove from storage
-      const fileName = profile.avatar_url.split('/').pop()
-      if (fileName && fileName.includes(user.id)) {
-        await supabase.storage
-          .from('avatars')
-          .remove([`avatars/${fileName}`])
-      }
-      
-      // Update profile
-      const { error } = await updateProfile({
-        avatar_url: null,
-        profile_picture_url: null
-      })
-      
-      if (error) throw error
-      
-      if (onUploadComplete) {
-        onUploadComplete(null)
-      }
-      
-    } catch (error) {
-      console.error('Error removing avatar:', error)
-      alert('Failed to remove avatar. Please try again.')
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  // Handle mobile touch
-  const handleTouch = () => {
-    if (!editable || isUploading) return
-    setShowMenu(!showMenu)
   }
 
   return (
     <div 
       className={`relative ${sizeClasses[size]} ${className}`}
       onMouseEnter={() => editable && setIsHovering(true)}
-      onMouseLeave={() => {
-        setIsHovering(false)
-        setShowMenu(false)
-      }}
+      onMouseLeave={() => setIsHovering(false)}
     >
-      {/* Avatar Display */}
+      {/* Avatar Display - matching green/white styling */}
       <div 
-        className={`${sizeClasses[size]} bg-white rounded-full flex items-center justify-center overflow-hidden shadow-lg cursor-pointer`}
-        onClick={handleTouch}
+        className={`${sizeClasses[size]} bg-green-100 rounded-full flex items-center justify-center overflow-hidden shadow-lg cursor-pointer`}
+        onClick={handleAvatarClick}
       >
         {profile?.avatar_url ? (
           <img 
@@ -278,19 +234,15 @@ function AvatarUpload({
             className="w-full h-full object-cover"
           />
         ) : (
-          <span className={`${textSizes[size]} font-bold text-green-600`}>
+          <span className={`${textSizes[size]} font-semibold text-green-700`}>
             {getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}
           </span>
         )}
         
-        {/* Upload Overlay (hover/uploading state) */}
-        {editable && (isHovering || showMenu || isUploading) && (
+        {/* Upload Overlay (hover/uploading state) - now properly sized */}
+        {editable && (isHovering || isUploading) && (
           <div 
-            className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center rounded-full transition-opacity"
-            onClick={(e) => {
-              e.stopPropagation()
-              if (!isUploading) setShowMenu(!showMenu)
-            }}
+            className={`absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center rounded-full transition-opacity ${sizeClasses[size]}`}
           >
             {isUploading ? (
               <div className="text-center">
@@ -328,35 +280,6 @@ function AvatarUpload({
           </div>
         )}
       </div>
-      
-      {/* Upload Menu */}
-      {editable && showMenu && !isUploading && (
-        <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 z-50">
-          <div className="bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden min-w-[160px]">
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
-            >
-              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              Upload Photo
-            </button>
-            
-            {profile?.avatar_url && (
-              <button
-                onClick={handleRemoveAvatar}
-                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2 text-red-600"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Remove
-              </button>
-            )}
-          </div>
-        </div>
-      )}
       
       {/* Hidden File Input */}
       <input

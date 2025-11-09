@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { FcGoogle } from 'react-icons/fc'
-import { MdEmail, MdPhone } from 'react-icons/md'
+import { MdPhone } from 'react-icons/md'
 import { useNavigate } from 'react-router-dom'
 
 function AuthScreen({ onSuccess }) {
@@ -68,7 +68,7 @@ function AuthScreen({ onSuccess }) {
 
     setLoading(true)
 
-    const { data, error } = await signUp(email, password, {
+    const { error } = await signUp(email, password, {
       username: username.toLowerCase().replace(/\s/g, ''),
       full_name: fullName
     })
@@ -114,7 +114,7 @@ function AuthScreen({ onSuccess }) {
     
     if (!showOtpInput) {
       // Send OTP
-      const { data, error } = await signInWithPhone(formattedPhone)
+      const { error } = await signInWithPhone(formattedPhone)
       
       if (error) {
         setError(error.message)
@@ -124,7 +124,7 @@ function AuthScreen({ onSuccess }) {
       }
     } else {
       // Verify OTP
-      const { data, error } = await verifyPhoneOTP(formattedPhone, otpCode)
+      const { error } = await verifyPhoneOTP(formattedPhone, otpCode)
       
       if (error) {
         setError(error.message)
@@ -140,7 +140,7 @@ function AuthScreen({ onSuccess }) {
   setError('')
   setLoading(true)
 
-  const { data, error } = await signInWithGoogle()
+  const { error } = await signInWithGoogle()
 
   if (error) {
     setError(error.message)
@@ -171,7 +171,7 @@ function AuthScreen({ onSuccess }) {
     setSuccess('')
     setLoading(true)
 
-    const { data, error } = await resetPassword(email)
+    const { error } = await resetPassword(email)
 
     if (error) {
       setError(error.message)

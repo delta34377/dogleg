@@ -75,7 +75,7 @@ function AvatarUpload({
   console.log('Buckets error:', bucketsError)
   
   const { data: files, error: listError } = await supabase.storage
-    .from('avatars')
+    .from('profile-pictures')
     .list()
   console.log('Files in avatars bucket:', files)
   console.log('List error:', listError)
@@ -106,7 +106,7 @@ function AvatarUpload({
         const oldPath = profile.avatar_url.split('/').pop()
         if (oldPath && oldPath.includes(user.id)) {
           await supabase.storage
-            .from('avatars')
+            .from('profile-pictures')
             .remove([oldPath])
         }
       }
@@ -115,7 +115,7 @@ function AvatarUpload({
       
       // Upload new avatar
 const { data, error: uploadError } = await supabase.storage
-  .from('avatars')
+  .from('profile-pictures')
   .upload(fileName, compressedFile, {
     cacheControl: '3600',
     upsert: true,
@@ -131,7 +131,7 @@ if (uploadError) {
       
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
+        .from('profile-pictures')
         .getPublicUrl(filePath)
       
       // Update profile with new avatar URL
@@ -246,7 +246,7 @@ if (uploadError) {
       const fileName = profile.avatar_url.split('/').pop()
       if (fileName && fileName.includes(user.id)) {
         await supabase.storage
-          .from('avatars')
+          .from('profile-pictures')
           .remove([`avatars/${fileName}`])
       }
       

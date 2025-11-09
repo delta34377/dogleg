@@ -50,7 +50,7 @@ function Profile() {
       return
     }
 
-    const { data, error } = await updateProfile({
+    const { error } = await updateProfile({
       username: formData.username.toLowerCase().trim(),
       full_name: formData.full_name.trim(),
       bio: formData.bio.trim(),

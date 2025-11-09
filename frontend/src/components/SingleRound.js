@@ -14,7 +14,6 @@ function SingleRound() {
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [commentInputs, setCommentInputs] = useState({})
 
   // Your exact reaction system from MyRounds
   const reactionEmojis = {

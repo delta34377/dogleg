@@ -13,7 +13,7 @@ import { getInitials } from '../utils/avatarUtils'
 function UserProfile() {
   const { username } = useParams()
   const navigate = useNavigate()
-  const { user: currentUser, profile: currentProfile } = useAuth()
+  const { user: currentUser } = useAuth()
   
   const [profileUser, setProfileUser] = useState(null)
   const [rounds, setRounds] = useState([])
@@ -44,7 +44,6 @@ function UserProfile() {
   const [showFollowing, setShowFollowing] = useState(false)
   const [followersList, setFollowersList] = useState([])
   const [followingList, setFollowingList] = useState([])
-  const [commentInputs, setCommentInputs] = useState({})
 
   // Load profile and check follow status
   useEffect(() => {

@@ -37,7 +37,6 @@ function MyRounds() {
   const [showFollowing, setShowFollowing] = useState(false)
   const [followersList, setFollowersList] = useState([])
   const [followingList, setFollowingList] = useState([])
-  const [commentInputs, setCommentInputs] = useState({})
   
   // Load profile stats
   const loadProfileStats = async () => {

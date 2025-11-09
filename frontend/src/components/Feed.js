@@ -199,7 +199,6 @@ const Feed = forwardRef((props, ref) => {
     // If success, do nothing - UI already updated
   }
 
-  const [commentInputs, setCommentInputs] = useState({})
   
   const addComment = async (roundId, text) => {
     if (!text.trim()) return

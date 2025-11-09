@@ -244,7 +244,7 @@ function AuthenticatedApp() {
                 ) : (
                   <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                     <span className="text-green-700 font-semibold">
-                      {profile?.ugetInitials(profile) || user?.email?.[0]?.toUpperCase()}
+                      {getInitials(profile) || user?.email?.[0]?.toUpperCase()}
                     </span>
                   </div>
                 )}

@@ -88,7 +88,7 @@ function AvatarUpload({
         if (oldPath && oldPath.includes(user.id)) {
           await supabase.storage
             .from('avatars')
-            .remove([`avatars/${oldPath}`])
+            .remove([oldPath])
         }
       }
       

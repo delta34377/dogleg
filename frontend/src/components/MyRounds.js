@@ -655,15 +655,32 @@ const toggleReaction = async (roundId, reaction) => {
 <div className="bg-white rounded-lg shadow-sm mb-3 sm:mb-4">
   <div className="p-3 sm:p-6">
     <div className="flex flex-row items-center gap-3 sm:gap-4">
-      <AvatarUpload
-  size="sm"  // Changed to 'sm' for mobile
-  editable={true}
-  profile={profile}
-  onUploadComplete={(newUrl) => {
-    console.log('Avatar updated:', newUrl)
-  }}
-  className="sm:!w-24 sm:!h-24"  // Desktop override
-/>
+      {/* Use conditional rendering for different sizes on mobile vs desktop */}
+<>
+  {/* Mobile version - small */}
+  <div className="sm:hidden">
+    <AvatarUpload
+      size="sm"  // 48px on mobile
+      editable={true}
+      profile={profile}
+      onUploadComplete={(newUrl) => {
+        console.log('Avatar updated:', newUrl)
+      }}
+    />
+  </div>
+  
+  {/* Desktop version - large */}
+  <div className="hidden sm:block">
+    <AvatarUpload
+      size="lg"  // 96px on desktop (or use "xl" for 128px)
+      editable={true}
+      profile={profile}
+      onUploadComplete={(newUrl) => {
+        console.log('Avatar updated:', newUrl)
+      }}
+    />
+  </div>
+</>
       <div className="flex-1 min-w-0">
         <h2 className="text-base sm:text-2xl font-bold truncate">{profile?.username || 'Golfer'}</h2>
         {profile?.full_name && (

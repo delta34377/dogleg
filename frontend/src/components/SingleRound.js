@@ -577,7 +577,7 @@ function SingleRound() {
                         />
                       ) : (
                         <span className="text-green-700 font-semibold text-xs">
-                          {profile?.getInitials(profile) || '?'}
+                          {getInitials(profile) || '?'}
                         </span>
                       )}
                     </div>

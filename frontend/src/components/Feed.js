@@ -685,7 +685,8 @@ const Feed = forwardRef((props, ref) => {
               />
             ) : (
               <span className="text-green-700 font-semibold text-xs">
-                {profile?.getInitials(profile) || '?'}
+                {getInitials(profile) || '?'}
+
               </span>
             )}
           </div>

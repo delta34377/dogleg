@@ -631,7 +631,7 @@ const toggleReaction = async (roundId, reaction) => {
                         />
                       ) : (
                         <span className="text-green-700 font-semibold">
-                          {user.getInitials(profile) || '?'}
+                          {getInitials(user) || '?'}
                         </span>
                       )}
                     </div>
@@ -667,7 +667,7 @@ const toggleReaction = async (roundId, reaction) => {
           />
         ) : (
           <span className="text-green-700 font-semibold text-sm sm:text-2xl">
-            {profile?.getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}
+            {getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}
           </span>
         )}
       </div>

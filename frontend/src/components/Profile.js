@@ -88,7 +88,7 @@ function Profile() {
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
-                <span>{profile?.getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}</span>
+                <span>{getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}</span>
               )}
             </div>
             <div className="text-white">

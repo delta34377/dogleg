@@ -11,6 +11,7 @@ import Feed from './components/Feed'
 import UserProfile from './components/UserProfile'
 import ResetPassword from './components/ResetPassword'
 import SingleRound from './components/SingleRound'
+import { getInitials } from '../utils/avatarUtils'
 
 
 // Main authenticated app with navigation
@@ -81,7 +82,7 @@ function AuthenticatedApp() {
                   ) : (
                     <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                       <span className="text-green-700 font-semibold">
-                        {profile?.getInitials(profile) || user?.email?.[0]?.toUpperCase()}
+                        {getInitials(profile) || user?.email?.[0]?.toUpperCase()}
                       </span>
                     </div>
                   )}

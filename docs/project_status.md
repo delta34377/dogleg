@@ -54,6 +54,13 @@
   - Ctrl+R works without infinite loading
   - Handles iOS Safari back/forward cache
   - Fixed React useMemo dependencies for rechecking state
+  - ✅ **Shareable Round URLs**
+  - Short code system (6-character alphanumeric codes)
+  - SingleRound component at route `/rounds/:shortCode`
+  - Share button functionality with native share API
+  - Automatic short code generation for new rounds
+  - Database column `short_code` with unique constraint
+  - Service method `getRoundByShortCode` in roundsService
 
 
 ## 🔄 Currently Working On

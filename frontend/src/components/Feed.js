@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils' 
+import { getInitials } from '../utils/avatarUtils'
+
 
 
 
@@ -683,7 +685,7 @@ const Feed = forwardRef((props, ref) => {
               />
             ) : (
               <span className="text-green-700 font-semibold text-xs">
-                {profile?.username?.[0]?.toUpperCase() || '?'}
+                {profile?.getInitials(profile) || '?'}
               </span>
             )}
           </div>

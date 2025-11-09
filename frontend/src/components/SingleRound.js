@@ -5,6 +5,8 @@ import { followService } from '../services/followService'
 import { useAuth } from '../context/AuthContext'
 import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils'
+import { getInitials } from '../utils/avatarUtils'
+
 
 function SingleRound() {
   const { roundId } = useParams()
@@ -575,7 +577,7 @@ function SingleRound() {
                         />
                       ) : (
                         <span className="text-green-700 font-semibold text-xs">
-                          {profile?.username?.[0]?.toUpperCase() || '?'}
+                          {profile?.getInitials(profile) || '?'}
                         </span>
                       )}
                     </div>

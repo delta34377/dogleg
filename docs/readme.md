@@ -86,6 +86,18 @@ users
 └── notifications
 ```
 
+### Round URL System
+Each round has a unique shareable URL using a 6-character short code:
+- **Format**: `/rounds/ABC123` (instead of long UUIDs)
+- **Character set**: `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (excludes confusing characters)
+- **Capacity**: 1+ billion unique combinations with 6 characters
+- **Implementation**:
+  - `short_code` column in rounds table
+  - Auto-generated via PostgreSQL trigger on insert
+  - Collision handling with retry logic
+  - `getRoundByShortCode()` service method
+  - SingleRound component for individual round display
+
 ## 🏗️ Technical Stack
 
 ### Backend
@@ -212,7 +224,8 @@ REACT_APP_SUPABASE_ANON_KEY=eyJ...
 - [x] App configuration centralized
 - [x] Database schema designed
 - [x] Import scripts prepared
-- [x] Admin interface created
+- [x] Individual round pages with shareable URLs
+- [x] Short code system for clean URLs
 
 ### 🔄 In Progress
 - [ ] Supabase project setup

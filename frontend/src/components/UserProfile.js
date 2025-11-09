@@ -6,6 +6,8 @@ import { followService } from '../services/followService'
 import { useAuth } from '../context/AuthContext'
 import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils' 
+import { getInitials } from '../utils/avatarUtils'
+
 
 
 function UserProfile() {
@@ -647,7 +649,7 @@ function UserProfile() {
                         />
                       ) : (
                         <span className="text-green-700 font-semibold">
-                          {user.username?.[0]?.toUpperCase() || '?'}
+                          {getInitials(user) || '?'}
                         </span>
                       )}
                     </div>
@@ -697,7 +699,7 @@ function UserProfile() {
           />
         ) : (
           <span className="text-green-700 font-semibold text-sm sm:text-2xl">
-            {profileUser?.username?.[0]?.toUpperCase() || '?'}
+            {getInitials(profileUser) || '?'}
           </span>
         )}
       </div>

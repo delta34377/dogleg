@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 import { getDisplayName } from '../utils/courseNameUtils' 
+import { getInitials } from '../utils/avatarUtils'
+
 
 
 
@@ -629,7 +631,7 @@ const toggleReaction = async (roundId, reaction) => {
                         />
                       ) : (
                         <span className="text-green-700 font-semibold">
-                          {user.username?.[0]?.toUpperCase() || '?'}
+                          {user.getInitials(profile) || '?'}
                         </span>
                       )}
                     </div>
@@ -665,7 +667,7 @@ const toggleReaction = async (roundId, reaction) => {
           />
         ) : (
           <span className="text-green-700 font-semibold text-sm sm:text-2xl">
-            {profile?.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}
+            {profile?.getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}
           </span>
         )}
       </div>

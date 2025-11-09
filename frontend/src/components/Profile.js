@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { getInitials } from '../utils/avatarUtils'
+
 
 function Profile() {
   const { user, profile, updateProfile, signOut } = useAuth()
@@ -86,7 +88,7 @@ function Profile() {
                   className="w-full h-full rounded-full object-cover"
                 />
               ) : (
-                <span>{profile?.username?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || '?'}</span>
+                <span>{profile?.getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}</span>
               )}
             </div>
             <div className="text-white">

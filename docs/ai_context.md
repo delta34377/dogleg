@@ -40,7 +40,12 @@ I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Strava
   - Removed duplicate auth guards in AuthenticatedApp (single-guard pattern)
   - Fixed React useMemo dependencies for rechecking state
   - No more false logouts, infinite loading, or unnecessary refreshes on tab switches
-
+  - ✅ **Individual Round Pages with Short URLs** - Each round now has a shareable URL
+  - Added 6-character short codes (e.g., `/rounds/K7FX9M` instead of UUIDs)
+  - Created SingleRound component that displays rounds exactly like Feed
+  - Share button now generates working shareable links
+  - Database trigger auto-generates unique short codes for all rounds
+  
 ### Key Technical Decisions
 1. **userRef Pattern**: Event handlers in useEffect with [] deps use refs to avoid stale closures
 2. **Smart Refocus**: Only refresh when `tokenExpiry - now <= 30 seconds` OR no user

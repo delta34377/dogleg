@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { followService } from '../services/followService'
 import { useAuth } from '../context/AuthContext'
-import { getInitials } from '../utils/avatarUtils'
 
 
 function FollowButton({ targetUserId, targetUsername, initialFollowing = false, onFollowChange, className, size = 'normal' }) {

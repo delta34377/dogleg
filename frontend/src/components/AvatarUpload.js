@@ -65,6 +65,25 @@ function AvatarUpload({
       alert('Image size must be less than 5MB')
       return
     }
+
+     // ADD THE DEBUG CODE HERE ==================
+  console.log('Current user:', user)
+  console.log('Supabase auth session:', await supabase.auth.getSession())
+  
+  const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
+  console.log('Available buckets:', buckets)
+  console.log('Buckets error:', bucketsError)
+  
+  const { data: files, error: listError } = await supabase.storage
+    .from('avatars')
+    .list()
+  console.log('Files in avatars bucket:', files)
+  console.log('List error:', listError)
+  // END DEBUG CODE ============================
+  
+  setShowModal(false)
+  setIsUploading(true)
+  setUploadProgress(0)
     
     setShowModal(false)
     setIsUploading(true)

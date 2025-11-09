@@ -7,9 +7,6 @@ import { supabase } from '../services/supabase'
 import { getDisplayName } from '../utils/courseNameUtils' 
 import { getInitials } from '../utils/avatarUtils'
 
-
-
-
 function MyRounds() {
   const { user, profile } = useAuth() 
   const navigate = useNavigate()

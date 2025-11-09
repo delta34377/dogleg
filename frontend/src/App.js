@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -18,7 +18,7 @@ import { getInitials } from './utils/avatarUtils'
 function AuthenticatedApp() {
   const [activeView, setActiveView] = useState('feed')
   const feedRef = useRef(null)
-  const { user, profile, signOut, loading } = useAuth()
+  const { user, profile, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   

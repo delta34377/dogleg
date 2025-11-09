@@ -77,7 +77,7 @@ function AvatarUpload({
       // Generate unique filename
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}-${Date.now()}.${fileExt}`
-      const filePath = `avatars/${fileName}`
+      const filePath = fileName
       
       // Upload to Supabase Storage
       setUploadProgress(30)

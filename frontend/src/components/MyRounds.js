@@ -662,7 +662,7 @@ const toggleReaction = async (roundId, reaction) => {
   onUploadComplete={(newUrl) => {
     console.log('Avatar updated:', newUrl)
   }}
-  className="sm:!w-20 sm:!h-20"  // Desktop override
+  className="sm:!w-24 sm:!h-24"  // Desktop override
 />
       <div className="flex-1 min-w-0">
         <h2 className="text-base sm:text-2xl font-bold truncate">{profile?.username || 'Golfer'}</h2>

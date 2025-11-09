@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { getInitials } from '../utils/avatarUtils'
 
 /**
- * Reusable Avatar Upload Component
+ * Reusable Avatar Upload Component with Modal
  * 
  * @param {Object} props
  * @param {string} props.size - Size class: 'sm' (48px), 'md' (64px), 'lg' (96px), 'xl' (128px)
@@ -22,6 +22,7 @@ function AvatarUpload({
 }) {
   const { user, updateProfile } = useAuth()
   const [isHovering, setIsHovering] = useState(false)
+  const [showModal, setShowModal] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const fileInputRef = useRef(null)
@@ -65,6 +66,7 @@ function AvatarUpload({
       return
     }
     
+    setShowModal(false)
     setIsUploading(true)
     setUploadProgress(0)
     
@@ -209,88 +211,191 @@ function AvatarUpload({
     })
   }
 
-  // Handle click to upload (no dropdown menu)
+  // Handle remove avatar
+  const handleRemoveAvatar = async () => {
+    if (!user || !profile?.avatar_url) return
+    
+    setShowModal(false)
+    setIsUploading(true)
+    
+    try {
+      // Remove from storage
+      const fileName = profile.avatar_url.split('/').pop()
+      if (fileName && fileName.includes(user.id)) {
+        await supabase.storage
+          .from('avatars')
+          .remove([`avatars/${fileName}`])
+      }
+      
+      // Update profile
+      const { error } = await updateProfile({
+        avatar_url: null,
+        profile_picture_url: null
+      })
+      
+      if (error) throw error
+      
+      if (onUploadComplete) {
+        onUploadComplete(null)
+      }
+      
+    } catch (error) {
+      console.error('Error removing avatar:', error)
+      alert('Failed to remove avatar. Please try again.')
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // Handle click to show modal
   const handleAvatarClick = () => {
     if (editable && !isUploading) {
-      fileInputRef.current?.click()
+      setShowModal(true)
     }
   }
 
   return (
-    <div 
-      className={`relative ${sizeClasses[size]} ${className}`}
-      onMouseEnter={() => editable && setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-    >
-      {/* Avatar Display - matching green/white styling */}
+    <>
       <div 
-        className={`${sizeClasses[size]} bg-green-100 rounded-full flex items-center justify-center overflow-hidden shadow-lg cursor-pointer`}
-        onClick={handleAvatarClick}
+        className={`relative ${sizeClasses[size]} ${className}`}
+        onMouseEnter={() => editable && setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
       >
-        {profile?.avatar_url ? (
-          <img 
-            src={profile.avatar_url} 
-            alt="Profile" 
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <span className={`${textSizes[size]} font-semibold text-green-700`}>
-            {getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}
-          </span>
-        )}
-        
-        {/* Upload Overlay (hover/uploading state) - now properly sized */}
-        {editable && (isHovering || isUploading) && (
-          <div 
-            className={`absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center rounded-full transition-opacity ${sizeClasses[size]}`}
-          >
-            {isUploading ? (
-              <div className="text-center">
-                <div className="text-white text-xs mb-1">
-                  {uploadProgress}%
+        {/* Avatar Display - matching green/white styling */}
+        <div 
+          className={`${sizeClasses[size]} bg-green-100 rounded-full flex items-center justify-center overflow-hidden shadow-lg ${editable ? 'cursor-pointer' : ''}`}
+          onClick={handleAvatarClick}
+        >
+          {profile?.avatar_url ? (
+            <img 
+              src={profile.avatar_url} 
+              alt="Profile" 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className={`${textSizes[size]} font-semibold text-green-700`}>
+              {getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}
+            </span>
+          )}
+          
+          {/* Upload Overlay (hover/uploading state) */}
+          {editable && (isHovering || isUploading) && (
+            <div 
+              className={`absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center rounded-full transition-opacity ${sizeClasses[size]}`}
+            >
+              {isUploading ? (
+                <div className="text-center">
+                  <div className="text-white text-xs mb-1">
+                    {uploadProgress}%
+                  </div>
+                  <div className="w-16 h-1 bg-gray-300 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-white transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="w-16 h-1 bg-gray-300 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-white transition-all duration-300"
-                    style={{ width: `${uploadProgress}%` }}
+              ) : (
+                <svg 
+                  className={`${iconSizes[size]} text-white`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" 
                   />
-                </div>
-              </div>
-            ) : (
-              <svg 
-                className={`${iconSizes[size]} text-white`} 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" 
-                />
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" 
-                />
-              </svg>
-            )}
-          </div>
-        )}
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" 
+                  />
+                </svg>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Hidden File Input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          className="hidden"
+          disabled={isUploading}
+        />
       </div>
-      
-      {/* Hidden File Input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileSelect}
-        className="hidden"
-        disabled={isUploading}
-      />
-    </div>
+
+      {/* Modal for Upload Options */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4 text-center">
+                Profile Picture
+              </h3>
+              
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    fileInputRef.current?.click()
+                    setShowModal(false)
+                  }}
+                  className="w-full px-4 py-3 text-left rounded-lg hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                >
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <div>
+                    <div className="font-medium text-gray-900">
+                      {profile?.avatar_url ? 'Change Photo' : 'Upload Photo'}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      Choose from your device
+                    </div>
+                  </div>
+                </button>
+                
+                {profile?.avatar_url && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to remove your profile picture?')) {
+                        handleRemoveAvatar()
+                      }
+                    }}
+                    className="w-full px-4 py-3 text-left rounded-lg hover:bg-red-50 flex items-center gap-3 transition-colors"
+                  >
+                    <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <div>
+                      <div className="font-medium text-red-600">
+                        Remove Photo
+                      </div>
+                      <div className="text-sm text-red-500">
+                        Delete your profile picture
+                      </div>
+                    </div>
+                  </button>
+                )}
+              </div>
+              
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-full mt-4 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import AvatarUpload from '../components/AvatarUpload'  // Add this import
+import AvatarUpload from '../components/AvatarUpload'  
+import { supabase } from '../services/supabase'
 
 function Profile() {
   const { user, profile, updateProfile, signOut } = useAuth()
+  const [roundsCount, setRoundsCount] = useState(0)
   const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -24,6 +26,22 @@ function Profile() {
       })
     }
   }, [profile])
+
+  // Get actual rounds count from database
+  useEffect(() => {
+    const getRoundsCount = async () => {
+      if (!user) return
+      
+      const { count } = await supabase
+        .from('rounds')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+      
+      setRoundsCount(count || 0)
+    }
+    
+    getRoundsCount()
+  }, [user])
 
   // Add null check after useEffect
   if (!user) {
@@ -64,7 +82,7 @@ function Profile() {
   }
 
   const stats = [
-    { label: 'Rounds', value: profile?.rounds_count || 0 },
+    { label: 'Rounds', value: roundsCount },
     { label: 'Followers', value: profile?.followers_count || 0 },
     { label: 'Following', value: profile?.following_count || 0 }
   ]

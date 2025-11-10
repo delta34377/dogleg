@@ -76,10 +76,7 @@ function MyRounds() {
   })
 }
 
-  // Update profile stats when rounds change
-  useEffect(() => {
-    setProfileStats(prev => ({ ...prev, roundsCount: rounds.length }))
-  }, [rounds])
+
 
   // Load profile stats on mount
   useEffect(() => {
@@ -200,19 +197,24 @@ function MyRounds() {
   }, [])
 
   const deleteRound = async (roundId) => {
-    setOpenMenuId(null) // Close the menu first
+  setOpenMenuId(null) // Close the menu first
+  
+  if (window.confirm('Are you sure you want to delete this round?')) {
+    const { error } = await roundsService.deleteRound(roundId)
     
-    if (window.confirm('Are you sure you want to delete this round?')) {
-      const { error } = await roundsService.deleteRound(roundId)
-      
-      if (!error) {
-        // Remove from state
-        setRounds(rounds.filter(r => r.id !== roundId))
-      } else {
-        alert('Error deleting round. Please try again.')
-      }
+    if (!error) {
+      // Remove from state
+      setRounds(rounds.filter(r => r.id !== roundId))
+      // Properly decrement the count
+      setProfileStats(prev => ({
+        ...prev,
+        roundsCount: Math.max(0, prev.roundsCount - 1)
+      }))
+    } else {
+      alert('Error deleting round. Please try again.')
     }
   }
+}
 
   // In toggleReaction - update UI FIRST
 const toggleReaction = async (roundId, reaction) => {

@@ -16,7 +16,7 @@ export const searchService = {
       // Use ilike for case-insensitive partial matching
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, username, full_name, avatar_url, bio')
+        .select('id, username, full_name, avatar_url, bio, location')
         .or(`username.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%`)
         .limit(limit)
         .order('username', { ascending: true })
@@ -48,7 +48,7 @@ export const searchService = {
       // Build query to exclude following list and self
       let query = supabase
         .from('profiles')
-        .select('id, username, full_name, avatar_url, bio')
+        .select('id, username, full_name, avatar_url, bio, location')
       
       // Add the exclusion filter based on what we need to exclude
       const idsToExclude = [...followingIds, currentUserId]

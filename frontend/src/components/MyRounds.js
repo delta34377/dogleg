@@ -655,42 +655,60 @@ const toggleReaction = async (roundId, reaction) => {
 <div className="bg-white rounded-lg shadow-sm mb-3 sm:mb-4">
   <div className="p-3 sm:p-6">
     <div className="flex flex-row items-center gap-3 sm:gap-4">
-      {/* Use conditional rendering for different sizes on mobile vs desktop */}
-<>
-  {/* Mobile version - small */}
-  <div className="sm:hidden">
-    <AvatarUpload
-      size="sm"  // 48px on mobile
-      editable={true}
-      profile={profile}
-      onUploadComplete={(newUrl) => {
-         }}
-    />
-  </div>
-  
-  {/* Desktop version - large */}
-  <div className="hidden sm:block">
-    <AvatarUpload
-      size="lg"  // 96px on desktop (or use "xl" for 128px)
-      editable={true}
-      profile={profile}
-      onUploadComplete={(newUrl) => {
-          }}
-    />
-  </div>
-</>
+      {/* Avatar section stays the same */}
+      <>
+        {/* Mobile version - small */}
+        <div className="sm:hidden">
+          <AvatarUpload
+            size="sm"  // 48px on mobile
+            editable={true}
+            profile={profile}
+            onUploadComplete={(newUrl) => {
+            }}
+          />
+        </div>
+        
+        {/* Desktop version - large */}
+        <div className="hidden sm:block">
+          <AvatarUpload
+            size="lg"  // 96px on desktop
+            editable={true}
+            profile={profile}
+            onUploadComplete={(newUrl) => {
+            }}
+          />
+        </div>
+      </>
+      
       <div className="flex-1 min-w-0">
         <h2 className="text-base sm:text-2xl font-bold truncate">{profile?.username || 'Golfer'}</h2>
         {profile?.full_name && (
           <p className="text-xs sm:text-base text-gray-600 truncate">{profile.full_name}</p>
         )}
+        
+        {/* Location with icon */}
+        {profile?.location && (
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 flex items-center gap-1">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {profile.location}
+          </p>
+        )}
+        
+        {/* Bio with better styling */}
         {profile?.bio && (
-          <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2 line-clamp-2">{profile.bio}</p>
+          <div className="mt-2 p-2 bg-gray-50 rounded-lg border-l-3 border-gray-300">
+            <p className="text-xs sm:text-sm text-gray-700 italic">
+              "{profile.bio}"
+            </p>
+          </div>
         )}
       </div>
     </div>
     
-    {/* Stats - more compact on mobile */}
+    {/* Stats - stays the same */}
     <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t flex justify-around text-center">
       <div>
         <span className="font-bold text-base sm:text-lg">{profileStats.roundsCount}</span>

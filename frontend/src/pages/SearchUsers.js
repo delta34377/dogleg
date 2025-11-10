@@ -5,6 +5,8 @@ import { searchService } from '../services/searchService'
 import { followService } from '../services/followService'
 import FollowButton from '../components/FollowButton'
 import { ChevronLeft, Search, X } from 'lucide-react'
+import { getInitials } from '../utils/avatarUtils'
+
 
 function SearchUsers() {
   const navigate = useNavigate()
@@ -111,8 +113,8 @@ function SearchUsers() {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-600 font-semibold text-lg">
-              {userItem.username?.[0]?.toUpperCase() || '?'}
-            </div>
+  {getInitials(userItem) || '?'}
+</div>
           )}
         </div>
         <div className="ml-3 min-w-0 flex-1">

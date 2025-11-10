@@ -8,7 +8,6 @@ function Profile() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [formData, setFormData] = useState({
-    username: '',
     full_name: '',
     bio: '',
     handicap: '',
@@ -18,7 +17,6 @@ function Profile() {
   useEffect(() => {
     if (profile) {
       setFormData({
-        username: profile.username || '',
         full_name: profile.full_name || '',
         bio: profile.bio || '',
         handicap: profile.handicap || '',
@@ -42,15 +40,7 @@ function Profile() {
     setLoading(true)
     setMessage('')
 
-    // Validate username
-    if (formData.username && !/^[a-zA-Z0-9_]{3,20}$/.test(formData.username)) {
-      setMessage('Username must be 3-20 characters, letters, numbers, and underscores only')
-      setLoading(false)
-      return
-    }
-
     const { error } = await updateProfile({
-      username: formData.username.toLowerCase().trim(),
       full_name: formData.full_name.trim(),
       bio: formData.bio.trim(),
       handicap: formData.handicap ? parseInt(formData.handicap) : null,
@@ -150,6 +140,13 @@ function Profile() {
                   </div>
                 )}
 
+                {profile?.username && (
+                  <div>
+                    <p className="text-sm text-gray-600">Username</p>
+                    <p className="font-medium">@{profile.username}</p>
+                  </div>
+                )}
+
                 <div>
                   <p className="text-sm text-gray-600">Handicap</p>
                   <p className="font-medium">
@@ -193,23 +190,6 @@ function Profile() {
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Username
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.username}
-                    onChange={(e) => setFormData({...formData, username: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="johndoe"
-                    pattern="[a-zA-Z0-9_]{3,20}"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    3-20 characters, letters, numbers, underscores
-                  </p>
-                </div>
-                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Full Name
@@ -283,7 +263,6 @@ function Profile() {
                     setEditing(false)
                     setMessage('')
                     setFormData({
-                      username: profile?.username || '',
                       full_name: profile?.full_name || '',
                       bio: profile?.bio || '',
                       handicap: profile?.handicap || '',

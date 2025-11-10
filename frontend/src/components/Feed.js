@@ -50,7 +50,18 @@ const Feed = forwardRef((props, ref) => {
     const currentOffset = loadMore ? offset : 0
     
     // Get feed rounds with discovery
-    const { data: feedData, error } = await roundsService.getFeedWithDiscovery(10, currentOffset, 'mixed', 0.3)
+// Get algorithm settings from localStorage
+const algorithmSettings = JSON.parse(localStorage.getItem('feedAlgorithmSettings') || '{}')
+const discoveryRatio = algorithmSettings.discoveryRatio || 0.3
+const mode = algorithmSettings.mode || 'mixed'
+const limit = algorithmSettings.feedLimit || 10
+
+const { data: feedData, error } = await roundsService.getFeedWithDiscovery(
+  limit, 
+  currentOffset, 
+  mode, 
+  discoveryRatio
+)
     
     if (!error && feedData) {
       const feedRounds = feedData.rounds || []

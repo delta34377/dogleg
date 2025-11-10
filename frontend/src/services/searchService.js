@@ -45,11 +45,24 @@ export const searchService = {
 
       const followingIds = following?.map(f => f.following_id) || []
       
-      // Get users not in following list and not self
-      const { data, error } = await supabase
+      // Build query to exclude following list and self
+      let query = supabase
         .from('profiles')
         .select('id, username, full_name, avatar_url, bio')
-        .not('id', 'in', [...followingIds, currentUserId])
+      
+      // Add the exclusion filter based on what we need to exclude
+      const idsToExclude = [...followingIds, currentUserId]
+      
+      if (idsToExclude.length === 1) {
+        // If only excluding one ID (just the current user)
+        query = query.neq('id', idsToExclude[0])
+      } else if (idsToExclude.length > 1) {
+        // If excluding multiple IDs
+        query = query.not('id', 'in', `(${idsToExclude.join(',')})`)
+      }
+      
+      // Add limit and order
+      const { data, error } = await query
         .limit(limit)
         .order('created_at', { ascending: false })
 

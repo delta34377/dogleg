@@ -664,8 +664,7 @@ const toggleReaction = async (roundId, reaction) => {
       editable={true}
       profile={profile}
       onUploadComplete={(newUrl) => {
-        console.log('Avatar updated:', newUrl)
-      }}
+         }}
     />
   </div>
   
@@ -676,8 +675,7 @@ const toggleReaction = async (roundId, reaction) => {
       editable={true}
       profile={profile}
       onUploadComplete={(newUrl) => {
-        console.log('Avatar updated:', newUrl)
-      }}
+          }}
     />
   </div>
 </>

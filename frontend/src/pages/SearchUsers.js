@@ -152,46 +152,48 @@ function SearchUsers() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header with max-width wrapper */}
       <div className="bg-white border-b sticky top-0 z-10">
-        <div className="px-4 py-3">
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-1 -ml-1 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-            <h1 className="text-xl font-bold">Search Users</h1>
-          </div>
-        </div>
-        
-        {/* Search Bar */}
-        <div className="px-4 pb-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              placeholder="Search by username or name..."
-              className="w-full pl-10 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              autoFocus
-            />
-            {searchTerm && (
+        <div className="max-w-4xl mx-auto">
+          <div className="px-4 py-3">
+            <div className="flex items-center space-x-3">
               <button
-                onClick={clearSearch}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                onClick={() => navigate(-1)}
+                className="p-1 -ml-1 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <X className="w-5 h-5" />
+                <ChevronLeft className="w-6 h-6" />
               </button>
-            )}
+              <h1 className="text-xl font-bold">Search Users</h1>
+            </div>
+          </div>
+          
+          {/* Search Bar */}
+          <div className="px-4 pb-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={handleSearchChange}
+                placeholder="Search by username or name..."
+                className="w-full pl-10 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                autoFocus
+              />
+              {searchTerm && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Results or Suggestions */}
-      <div className="p-4">
+      {/* Results or Suggestions with max-width wrapper */}
+      <div className="max-w-4xl mx-auto p-2 sm:p-4">
         {loading ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>

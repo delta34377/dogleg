@@ -4,12 +4,19 @@ import { useAuth } from '../context/AuthContext'
 import { getInitials } from '../utils/avatarUtils'
 
 /**
- * Reusable Avatar Upload Component with Modal
+ * Production-ready Avatar Upload Component
+ * 
+ * Fixes applied:
+ * - Proper JPEG extension handling
+ * - Safe deletion order (after successful upload)
+ * - User-scoped storage paths with RLS
+ * - EXIF orientation support
+ * - Better error handling
  * 
  * @param {Object} props
  * @param {string} props.size - Size class: 'sm' (48px), 'md' (64px), 'lg' (96px), 'xl' (128px)
  * @param {boolean} props.editable - Whether the avatar is editable (shows upload on hover/tap)
- * @param {Object} props.profile - Profile object with avatar_url
+ * @param {Object} props.profile - Profile object with avatar_url and avatar_path
  * @param {Function} props.onUploadComplete - Callback after successful upload
  * @param {string} props.className - Additional CSS classes
  */
@@ -49,20 +56,118 @@ function AvatarUpload({
     xl: 'w-7 h-7'
   }
 
-  // Handle file selection
+  // Utility: Generate user-scoped storage path
+  const makeAvatarPath = (uid, ext = 'jpg') => {
+    // Use crypto.randomUUID if available, fallback to timestamp
+    const uniqueId = typeof crypto?.randomUUID === 'function' 
+      ? crypto.randomUUID() 
+      : `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    return `${uid}/${uniqueId}.${ext}`
+  }
+
+  // Compress and properly orient image
+  const compressImage = async (file) => {
+    const maxSize = 500
+
+    // Modern path: createImageBitmap respects EXIF when asked
+    if ('createImageBitmap' in window) {
+      try {
+        const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+        let { width, height } = bitmap
+        
+        if (width > height && width > maxSize) {
+          height = Math.round(height * maxSize / width)
+          width = maxSize
+        } else if (height > maxSize) {
+          width = Math.round(width * maxSize / height)
+          height = maxSize
+        }
+
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d', { alpha: false })
+        ctx.fillStyle = '#FFFFFF'
+        ctx.fillRect(0, 0, width, height)
+        ctx.drawImage(bitmap, 0, 0, width, height)
+
+        const blob = await new Promise((resolve, reject) =>
+          canvas.toBlob(
+            b => b ? resolve(b) : reject(new Error('toBlob failed')), 
+            'image/jpeg', 
+            0.85
+          )
+        )
+        return new File([blob], 'avatar.jpg', { 
+          type: 'image/jpeg', 
+          lastModified: Date.now() 
+        })
+      } catch (e) {
+        console.warn('createImageBitmap failed, using fallback:', e)
+        // Fall through to legacy path
+      }
+    }
+
+    // Fallback path (for older browsers)
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      
+      reader.onload = (e) => {
+        const img = new Image()
+        
+        img.onload = () => {
+          let width = img.width
+          let height = img.height
+          
+          if (width > height && width > maxSize) {
+            height = Math.round(height * maxSize / width)
+            width = maxSize
+          } else if (height > maxSize) {
+            width = Math.round(width * maxSize / height)
+            height = maxSize
+          }
+
+          const canvas = document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+          const ctx = canvas.getContext('2d', { alpha: false })
+          ctx.fillStyle = '#FFFFFF'
+          ctx.fillRect(0, 0, width, height)
+          ctx.drawImage(img, 0, 0, width, height)
+
+          canvas.toBlob((blob) => {
+            if (!blob) return reject(new Error('Failed to compress image'))
+            resolve(new File([blob], 'avatar.jpg', {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            }))
+          }, 'image/jpeg', 0.85)
+        }
+        
+        img.onerror = () => reject(new Error('Failed to load image'))
+        img.src = String(e.target?.result)
+      }
+      
+      reader.onerror = () => reject(new Error('Failed to read file'))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  // Handle file selection with safer flow
   const handleFileSelect = async (event) => {
     const file = event.target.files?.[0]
     if (!file || !user) return
     
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file')
+    // Be explicit about allowed types to avoid HEIC surprises
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowed.includes(file.type)) {
+      alert('Please select a JPEG, PNG, WebP, or GIF image')
       return
     }
     
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size must be less than 5MB')
+    // Increased limit since we compress client-side
+    if (file.size > 20 * 1024 * 1024) {
+      alert('Image too large (max 20MB)')
       return
     }
     
@@ -71,63 +176,73 @@ function AvatarUpload({
     setUploadProgress(0)
     
     try {
-      // Compress and resize image
-      const compressedFile = await compressImage(file)
+      // 1) Compress + orient correctly
+      const compressedFile = await compressImage(file) // returns JPEG
       
-      // Generate unique filename
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`
+      // 2) Correct extension from blob type (always jpg for our JPEG output)
+      const ext = 'jpg'
       
-      // Upload to Supabase Storage
+      // 3) Store under user-scoped path
+      const path = makeAvatarPath(user.id, ext)
+      
       setUploadProgress(30)
       
-      // First, try to remove old avatar if it exists
-      if (profile?.avatar_url) {
-        const oldPath = profile.avatar_url.split('/').pop()
-        if (oldPath && oldPath.includes(user.id)) {
-          await supabase.storage
-            .from('profile-pictures')
-            .remove([oldPath])
-        }
-      }
-      
-      setUploadProgress(50)
-      
-      // Upload new avatar
-      const { data, error: uploadError } = await supabase.storage
+      // 4) Upload (no upsert since path is unique)
+      const { error: uploadError } = await supabase.storage
         .from('profile-pictures')
-        .upload(fileName, compressedFile, {
+        .upload(path, compressedFile, {
           cacheControl: '3600',
-          upsert: true,
+          upsert: false,
           contentType: 'image/jpeg'
         })
-
+      
       if (uploadError) {
-        console.error('Upload error details:', uploadError)
+        // Surface specific error for better debugging
+        if (uploadError.message?.includes('row-level security')) {
+          throw new Error('Permission denied. Please check storage policies.')
+        }
         throw uploadError
       }
       
-      setUploadProgress(70)
+      setUploadProgress(60)
       
-      // Get public URL
+      // 5) Get URL (assuming public bucket)
       const { data: { publicUrl } } = supabase.storage
         .from('profile-pictures')
-        .getPublicUrl(fileName)
+        .getPublicUrl(path)
       
-      // Update profile with new avatar URL
-      setUploadProgress(90)
+      setUploadProgress(80)
       
+      // 6) Store old path before updating
+      const oldPath = profile?.avatar_path || extractPathFromUrl(profile?.avatar_url)
+      
+      // 7) Update profile (storing both URL and path for robustness)
       const { error: updateError } = await updateProfile({
-        avatar_url: publicUrl
+        avatar_url: publicUrl,
+        avatar_path: path // Add this column to your profiles table
       })
       
       if (updateError) throw updateError
+      
+      setUploadProgress(90)
+      
+      // 8) Best-effort delete the previous file AFTER successful update
+      if (oldPath && oldPath !== path && oldPath.startsWith(`${user.id}/`)) {
+        try {
+          await supabase.storage
+            .from('profile-pictures')
+            .remove([oldPath])
+        } catch (e) {
+          console.warn('Failed to delete old avatar:', e)
+          // Don't throw - this is best-effort cleanup
+        }
+      }
       
       setUploadProgress(100)
       
       // Call success callback
       if (onUploadComplete) {
-        onUploadComplete(publicUrl)
+        onUploadComplete(publicUrl, path)
       }
       
       // Reset after short delay to show completion
@@ -138,7 +253,20 @@ function AvatarUpload({
       
     } catch (error) {
       console.error('Error uploading avatar:', error)
-      alert('Failed to upload avatar. Please try again.')
+      
+      // More helpful error messages
+      let message = 'Failed to upload avatar. '
+      if (error.message?.includes('Permission')) {
+        message += 'Permission denied.'
+      } else if (error.message?.includes('size')) {
+        message += 'File too large.'
+      } else if (error.message?.includes('type')) {
+        message += 'Invalid file type.'
+      } else {
+        message += 'Please try again.'
+      }
+      
+      alert(message)
       setIsUploading(false)
       setUploadProgress(0)
     }
@@ -149,68 +277,11 @@ function AvatarUpload({
     }
   }
 
-  // Compress and resize image
-  const compressImage = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      
-      reader.onload = (e) => {
-        const img = new Image()
-        
-        img.onload = () => {
-          const canvas = document.createElement('canvas')
-          const ctx = canvas.getContext('2d')
-          
-          // Calculate dimensions (max 500x500, maintain aspect ratio)
-          const maxSize = 500
-          let width = img.width
-          let height = img.height
-          
-          if (width > height) {
-            if (width > maxSize) {
-              height = Math.round((height * maxSize) / width)
-              width = maxSize
-            }
-          } else {
-            if (height > maxSize) {
-              width = Math.round((width * maxSize) / height)
-              height = maxSize
-            }
-          }
-          
-          // Set canvas dimensions
-          canvas.width = width
-          canvas.height = height
-          
-          // Draw and compress image
-          ctx.fillStyle = '#FFFFFF'
-          ctx.fillRect(0, 0, width, height)
-          ctx.drawImage(img, 0, 0, width, height)
-          
-          // Convert to blob with compression
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                resolve(new File([blob], file.name, {
-                  type: 'image/jpeg',
-                  lastModified: Date.now()
-                }))
-              } else {
-                reject(new Error('Failed to compress image'))
-              }
-            },
-            'image/jpeg',
-            0.85 // 85% quality
-          )
-        }
-        
-        img.onerror = () => reject(new Error('Failed to load image'))
-        img.src = e.target?.result
-      }
-      
-      reader.onerror = () => reject(new Error('Failed to read file'))
-      reader.readAsDataURL(file)
-    })
+  // Extract storage path from URL (fallback for legacy data)
+  const extractPathFromUrl = (url) => {
+    if (!url) return null
+    const match = url.match(/\/object\/public\/profile-pictures\/(.+)/)
+    return match?.[1] || null
   }
 
   // Handle remove avatar
@@ -221,23 +292,31 @@ function AvatarUpload({
     setIsUploading(true)
     
     try {
-      // Remove from storage
-      const fileName = profile.avatar_url.split('/').pop()
-      if (fileName && fileName.includes(user.id)) {
-        await supabase.storage
-          .from('profile-pictures')
-          .remove([fileName])
-      }
+      // Get the storage path
+      const path = profile.avatar_path || extractPathFromUrl(profile.avatar_url)
       
-      // Update profile
+      // Update profile first (safer order)
       const { error } = await updateProfile({
-        avatar_url: null
+        avatar_url: null,
+        avatar_path: null
       })
       
       if (error) throw error
       
+      // Then try to delete from storage (best-effort)
+      if (path && path.startsWith(`${user.id}/`)) {
+        try {
+          await supabase.storage
+            .from('profile-pictures')
+            .remove([path])
+        } catch (e) {
+          console.warn('Failed to delete avatar file:', e)
+          // Don't throw - profile is already updated
+        }
+      }
+      
       if (onUploadComplete) {
-        onUploadComplete(null)
+        onUploadComplete(null, null)
       }
       
     } catch (error) {
@@ -255,6 +334,13 @@ function AvatarUpload({
     }
   }
 
+  // Get proper alt text for accessibility
+  const getAltText = () => {
+    if (profile?.full_name) return `${profile.full_name}'s avatar`
+    if (profile?.username) return `@${profile.username}'s avatar`
+    return 'User avatar'
+  }
+
   return (
     <>
       <div 
@@ -262,19 +348,28 @@ function AvatarUpload({
         onMouseEnter={() => editable && setIsHovering(true)}
         onMouseLeave={() => setIsHovering(false)}
       >
-        {/* Avatar Display - matching green/white styling */}
+        {/* Avatar Display */}
         <div 
           className={`${sizeClasses[size]} bg-green-100 rounded-full flex items-center justify-center overflow-hidden shadow-lg ${editable ? 'cursor-pointer' : ''}`}
           onClick={handleAvatarClick}
+          role={editable ? 'button' : undefined}
+          tabIndex={editable ? 0 : undefined}
+          onKeyDown={editable ? (e) => e.key === 'Enter' && handleAvatarClick() : undefined}
+          aria-label={editable ? 'Change profile picture' : undefined}
         >
           {profile?.avatar_url ? (
             <img 
               src={profile.avatar_url} 
-              alt="Profile" 
+              alt={getAltText()}
               className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
-            <span className={`${textSizes[size]} font-semibold text-green-700`}>
+            <span 
+              className={`${textSizes[size]} font-semibold text-green-700`}
+              aria-label={getAltText()}
+            >
               {getInitials(profile) || user?.email?.[0]?.toUpperCase() || '?'}
             </span>
           )}
@@ -283,16 +378,21 @@ function AvatarUpload({
           {editable && (isHovering || isUploading) && (
             <div 
               className={`absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center rounded-full transition-opacity ${sizeClasses[size]}`}
+              aria-hidden="true"
             >
               {isUploading ? (
                 <div className="text-center">
-                  <div className="text-white text-xs mb-1">
-                    {uploadProgress}%
+                  <div className="text-white text-xs mb-1" aria-live="polite">
+                    {uploadProgress < 100 ? 'Uploading...' : 'Complete!'}
                   </div>
                   <div className="w-16 h-1 bg-gray-300 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-white transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
+                      role="progressbar"
+                      aria-valuenow={uploadProgress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
                     />
                   </div>
                 </div>
@@ -302,6 +402,7 @@ function AvatarUpload({
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path 
                     strokeLinecap="round" 
@@ -325,19 +426,24 @@ function AvatarUpload({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,image/gif"
           onChange={handleFileSelect}
           className="hidden"
           disabled={isUploading}
+          aria-label="Upload profile picture"
         />
       </div>
 
       {/* Modal for Upload Options */}
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          role="dialog"
+          aria-labelledby="avatar-modal-title"
+        >
           <div className="bg-white rounded-xl shadow-xl max-w-sm w-full">
             <div className="p-6">
-              <h3 className="text-lg font-semibold mb-4 text-center">
+              <h3 id="avatar-modal-title" className="text-lg font-semibold mb-4 text-center">
                 Profile Picture
               </h3>
               

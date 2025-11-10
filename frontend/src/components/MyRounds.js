@@ -824,7 +824,7 @@ const toggleReaction = async (roundId, reaction) => {
                       {/* Real photos only - no placeholders */}
                       {round.photo && (
                         <div className="px-2 sm:px-4 pt-2 sm:pt-4">
-                          <div className="aspect-video rounded-lg overflow-hidden">
+                          <div className="aspect-square sm:aspect-[4/3] md:aspect-video rounded-lg overflow-hidden">
                             <img 
                               src={round.photo} 
                               alt="Golf course or something captured from round" 

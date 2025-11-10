@@ -751,7 +751,7 @@ const Feed = forwardRef((props, ref) => {
                   {/* Real photos only */}
                   {(round.photo || round.photo_url) && (
                     <div className="px-2 sm:px-4 pt-2 sm:pt-4">
-                      <div className="aspect-video rounded-lg overflow-hidden">
+                      <div className="aspect-square sm:aspect-[4/3] md:aspect-video rounded-lg overflow-hidden">
                         <img 
                           src={round.photo || round.photo_url} 
                           alt="Golf course or something captured from round" 

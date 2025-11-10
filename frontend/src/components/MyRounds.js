@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { roundsService } from '../services/roundsService'
 import { followService } from '../services/followService'
 import { useAuth } from '../context/AuthContext'
@@ -15,6 +15,10 @@ function MyRounds() {
   const [isLoading, setIsLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [offset, setOffset] = useState(0)
+
+  // State for dropdown menus - track which round's menu is open
+  const [openMenuId, setOpenMenuId] = useState(null)
+  const menuRef = useRef(null)
   
   // Your exact reaction system from Feed
   const reactionEmojis = {
@@ -39,6 +43,18 @@ function MyRounds() {
   const [followersList, setFollowersList] = useState([])
   const [followingList, setFollowingList] = useState([])
   
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpenMenuId(null)
+      }
+    }
+    
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   // Load profile stats
   const loadProfileStats = async () => {
     if (!user) return
@@ -182,6 +198,8 @@ function MyRounds() {
   }, [])
 
   const deleteRound = async (roundId) => {
+    setOpenMenuId(null) // Close the menu first
+    
     if (window.confirm('Are you sure you want to delete this round?')) {
       const { error } = await roundsService.deleteRound(roundId)
       
@@ -814,12 +832,43 @@ const toggleReaction = async (roundId, reaction) => {
                               </div>
                             )}
                           </div>
-                          <button
-                            onClick={() => deleteRound(round.id)}
-                            className="ml-2 px-1.5 py-0.5 text-white bg-gray-400 hover:bg-gray-500 rounded text-xs"
-                          >
-                            Delete
-                          </button>
+                          {/* 3-dots menu */}
+                          <div className="relative ml-2" ref={menuRef}>
+                            <button
+                              onClick={() => setOpenMenuId(openMenuId === round.id ? null : round.id)}
+                              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                              <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                              </svg>
+                            </button>
+                            
+                            {/* Dropdown menu */}
+                            {openMenuId === round.id && (
+                              <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                                <button
+                                  onClick={() => deleteRound(round.id)}
+                                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                >
+                                  Delete Round
+                                </button>
+                                {/* Add more menu items here in the future, like:
+                                <button
+                                  onClick={() => handleEdit(round.id)}
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                  Edit Round
+                                </button>
+                                <button
+                                  onClick={() => handleShare(round.id)}
+                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                  Share
+                                </button>
+                                */}
+                              </div>
+                            )}
+                          </div>
                         </div>
                         
                         {/* Score breakdown */}

@@ -91,7 +91,7 @@ function AuthScreen({ onSuccess }) {
     setError('')
     setLoading(true)
 
-    const { data, error } = await signIn(email, password)
+    const { error } = await signIn(email, password)
 
     if (error) {
       // Use generic error message to prevent user enumeration

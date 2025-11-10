@@ -21,6 +21,7 @@ function AuthenticatedApp() {
   const [activeView, setActiveView] = useState('feed')
   const feedRef = useRef(null)
   const { user, profile, signOut } = useAuth()
+  console.log('Current user email:', user?.email)
   const location = useLocation()
   const navigate = useNavigate()
   

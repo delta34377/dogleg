@@ -1,11 +1,14 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { FcGoogle } from 'react-icons/fc'
 import { MdPhone } from 'react-icons/md'
 import { useNavigate } from 'react-router-dom'
 
 function AuthScreen({ onSuccess }) {
-  const [authMode, setAuthMode] = useState('signin') // signin, signup, phone, reset
+  // Add mounted ref to prevent state updates after unmount
+  const mountedRef = useRef(true)
+  
+  const [authMode, setAuthMode] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -29,6 +32,31 @@ function AuthScreen({ onSuccess }) {
     resetPassword 
   } = useAuth()
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { 
+      mountedRef.current = false 
+    }
+  }, [])
+
+  // Clear sensitive data when switching modes
+  useEffect(() => {
+    setError('')
+    setSuccess('')
+    setPassword('')
+    setConfirmPassword('')
+    setOtpCode('')
+    setShowOtpInput(false)
+    setLoading(false)
+  }, [authMode])
+
+  // Safe state setter wrapper
+  const safeSetState = (setter) => (value) => {
+    if (mountedRef.current) {
+      setter(value)
+    }
+  }
+
   // Format phone number for display
   const formatPhoneNumber = (value) => {
     const phoneNumber = value.replace(/\D/g, '')
@@ -39,7 +67,7 @@ function AuthScreen({ onSuccess }) {
     return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`
   }
 
-  // Format phone for API (add country code) - IMPROVED VERSION
+  // Format phone for API (add country code)
   const formatPhoneForAPI = (phoneNumber) => {
     const digits = phoneNumber.replace(/\D/g, '')
     if (digits.length === 10) {
@@ -52,28 +80,31 @@ function AuthScreen({ onSuccess }) {
 
   const handleEmailSignUp = async (e) => {
     e.preventDefault()
-    setError('')
-    setSuccess('')
+    safeSetState(setError)('')
+    safeSetState(setSuccess)('')
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      safeSetState(setError)('Passwords do not match')
       return
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+      safeSetState(setError)('Password must be at least 6 characters')
       return
     }
 
-    setLoading(true)
+    safeSetState(setLoading)(true)
 
     const { error } = await signUp(email, password, {
       username: username.toLowerCase().replace(/\s/g, ''),
       full_name: fullName
     })
 
+    if (!mountedRef.current) return
+
     if (error) {
       setError(error.message)
+      setLoading(false)
     } else {
       setSuccess('Check your email to confirm your account!')
       setEmail('')
@@ -81,33 +112,33 @@ function AuthScreen({ onSuccess }) {
       setConfirmPassword('')
       setUsername('')
       setFullName('')
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   const handleEmailSignIn = async (e) => {
     e.preventDefault()
-    setError('')
-    setLoading(true)
+    safeSetState(setError)('')
+    safeSetState(setLoading)(true)
 
     const { error } = await signIn(email, password)
 
+    if (!mountedRef.current) return
+
     if (error) {
-      // Use generic error message to prevent user enumeration
       setError('Invalid email or password')
+      setLoading(false)
     } else {
+      // Navigate will unmount, so no need to setLoading(false)
       navigate('/')
     }
-
-    setLoading(false)
   }
 
   const handlePhoneSignIn = async (e) => {
     e.preventDefault()
-    setError('')
-    setSuccess('')
-    setLoading(true)
+    safeSetState(setError)('')
+    safeSetState(setSuccess)('')
+    safeSetState(setLoading)(true)
 
     try {
       const formattedPhone = formatPhoneForAPI(phone)
@@ -116,49 +147,62 @@ function AuthScreen({ onSuccess }) {
         // Send OTP
         const { error } = await signInWithPhone(formattedPhone)
         
+        if (!mountedRef.current) return
+
         if (error) {
           setError(error.message)
+          setLoading(false)
         } else {
           setShowOtpInput(true)
           setSuccess(`Verification code sent to ${formattedPhone}`)
+          setLoading(false)
         }
       } else {
         // Verify OTP
         const { error } = await verifyPhoneOTP(formattedPhone, otpCode)
         
+        if (!mountedRef.current) return
+
         if (error) {
           setError(error.message)
+          setLoading(false)
         } else {
           navigate('/') // Consistent with email sign in
         }
       }
     } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
+      if (mountedRef.current) {
+        setError(err.message)
+        setLoading(false)
+      }
     }
   }
 
   const handleGoogleSignIn = async () => {
-    setError('')
-    setLoading(true)
+    safeSetState(setError)('')
+    safeSetState(setLoading)(true)
 
     const { error } = await signInWithGoogle()
+
+    if (!mountedRef.current) return
 
     if (error) {
       setError(error.message)
       setLoading(false)
     }
     // Google OAuth handles redirect automatically
+    // Loading stays true for redirect flow
   }
 
   const handlePasswordReset = async (e) => {
     e.preventDefault()
-    setError('')
-    setSuccess('')
-    setLoading(true)
+    safeSetState(setError)('')
+    safeSetState(setSuccess)('')
+    safeSetState(setLoading)(true)
 
     const { error } = await resetPassword(email)
+
+    if (!mountedRef.current) return
 
     if (error) {
       setError(error.message)
@@ -166,19 +210,13 @@ function AuthScreen({ onSuccess }) {
       setSuccess('Check your email for password reset instructions!')
       setEmail('')
     }
-
     setLoading(false)
   }
 
-  // Helper function to reset state when switching modes
+  // Helper function to switch modes
   const switchAuthMode = (mode) => {
     setAuthMode(mode)
-    setError('')
-    setSuccess('')
-    if (mode === 'phone') {
-      setShowOtpInput(false)
-      setOtpCode('')
-    }
+    // useEffect will handle clearing sensitive data
   }
 
   return (
@@ -385,7 +423,7 @@ function AuthScreen({ onSuccess }) {
                   maxLength={14}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  We'll send you a verification code via SMS
+                  We'll send you a verification code via SMS (US numbers only)
                 </p>
               </div>
             ) : (
@@ -396,7 +434,7 @@ function AuthScreen({ onSuccess }) {
                 <input
                   type="text"
                   value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value)}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-2xl text-center tracking-widest"
                   placeholder="000000"
                   autoComplete="one-time-code"
@@ -416,7 +454,8 @@ function AuthScreen({ onSuccess }) {
                     setShowOtpInput(false)
                     setOtpCode('')
                   }}
-                  className="text-sm text-green-600 hover:text-green-700 mt-2"
+                  className="text-sm text-green-600 hover:text-green-700 mt-2 disabled:text-gray-400"
+                  disabled={loading}
                 >
                   Use a different number
                 </button>

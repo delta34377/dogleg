@@ -101,7 +101,7 @@ function AdminPanel() {
             >
               <option value="mixed">Mixed (Following + Discovery)</option>
               <option value="following">Following Only</option>
-              <option value="discovery">Discovery Only</option>
+              <option value="discover">Discovery Only</option>
             </select>
           </div>
           

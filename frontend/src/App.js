@@ -269,7 +269,6 @@ function AuthenticatedApp() {
     ⚙️
   </button>
 )}
-```
 
               <button
                 onClick={() => setActiveView('profile')}

@@ -16,6 +16,7 @@
 3. **Reactions & Comments** - Engage with emoji reactions and comments
 4. **Course Database** - 22,563 courses with 94,648 tee options pre-loaded
 5. **Mobile PWA** - Installable app, works offline
+6. **Profile Pictures** - Upload and manage avatars with image compression
 
 ## 📱 Feed Architecture
 
@@ -103,7 +104,7 @@ Each round has a unique shareable URL using a 6-character short code:
 ### Backend
 - **Database:** Supabase (PostgreSQL)
 - **Auth:** Supabase Auth
-- **Storage:** Supabase Storage (photos)
+- **Storage:** Supabase Storage (photos & avatars)
 - **Realtime:** Supabase Realtime (live feed updates)
 
 ### Frontend (To Build)
@@ -409,6 +410,19 @@ console.log('Refocus check:', {
   willRefresh: !hasUser || nearExpiry
 })
 ```
+### Authentication Best Practices
+- **NEVER add auth checks in child components** - causes race conditions
+- **Let ProtectedRoute handle all /login redirects** - single guard pattern
+- **userRef.current for event handlers** - prevents stale closures
+- **Token expiry tracked in sessionExpRef** - enables smart refresh
+- **rechecking must be in useMemo deps** - prevents infinite loading
+
+### Storage Best Practices
+- **Always validate file type and size client-side**
+- **Compress images before upload** - saves bandwidth
+- **Clean up old files** - prevents storage bloat
+- **Use public buckets for user-facing content**
+- **Set appropriate CORS headers** - for cross-origin access
 
 
 
@@ -420,7 +434,7 @@ If starting a new chat, share:
 3. Current progress status
 4. Specific file you're working on
 
-Key context: "I'm building Dogleg, a social golf app like Instagram for golf. I have 22k courses in Supabase, need help with [specific feature]. Here's my README and current code..."
+Key context: "I'm building Dogleg, a social golf app like Strava/Instagram for golf. I have 22k courses in Supabase, need help with [specific feature]. Here's my README and current code..."
 
 ## 🔗 Resources
 
@@ -438,4 +452,4 @@ Key context: "I'm building Dogleg, a social golf app like Instagram for golf. I 
 ---
 
 **Last Updated:** October 2025  
-**Version:** 0.1.0 (Pre-Alpha)
+**Version:** 0.9.0 (Beta)

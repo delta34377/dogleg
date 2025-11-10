@@ -11,6 +11,7 @@ import Feed from './components/Feed'
 import UserProfile from './components/UserProfile'
 import ResetPassword from './components/ResetPassword'
 import SingleRound from './components/SingleRound'
+import SearchUsers from './pages/SearchUsers'  // ADD THIS IMPORT
 import { getInitials } from './utils/avatarUtils'
 
 
@@ -66,6 +67,17 @@ function AuthenticatedApp() {
               </div>
               
               <div className="flex items-center gap-3">
+                {/* ADD SEARCH ICON HERE */}
+                <button
+                  onClick={() => navigate('/search-users')}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  title="Search users"
+                >
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+
                 <button
                   onClick={() => {
                     setActiveView('profile')
@@ -218,6 +230,17 @@ function AuthenticatedApp() {
             </button>
             
             <div className="flex items-center gap-3">
+              {/* ADD SEARCH ICON HERE */}
+              <button
+                onClick={() => navigate('/search-users')}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Search users"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
+
               <button
                 onClick={() => setActiveView('profile')}
                 className="flex items-center gap-2 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
@@ -364,6 +387,16 @@ function App() {
           <Route path="/login" element={<AuthScreen />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           
+          {/* ADD THIS NEW ROUTE FOR USER SEARCH */}
+          <Route 
+            path="/search-users" 
+            element={
+              <ProtectedRoute>
+                <SearchUsers />
+              </ProtectedRoute>
+            }
+          />
+          
           {/* Define the profile route properly */}
           <Route 
             path="/profile/:username" 
@@ -375,13 +408,13 @@ function App() {
           />
           
           <Route 
-     path="/rounds/:roundId" 
-     element={
-       <ProtectedRoute>
-         <SingleRound />
-       </ProtectedRoute>
-     }
-   />
+            path="/rounds/:roundId" 
+            element={
+              <ProtectedRoute>
+                <SingleRound />
+              </ProtectedRoute>
+            }
+          />
 
           {/* All other authenticated routes */}
           <Route 

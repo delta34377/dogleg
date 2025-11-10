@@ -85,22 +85,24 @@ function UserProfile() {
   }
 
   const loadProfileStats = async () => {
-    if (!profileUser) return
-    
-    const counts = await followService.getFollowCounts(profileUser.id)
-    
-    setProfileStats({
-      followersCount: counts.followers,
-      followingCount: counts.following,
-      roundsCount: rounds.length
-    })
-  }
+  if (!profileUser) return
+  
+  const counts = await followService.getFollowCounts(profileUser.id)
+  
+  // Get actual rounds count from database
+  const { count: roundsCount } = await supabase
+    .from('rounds')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', profileUser.id)
+  
+  setProfileStats({
+    followersCount: counts.followers,
+    followingCount: counts.following,
+    roundsCount: roundsCount || 0
+  })
+}
 
-  // Update profile stats when rounds change
-  useEffect(() => {
-    setProfileStats(prev => ({ ...prev, roundsCount: rounds.length }))
-  }, [rounds])
-
+ 
   const loadRounds = async (loadMore = false) => {
     if (isLoading || !profileUser?.id) return
     

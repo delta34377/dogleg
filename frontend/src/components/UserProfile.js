@@ -707,8 +707,16 @@ function UserProfile() {
         {profileUser?.full_name && (
           <p className="text-xs sm:text-base text-gray-600 truncate">{profileUser.full_name}</p>
         )}
-        {profileUser?.bio && (
-          <p className="text-xs sm:text-sm text-gray-600 mt-1 sm:mt-2 line-clamp-2">{profileUser.bio}</p>
+        
+        {/* Location with icon - ADDED */}
+        {profileUser?.location && (
+          <p className="text-xs sm:text-sm text-gray-500 mt-1 flex items-center gap-1">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {profileUser.location}
+          </p>
         )}
       </div>
       
@@ -725,7 +733,7 @@ function UserProfile() {
       )}
     </div>
     
-    {/* Stats - remove the follow button section that was here */}
+    {/* Stats - stays the same */}
     <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t flex justify-around text-center">
       <div>
         <span className="font-bold text-base sm:text-lg">{profileStats.roundsCount}</span>

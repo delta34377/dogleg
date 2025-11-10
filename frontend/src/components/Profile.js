@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import AvatarUpload from '../components/AvatarUpload'  
 import { supabase } from '../services/supabase'
+import { followService } from '../services/followService'
 
 function Profile() {
   const { user, profile, updateProfile, signOut } = useAuth()
@@ -16,6 +17,11 @@ function Profile() {
     location: ''
   })
 
+  const [followCounts, setFollowCounts] = useState({
+  followers: 0,
+  following: 0
+})
+
   useEffect(() => {
     if (profile) {
       setFormData({
@@ -26,6 +32,21 @@ function Profile() {
       })
     }
   }, [profile])
+
+  // Get actual follow counts from follows table
+  useEffect(() => {
+    const getFollowCounts = async () => {
+      if (!user) return
+      
+      const counts = await followService.getFollowCounts(user.id)
+      setFollowCounts({
+        followers: counts.followers,
+        following: counts.following
+      })
+    }
+    
+    getFollowCounts()
+  }, [user])
 
   // Get actual rounds count from database
   useEffect(() => {
@@ -82,9 +103,9 @@ function Profile() {
   }
 
   const stats = [
-    { label: 'Rounds', value: roundsCount },
-    { label: 'Followers', value: profile?.followers_count || 0 },
-    { label: 'Following', value: profile?.following_count || 0 }
+    { label: 'Rounds', value: roundsCount }, // if you implemented my earlier fix
+    { label: 'Followers', value: followCounts.followers },
+    { label: 'Following', value: followCounts.following }
   ]
 
   return (

@@ -1,9 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL,
-  process.env.REACT_APP_SUPABASE_ANON_KEY
-)
+import { supabase } from './supabase'
 
 export const searchService = {
   // Search users by username or full name
@@ -13,11 +8,18 @@ export const searchService = {
     }
 
     try {
+      // Clean the search term to prevent SQL injection and handle special characters
+      // Remove SQL wildcards and other problematic characters
+      const cleanTerm = searchTerm
+        .replace(/[%_\\]/g, '') // Remove SQL wildcards
+        .replace(/[(),]/g, ' ')  // Replace problematic characters with spaces
+        .trim()
+      
       // Use ilike for case-insensitive partial matching
       const { data, error } = await supabase
         .from('profiles')
         .select('id, username, full_name, avatar_url, bio, location')
-        .or(`username.ilike.%${searchTerm}%,full_name.ilike.%${searchTerm}%`)
+        .or(`username.ilike.%${cleanTerm}%,full_name.ilike.%${cleanTerm}%`)
         .limit(limit)
         .order('username', { ascending: true })
 

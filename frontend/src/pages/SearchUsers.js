@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { searchService } from '../services/searchService'
@@ -16,7 +16,8 @@ function SearchUsers() {
   const [suggestedUsers, setSuggestedUsers] = useState([])
   const [loading, setLoading] = useState(false)
   const [followStatuses, setFollowStatuses] = useState({})
-  const [searchDebounceTimer, setSearchDebounceTimer] = useState(null)
+  const searchTimerRef = useRef(null)
+  const latestReqRef = useRef(0)  // ADD THIS FOR RACE CONDITION FIX
 
   // Load suggested users on mount
   useEffect(() => {
@@ -24,6 +25,12 @@ function SearchUsers() {
       loadSuggestedUsers()
     }
   }, [user])
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    }
+  }, [])
 
   // Load suggested users
   const loadSuggestedUsers = async () => {
@@ -38,8 +45,10 @@ function SearchUsers() {
     }
   }
 
-  // Debounced search function
+  // Debounced search function - UPDATED WITH RACE CONDITION FIX
   const performSearch = useCallback(async (term) => {
+    const reqId = ++latestReqRef.current  // Track this request
+    
     if (!term || term.trim().length < 2) {
       setSearchResults([])
       return
@@ -48,6 +57,12 @@ function SearchUsers() {
     setLoading(true)
     const { data, error } = await searchService.searchUsers(term)
     
+    // Check if this is still the latest request
+    if (reqId !== latestReqRef.current) {
+      // A newer search started, ignore these results
+      return
+    }
+    
     if (!error && data) {
       setSearchResults(data)
       
@@ -55,7 +70,11 @@ function SearchUsers() {
       if (data.length > 0) {
         const userIds = data.map(u => u.id)
         const statuses = await followService.getFollowStatuses(userIds)
-        setFollowStatuses(statuses)
+        
+        // Check again after async operation
+        if (reqId === latestReqRef.current) {
+          setFollowStatuses(statuses)
+        }
       }
     }
     
@@ -68,24 +87,22 @@ function SearchUsers() {
     setSearchTerm(value)
 
     // Clear existing timer
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer)
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current)
     }
 
     // Set new timer for debounced search
-    const newTimer = setTimeout(() => {
+    searchTimerRef.current = setTimeout(() => {
       performSearch(value)
-    }, 300) // 300ms delay
-
-    setSearchDebounceTimer(newTimer)
+    }, 300)
   }
 
-  // Clear search
+  // Clear search - FIXED BUG
   const clearSearch = () => {
     setSearchTerm('')
     setSearchResults([])
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer)
+    if (searchTimerRef.current) {  // Changed from searchDebounceTimer
+      clearTimeout(searchTimerRef.current)
     }
   }
 
@@ -113,8 +130,8 @@ function SearchUsers() {
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-600 font-semibold text-lg">
-  {getInitials(userItem) || '?'}
-</div>
+              {getInitials(userItem) || '?'}
+            </div>
           )}
         </div>
         <div className="ml-3 min-w-0 flex-1">
@@ -127,15 +144,15 @@ function SearchUsers() {
             </p>
           )}
           
-                    {userItem.location && (
-  <p className="text-xs text-gray-500 truncate mt-0.5 flex items-center gap-1">
-    <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-    {userItem.location}
-  </p>
-)}
+          {userItem.location && (
+            <p className="text-xs text-gray-500 truncate mt-0.5 flex items-center gap-1">
+              <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              {userItem.location}
+            </p>
+          )}
         </div>
       </Link>
       

@@ -247,16 +247,29 @@ function AuthenticatedApp() {
             </button>
             
             <div className="flex items-center gap-3">
+
               {/* ADD SEARCH ICON HERE */}
-              <button
-                onClick={() => navigate('/search-users')}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                title="Search users"
-              >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
+<button
+  onClick={() => navigate('/search-users')}
+  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+  title="Search users"
+>
+  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+</button>
+
+{/* Secret Admin Button */}
+{user?.email === 'markgreenfield1@gmail.com' && (
+  <button
+    onClick={() => navigate('/admin')}
+    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+    title="Admin Panel"
+  >
+    ⚙️
+  </button>
+)}
+```
 
               <button
                 onClick={() => setActiveView('profile')}

@@ -700,8 +700,8 @@ const toggleReaction = async (roundId, reaction) => {
         {/* Bio with better styling */}
         {profile?.bio && (
           <div className="mt-2 p-2 bg-gray-50 rounded-lg border-l-3 border-gray-300">
-            <p className="text-xs sm:text-sm text-gray-700 italic">
-              "{profile.bio}"
+            <p className="text-xs sm:text-sm text-gray-700">
+              {profile.bio}
             </p>
           </div>
         )}

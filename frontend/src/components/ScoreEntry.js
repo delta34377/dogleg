@@ -57,7 +57,6 @@ function ScoreEntry({ course, onComplete, onCancel }) {
       
       if (!error && data) {
         setFullCourseData(data)
-        console.log('Full course data:', data)
       }
     } catch (error) {
       console.error('Error loading course data:', error)

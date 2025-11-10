@@ -17,9 +17,8 @@ function AuthScreen({ onSuccess }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [rememberMe, setRememberMe] = useState(true)
 
-    const navigate = useNavigate()  // ADD THIS if not there
+  const navigate = useNavigate()
 
   const { 
     signUp, 
@@ -40,15 +39,15 @@ function AuthScreen({ onSuccess }) {
     return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`
   }
 
-  // Format phone for API (add country code)
+  // Format phone for API (add country code) - IMPROVED VERSION
   const formatPhoneForAPI = (phoneNumber) => {
     const digits = phoneNumber.replace(/\D/g, '')
     if (digits.length === 10) {
       return `+1${digits}`
-    } else if (digits.length === 11 && digits[0] === '1') {
+    } else if (digits.length === 11 && digits.startsWith('1')) {
       return `+${digits}`
     }
-    return `+${digits}`
+    throw new Error('Please enter a valid 10-digit US phone number')
   }
 
   const handleEmailSignUp = async (e) => {
@@ -88,82 +87,70 @@ function AuthScreen({ onSuccess }) {
   }
 
   const handleEmailSignIn = async (e) => {
-  e.preventDefault()
-  setError('')
-  setLoading(true)
-
-  const { data, error } = await signIn(email, password)
-
-  console.log('Sign in attempt:', { email, data, error }) // ADD THIS
-
-  if (error) {
-    setError(error.message)
-  } else {
-    navigate('/')  // Add this line to go to home page
-  }
-
-  setLoading(false)
-}
-
-  const handlePhoneSignIn = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    const formattedPhone = formatPhoneForAPI(phone)
-    
-    if (!showOtpInput) {
-      // Send OTP
-      const { error } = await signInWithPhone(formattedPhone)
-      
-      if (error) {
-        setError(error.message)
-      } else {
-        setShowOtpInput(true)
-        setSuccess('Check your phone for the verification code!')
-      }
+    const { data, error } = await signIn(email, password)
+
+    if (error) {
+      // Use generic error message to prevent user enumeration
+      setError('Invalid email or password')
     } else {
-      // Verify OTP
-      const { error } = await verifyPhoneOTP(formattedPhone, otpCode)
-      
-      if (error) {
-        setError(error.message)
-      } else {
-        onSuccess && onSuccess()
-      }
+      navigate('/')
     }
 
     setLoading(false)
+  }
+
+  const handlePhoneSignIn = async (e) => {
+    e.preventDefault()
+    setError('')
+    setSuccess('')
+    setLoading(true)
+
+    try {
+      const formattedPhone = formatPhoneForAPI(phone)
+      
+      if (!showOtpInput) {
+        // Send OTP
+        const { error } = await signInWithPhone(formattedPhone)
+        
+        if (error) {
+          setError(error.message)
+        } else {
+          setShowOtpInput(true)
+          setSuccess(`Verification code sent to ${formattedPhone}`)
+        }
+      } else {
+        // Verify OTP
+        const { error } = await verifyPhoneOTP(formattedPhone, otpCode)
+        
+        if (error) {
+          setError(error.message)
+        } else {
+          navigate('/') // Consistent with email sign in
+        }
+      }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleGoogleSignIn = async () => {
-  setError('')
-  setLoading(true)
-
-  const { error } = await signInWithGoogle()
-
-  if (error) {
-    setError(error.message)
-    setLoading(false)
-  }
-  // Google OAuth handles redirect automatically - don't add navigation here
-}
-
-  // Apple Sign In - Commented out (requires Apple Developer account)
-  /*
-  const handleAppleSignIn = async () => {
     setError('')
     setLoading(true)
 
-    const { data, error } = await signInWithApple()
+    const { error } = await signInWithGoogle()
 
     if (error) {
       setError(error.message)
+      setLoading(false)
     }
-
-    setLoading(false)
+    // Google OAuth handles redirect automatically
   }
-  */
 
   const handlePasswordReset = async (e) => {
     e.preventDefault()
@@ -181,6 +168,17 @@ function AuthScreen({ onSuccess }) {
     }
 
     setLoading(false)
+  }
+
+  // Helper function to reset state when switching modes
+  const switchAuthMode = (mode) => {
+    setAuthMode(mode)
+    setError('')
+    setSuccess('')
+    if (mode === 'phone') {
+      setShowOtpInput(false)
+      setOtpCode('')
+    }
   }
 
   return (
@@ -202,13 +200,13 @@ function AuthScreen({ onSuccess }) {
 
         {/* Error and Success Messages */}
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm" role="alert">
             {error}
           </div>
         )}
         
         {success && (
-          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm" role="status" aria-live="polite">
             {success}
           </div>
         )}
@@ -226,6 +224,8 @@ function AuthScreen({ onSuccess }) {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="your@email.com"
+                autoComplete="email"
+                inputMode="email"
                 required
                 disabled={loading}
               />
@@ -241,25 +241,16 @@ function AuthScreen({ onSuccess }) {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="••••••••"
+                autoComplete="current-password"
                 required
                 disabled={loading}
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                />
-                <span className="ml-2 text-sm text-gray-700">Remember me</span>
-              </label>
-              
+            <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => setAuthMode('reset')}
+                onClick={() => switchAuthMode('reset')}
                 className="text-sm text-green-600 hover:text-green-700"
               >
                 Forgot password?
@@ -289,10 +280,11 @@ function AuthScreen({ onSuccess }) {
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="johndoe"
+                autoComplete="username"
                 required
                 disabled={loading}
-                pattern="[a-zA-Z0-9_]{3,20}"
-                title="Username must be 3-20 characters, letters, numbers, and underscores only"
+                pattern="[a-z0-9_]{3,20}"
+                title="3-20 characters, lowercase letters, numbers, and underscores only"
               />
             </div>
 
@@ -306,6 +298,7 @@ function AuthScreen({ onSuccess }) {
                 onChange={(e) => setFullName(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="John Doe"
+                autoComplete="name"
                 required
                 disabled={loading}
               />
@@ -321,6 +314,8 @@ function AuthScreen({ onSuccess }) {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="your@email.com"
+                autoComplete="email"
+                inputMode="email"
                 required
                 disabled={loading}
               />
@@ -336,6 +331,7 @@ function AuthScreen({ onSuccess }) {
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="••••••••"
+                autoComplete="new-password"
                 required
                 disabled={loading}
                 minLength={6}
@@ -352,6 +348,7 @@ function AuthScreen({ onSuccess }) {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="••••••••"
+                autoComplete="new-password"
                 required
                 disabled={loading}
               />
@@ -381,6 +378,8 @@ function AuthScreen({ onSuccess }) {
                   onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-lg"
                   placeholder="(123) 456-7890"
+                  autoComplete="tel"
+                  inputMode="tel"
                   required
                   disabled={loading}
                   maxLength={14}
@@ -400,6 +399,8 @@ function AuthScreen({ onSuccess }) {
                   onChange={(e) => setOtpCode(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-2xl text-center tracking-widest"
                   placeholder="000000"
+                  autoComplete="one-time-code"
+                  inputMode="numeric"
                   required
                   disabled={loading}
                   maxLength={6}
@@ -424,7 +425,7 @@ function AuthScreen({ onSuccess }) {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (showOtpInput && otpCode.length !== 6)}
               className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400"
             >
               {loading ? 'Processing...' : showOtpInput ? 'Verify Code' : 'Send Code'}
@@ -445,6 +446,8 @@ function AuthScreen({ onSuccess }) {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 placeholder="your@email.com"
+                autoComplete="email"
+                inputMode="email"
                 required
                 disabled={loading}
               />
@@ -463,7 +466,7 @@ function AuthScreen({ onSuccess }) {
 
             <button
               type="button"
-              onClick={() => setAuthMode('signin')}
+              onClick={() => switchAuthMode('signin')}
               className="w-full text-sm text-gray-600 hover:text-gray-800"
             >
               Back to Sign In
@@ -486,7 +489,7 @@ function AuthScreen({ onSuccess }) {
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() => setAuthMode('phone')}
+                onClick={() => switchAuthMode('phone')}
                 className="w-full flex items-center justify-center gap-3 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50"
                 disabled={loading}
               >
@@ -503,18 +506,6 @@ function AuthScreen({ onSuccess }) {
                 <FcGoogle className="text-xl" />
                 <span className="font-medium">Google</span>
               </button>
-
-              {/* Apple Sign In - Uncomment if you set up Apple authentication
-              <button
-                type="button"
-                onClick={handleAppleSignIn}
-                className="w-full flex items-center justify-center gap-3 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50"
-                disabled={loading}
-              >
-                <AiFillApple className="text-xl" />
-                <span className="font-medium">Apple</span>
-              </button>
-              */}
             </div>
           </>
         )}
@@ -527,7 +518,7 @@ function AuthScreen({ onSuccess }) {
             </span>
             <button
               type="button"
-              onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+              onClick={() => switchAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
               className="text-sm font-semibold text-green-600 hover:text-green-700"
             >
               {authMode === 'signin' ? 'Sign Up' : 'Sign In'}

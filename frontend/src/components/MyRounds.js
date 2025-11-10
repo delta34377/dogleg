@@ -46,14 +46,16 @@ function MyRounds() {
   // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setOpenMenuId(null)
+      // Check if click is outside of any menu
+      const isClickOutside = !event.target.closest('[data-menu-container]');
+      if (isClickOutside && openMenuId !== null) {
+        setOpenMenuId(null);
       }
     }
     
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenuId]);
 
   // Load profile stats
   const loadProfileStats = async () => {
@@ -833,9 +835,12 @@ const toggleReaction = async (roundId, reaction) => {
                             )}
                           </div>
                           {/* 3-dots menu */}
-                          <div className="relative ml-2" ref={menuRef}>
+                          <div className="relative ml-2" data-menu-container>
                             <button
-                              onClick={() => setOpenMenuId(openMenuId === round.id ? null : round.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(openMenuId === round.id ? null : round.id)
+                              }}
                               className="p-1 hover:bg-gray-100 rounded-full transition-colors"
                             >
                               <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
@@ -845,27 +850,20 @@ const toggleReaction = async (roundId, reaction) => {
                             
                             {/* Dropdown menu */}
                             {openMenuId === round.id && (
-                              <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
+                              <div 
+                                className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200"
+                                onClick={(e) => e.stopPropagation()}
+                              >
                                 <button
-                                  onClick={() => deleteRound(round.id)}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    deleteRound(round.id);
+                                  }}
                                   className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                                 >
                                   Delete Round
                                 </button>
-                                {/* Add more menu items here in the future, like:
-                                <button
-                                  onClick={() => handleEdit(round.id)}
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  Edit Round
-                                </button>
-                                <button
-                                  onClick={() => handleShare(round.id)}
-                                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  Share
-                                </button>
-                                */}
                               </div>
                             )}
                           </div>

@@ -54,69 +54,69 @@ const [selectedTab, setSelectedTab] = useState('overview');
   const loadDashboardData = async () => {
   setLoading(true);
   try {
-    let startDate, endDate, dayCount;
+    let startDate, endDate;
     
     if (useCustomDate && dateRange.from && dateRange.to) {
-      // Using custom date range - PROPERLY USE BOTH DATES
       startDate = new Date(dateRange.from);
       endDate = new Date(dateRange.to);
-      // Add 1 day to endDate to include the full day
-      endDate.setHours(23, 59, 59, 999);
-      dayCount = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
     } else {
-      // Using preset period
       endDate = new Date();
       startDate = new Date();
       startDate.setDate(startDate.getDate() - selectedPeriod);
-      dayCount = selectedPeriod;
     }
     
-    // Format dates for SQL
     const sqlStartDate = startDate.toISOString().split('T')[0];
     const sqlEndDate = endDate.toISOString().split('T')[0];
     
-    console.log('Loading data from', sqlStartDate, 'to', sqlEndDate, '(', dayCount, 'days)');
+    console.log('Loading data from', sqlStartDate, 'to', sqlEndDate);
     
-    // Load overview (doesn't need date range)
+    // Overview stays the same
     const { data: overviewData } = await supabase
       .rpc('get_dashboard_overview');
     setOverview(overviewData);
 
-    // Load activity metrics with BOTH dates
+    // Activity metrics already works with dates
     const { data: activityData } = await supabase
       .rpc('get_activity_metrics', {
         p_start_date: sqlStartDate,
-        p_end_date: sqlEndDate  // Now actually using the end date!
+        p_end_date: sqlEndDate
       });
     setActivityMetrics(activityData || []);
 
-    // For functions that use day count, we need to be careful
-    // Some of your SQL functions might need updating to accept date ranges
-    // For now, using day count but this might show more data than the range
+    // Use the new range-aware functions
     const { data: growthData } = await supabase
-      .rpc('get_user_growth_metrics', {
-        p_days: dayCount
+      .rpc('get_user_growth_metrics_range', {
+        p_start_date: sqlStartDate,
+        p_end_date: sqlEndDate
       });
     setUserGrowth(growthData || []);
 
     const { data: engagementData } = await supabase
-      .rpc('get_engagement_metrics', {
-        p_days: dayCount
+      .rpc('get_engagement_metrics_range', {
+        p_start_date: sqlStartDate,
+        p_end_date: sqlEndDate
       });
     setEngagementMetrics(engagementData || []);
 
-    // Top rounds should respect the date range
-    const topRoundsDays = dayCount > 30 ? 7 : dayCount;
+    // For the others that don't have range versions yet, 
+    // calculate the day difference correctly
+    const dayCount = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    
     const { data: topRoundsData } = await supabase
       .rpc('get_top_rounds', {
-        p_days: topRoundsDays,
+        p_days: dayCount,
         p_limit: 10
       });
-    setTopRounds(topRoundsData || []);
+    
+    // Filter top rounds to only show those within the date range
+    const filteredTopRounds = topRoundsData?.filter(round => {
+      const roundDate = new Date(round.posted_at);
+      return roundDate >= startDate && roundDate <= endDate;
+    }) || [];
+    setTopRounds(filteredTopRounds);
 
-    // Emoji breakdown
     const { data: emojiData } = await supabase
-      .rpc('get_emoji_breakdown', dayCount ? { p_days: dayCount } : {});
+      .rpc('get_emoji_breakdown', { p_days: dayCount });
     setEmojiBreakdown(emojiData || []);
 
   } catch (error) {

@@ -84,9 +84,8 @@ const AdminDashboard = () => {
 
       // Load emoji breakdown
       const { data: emojiData } = await supabase
-        .rpc('get_emoji_breakdown', {
-          p_days: selectedPeriod
-        });
+  .rpc('get_emoji_breakdown', selectedPeriod ? { p_days: selectedPeriod } : {});
+
       setEmojiBreakdown(emojiData || []);
 
     } catch (error) {

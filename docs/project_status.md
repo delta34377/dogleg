@@ -61,6 +61,14 @@
   - Automatic short code generation for new rounds
   - Database column `short_code` with unique constraint
   - Service method `getRoundByShortCode` in roundsService
+  - ✅ **Admin Panel for Feed Algorithm**
+  - Adjustable discovery ratio
+  - Mode selection (mixed/following/discover only)
+  - Scoring weight controls
+  - Settings persist in localStorage
+- ✅ **3-dots menu system** - Expandable menus for future options
+- ✅ **Consistent round counting** - All pages use actual rounds table
+- ✅ **Fixed profile stats** - Accurate follower/following counts
 
 
 ## 🔄 Currently Working On
@@ -83,6 +91,15 @@
   - Popular rounds (high engagement)
 - **Ranking**: Time-decay scoring with engagement weight
 - **No user location required** - uses course locations instead
+### 🔊 Feed Algorithm Details
+- **Function**: `get_feed_with_discovery` (PostgreSQL RPC)
+- **Mix**: Adjustable via admin panel (default 70% following, 30% discovery)
+- **Discovery Sources**: 
+  - Rounds from courses/clubs user has played
+  - Popular rounds (adjustable thresholds via admin)
+- **Ranking**: Adjustable weights via admin panel
+- **Modes**: mixed, following-only, discovery-only
+- **Admin Panel**: `/admin` route for algorithm tweaking
 
 ## Authentication Architecture
 - **Smart Refocus Logic**: Only refreshes session when token expires within 30 seconds

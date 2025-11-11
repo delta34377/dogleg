@@ -45,6 +45,11 @@ I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Strava
   - Created SingleRound component that displays rounds exactly like Feed
   - Share button now generates working shareable links
   - Database trigger auto-generates unique short codes for all rounds
+  - ✅ **Feed algorithm admin panel** - Adjustable algorithm parameters without code changes
+- ✅ **Discovery mode filtering** - Fixed SQL function parameter mismatch ('discover' vs 'discovery')
+- ✅ **Round count consistency** - All pages now count from actual rounds table
+- ✅ **3-dots menu for rounds** - Replaced delete button with expandable menu
+- ✅ **Profile stats accuracy** - Fixed follower/following counts using followService
   
 ### Key Technical Decisions
 1. **userRef Pattern**: Event handlers in useEffect with [] deps use refs to avoid stale closures
@@ -66,6 +71,17 @@ I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Strava
 - Waterfall fill: When following content is sparse, discovery fills the gap
 - SQL RPC function: `get_feed_with_discovery`
 - No empty feeds for new users
+
+## Admin Panel (Mark Only)
+- **Access**: `/admin` route (only for markgreenfield1@gmail.com)
+- **Adjustable Parameters**:
+  - Discovery ratio (0-100%)
+  - Feed mode (mixed/following/discover)
+  - Popular thresholds (reactions/comments)
+  - Scoring weights (recency/engagement/affinity)
+  - Near-you radius
+- **Settings Storage**: localStorage (device-specific)
+- **Apply & Refresh**: Instant feed algorithm updates
 
 
 ## Tech Stack

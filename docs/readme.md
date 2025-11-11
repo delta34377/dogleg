@@ -32,6 +32,8 @@ Our "For You" feed intelligently mixes content for maximum engagement:
 - 📍 **Near courses you've played**: Rounds from same/nearby courses
 - 🔥 **Popular rounds**: High engagement content (3+ reactions or 2+ comments)
 
+**Admin Panel** - Algorithm tuning interface (admin-only)
+
 **Key Features**:
 - No empty feeds for new users
 - Waterfall fill when following content is sparse
@@ -44,6 +46,16 @@ Our "For You" feed intelligently mixes content for maximum engagement:
 - **Service Method**: `roundsService.getFeedWithDiscovery()`
 - **Component**: `Feed.js` with discovery indicators
 - **Database indexes**: Optimized for course, engagement, and time-based queries
+
+### Admin Panel Features
+- **Access Control**: Email-based (markgreenfield1@gmail.com)
+- **Real-time Adjustments**: No code changes needed
+- **Parameters**:
+  - Discovery mix percentage
+  - Popular content thresholds
+  - Scoring algorithm weights
+  - Feed modes (mixed/following/discovery)
+- **Storage**: localStorage for persistence
 
 ## 🎨 Design Decisions
 
@@ -390,6 +402,14 @@ Key patterns to maintain:
 - Use PostgreSQL full-text search
 - Cache frequently accessed data
 - Lazy load images
+
+### Admin Features
+- **Admin Panel**: Access via `/admin` (restricted by email)
+- **Algorithm Settings**: Stored in localStorage
+- **Feed Modes**: 
+  - `mixed` - Blended content
+  - `following` - Only people you follow
+  - `discover` - Only discovery content (excludes following)
 
 ### Authentication Best Practices
 - **NEVER add auth checks in child components** - causes race conditions

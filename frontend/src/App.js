@@ -11,17 +11,18 @@ import Feed from './components/Feed'
 import UserProfile from './components/UserProfile'
 import ResetPassword from './components/ResetPassword'
 import SingleRound from './components/SingleRound'
-import SearchUsers from './pages/SearchUsers'  // ADD THIS IMPORT
+import SearchUsers from './pages/SearchUsers'
 import { getInitials } from './utils/avatarUtils'
 import AdminPanel from './components/AdminPanel'
-
+import AdminHub from './components/admin/AdminHub'
+import AdminOverview from './components/admin/AdminOverview'
+import AdminDashboard from './components/admin/AdminDashboard'
 
 // Main authenticated app with navigation
 function AuthenticatedApp() {
   const [activeView, setActiveView] = useState('feed')
   const feedRef = useRef(null)
   const { user, profile, signOut } = useAuth()
-  console.log('Current user email:', user?.email)
   const location = useLocation()
   const navigate = useNavigate()
   
@@ -80,20 +81,19 @@ function AuthenticatedApp() {
                   </svg>
                 </button>
 
-{/* Secret Admin Button - only shows for admin email */}
-{user?.email === 'markgreenfield1@gmail.com' && (
-  <button
-    onClick={() => navigate('/admin')}
-    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-    title="Admin Panel"
-  >
-    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  </button>
-)}
-
+                {/* Secret Admin Button - only shows for admin email */}
+                {user?.email === 'markgreenfield1@gmail.com' && (
+                  <button
+                    onClick={() => navigate('/admin')}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    title="Admin Panel"
+                  >
+                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </button>
+                )}
 
                 <button
                   onClick={() => {
@@ -249,26 +249,26 @@ function AuthenticatedApp() {
             <div className="flex items-center gap-3">
 
               {/* ADD SEARCH ICON HERE */}
-<button
-  onClick={() => navigate('/search-users')}
-  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-  title="Search users"
->
-  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-</button>
+              <button
+                onClick={() => navigate('/search-users')}
+                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                title="Search users"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
 
-{/* Secret Admin Button */}
-{user?.email === 'markgreenfield1@gmail.com' && (
-  <button
-    onClick={() => navigate('/admin')}
-    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-    title="Admin Panel"
-  >
-    ⚙️
-  </button>
-)}
+              {/* Secret Admin Button */}
+              {user?.email === 'markgreenfield1@gmail.com' && (
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  title="Admin Panel"
+                >
+                  ⚙️
+                </button>
+              )}
 
               <button
                 onClick={() => setActiveView('profile')}
@@ -416,7 +416,7 @@ function App() {
           <Route path="/login" element={<AuthScreen />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           
-          {/* ADD THIS NEW ROUTE FOR USER SEARCH */}
+          {/* User search route */}
           <Route 
             path="/search-users" 
             element={
@@ -426,17 +426,26 @@ function App() {
             }
           />
           
-          {/* Admin Panel Route - Only for admin */}
-<Route 
-  path="/admin" 
-  element={
-    <ProtectedRoute>
-      <AdminPanel />
-    </ProtectedRoute>
-  }
-/>
+          {/* Admin routes with sub-routes */}
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute>
+                <AdminHub />
+              </ProtectedRoute>
+            }
+          >
+            {/* Default admin page shows overview */}
+            <Route index element={<AdminOverview />} />
+            
+            {/* Analytics dashboard */}
+            <Route path="analytics" element={<AdminDashboard />} />
+            
+            {/* Your existing feed algorithm controls */}
+            <Route path="feed-algorithm" element={<AdminPanel />} />
+          </Route>
 
-          {/* Define the profile route properly */}
+          {/* Profile route */}
           <Route 
             path="/profile/:username" 
             element={
@@ -446,6 +455,7 @@ function App() {
             }
           />
           
+          {/* Individual round route */}
           <Route 
             path="/rounds/:roundId" 
             element={

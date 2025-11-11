@@ -26,8 +26,10 @@ const AdminDashboard = () => {
   const [engagementMetrics, setEngagementMetrics] = useState([]);
   const [topRounds, setTopRounds] = useState([]);
   const [emojiBreakdown, setEmojiBreakdown] = useState([]);
-  const [selectedPeriod, setSelectedPeriod] = useState(30); // days
-  const [selectedTab, setSelectedTab] = useState('overview');
+const [selectedPeriod, setSelectedPeriod] = useState(30);
+const [customDate, setCustomDate] = useState('');
+const [useCustomDate, setUseCustomDate] = useState(false);  const [selectedTab, setSelectedTab] = useState('overview');
+  
 
   // Check if user is admin
   useEffect(() => {
@@ -38,62 +40,75 @@ const AdminDashboard = () => {
 
   // Load all data on mount and period change
   useEffect(() => {
-    loadDashboardData();
-  }, [selectedPeriod]);
+  loadDashboardData();
+}, [selectedPeriod, customDate, useCustomDate]); // Added customDate and useCustomDate
 
   const loadDashboardData = async () => {
-    setLoading(true);
-    try {
-      // Load overview
-      const { data: overviewData } = await supabase
-        .rpc('get_dashboard_overview');
-      setOverview(overviewData);
-
-      // Load activity metrics
-      const startDate = new Date();
+  setLoading(true);
+  try {
+    // Calculate the start date based on selection
+    let startDate;
+    let dayCount;
+    
+    if (useCustomDate && customDate) {
+      // Using custom date
+      startDate = new Date(customDate);
+      // Calculate days between custom date and today
+      dayCount = Math.ceil((new Date() - startDate) / (1000 * 60 * 60 * 24));
+    } else {
+      // Using preset period
+      startDate = new Date();
       startDate.setDate(startDate.getDate() - selectedPeriod);
-      
-      const { data: activityData } = await supabase
-        .rpc('get_activity_metrics', {
-          p_start_date: startDate.toISOString().split('T')[0],
-          p_end_date: new Date().toISOString().split('T')[0]
-        });
-      setActivityMetrics(activityData || []);
-
-      // Load user growth metrics
-      const { data: growthData } = await supabase
-        .rpc('get_user_growth_metrics', {
-          p_days: selectedPeriod
-        });
-      setUserGrowth(growthData || []);
-
-      // Load engagement metrics
-      const { data: engagementData } = await supabase
-        .rpc('get_engagement_metrics', {
-          p_days: selectedPeriod
-        });
-      setEngagementMetrics(engagementData || []);
-
-      // Load top rounds
-      const { data: topRoundsData } = await supabase
-        .rpc('get_top_rounds', {
-          p_days: selectedPeriod === 30 ? 7 : selectedPeriod,
-          p_limit: 10
-        });
-      setTopRounds(topRoundsData || []);
-
-      // Load emoji breakdown
-      const { data: emojiData } = await supabase
-  .rpc('get_emoji_breakdown', selectedPeriod ? { p_days: selectedPeriod } : {});
-
-      setEmojiBreakdown(emojiData || []);
-
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-    } finally {
-      setLoading(false);
+      dayCount = selectedPeriod;
     }
-  };
+    
+    // Load overview (doesn't need date range)
+    const { data: overviewData } = await supabase
+      .rpc('get_dashboard_overview');
+    setOverview(overviewData);
+
+    // Load activity metrics with calculated date range
+    const { data: activityData } = await supabase
+      .rpc('get_activity_metrics', {
+        p_start_date: startDate.toISOString().split('T')[0],
+        p_end_date: new Date().toISOString().split('T')[0]
+      });
+    setActivityMetrics(activityData || []);
+
+    // Load user growth metrics with calculated day count
+    const { data: growthData } = await supabase
+      .rpc('get_user_growth_metrics', {
+        p_days: dayCount
+      });
+    setUserGrowth(growthData || []);
+
+    // Load engagement metrics with calculated day count
+    const { data: engagementData } = await supabase
+      .rpc('get_engagement_metrics', {
+        p_days: dayCount
+      });
+    setEngagementMetrics(engagementData || []);
+
+    // Load top rounds (use shorter period for top rounds if looking at long range)
+    const topRoundsDays = dayCount > 30 ? 7 : dayCount;
+    const { data: topRoundsData } = await supabase
+      .rpc('get_top_rounds', {
+        p_days: topRoundsDays,
+        p_limit: 10
+      });
+    setTopRounds(topRoundsData || []);
+
+    // Load emoji breakdown with calculated day count
+    const { data: emojiData } = await supabase
+      .rpc('get_emoji_breakdown', dayCount ? { p_days: dayCount } : {});
+    setEmojiBreakdown(emojiData || []);
+
+  } catch (error) {
+    console.error('Error loading dashboard data:', error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Format numbers for display
   const formatNumber = (num) => {
@@ -143,20 +158,42 @@ const AdminDashboard = () => {
             </div>
             
             {/* Period Selector */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600">Period:</label>
-              <select
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(Number(e.target.value))}
-                className="px-3 py-1 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value={7}>Last 7 days</option>
-                <option value={14}>Last 14 days</option>
-                <option value={30}>Last 30 days</option>
-                <option value={60}>Last 60 days</option>
-                <option value={90}>Last 90 days</option>
-              </select>
-            </div>
+<div className="flex items-center gap-2">
+  <label className="text-sm text-gray-600">Period:</label>
+  <select
+    value={useCustomDate ? 'custom' : selectedPeriod}
+    onChange={(e) => {
+      if (e.target.value === 'custom') {
+        setUseCustomDate(true);
+      } else {
+        setUseCustomDate(false);
+        setSelectedPeriod(Number(e.target.value));
+      }
+    }}
+    className="px-3 py-1 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+  >
+    <option value={7}>Last 7 days</option>
+    <option value={14}>Last 14 days</option>
+    <option value={30}>Last 30 days</option>
+    <option value={60}>Last 60 days</option>
+    <option value={90}>Last 90 days</option>
+    <option value="custom">Custom Date Range</option>
+  </select>
+  
+  {useCustomDate && (
+    <div className="flex items-center gap-2">
+      <label className="text-sm text-gray-600">From:</label>
+      <input
+        type="date"
+        value={customDate}
+        onChange={(e) => setCustomDate(e.target.value)}
+        max={new Date().toISOString().split('T')[0]}
+        className="px-3 py-1 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+      />
+      <span className="text-sm text-gray-600">to today</span>
+    </div>
+  )}
+</div>
           </div>
 
           {/* Tab Navigation */}

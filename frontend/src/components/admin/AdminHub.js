@@ -1,7 +1,7 @@
 // AdminHub.js - Main admin navigation hub
 import { useEffect } from 'react';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { BarChart3, Sliders, Home, TrendingUp, Users, FileText } from 'lucide-react';
 
 const AdminHub = () => {

@@ -30,9 +30,10 @@ const [selectedPeriod, setSelectedPeriod] = useState(30);
 const [customDate, setCustomDate] = useState('');
 const [dateRange, setDateRange] = useState({
   from: '',
-  to: new Date().toISOString().split('T')[0] // Default to today
+  to: ''
 });
-const [useCustomDate, setUseCustomDate] = useState(false);const [selectedTab, setSelectedTab] = useState('overview');
+const [useCustomDate, setUseCustomDate] = useState(false);
+const [selectedTab, setSelectedTab] = useState('overview');
   
 
   // Check if user is admin
@@ -44,8 +45,11 @@ const [useCustomDate, setUseCustomDate] = useState(false);const [selectedTab, se
 
   // Load all data on mount and period change
   useEffect(() => {
-  loadDashboardData();
-}, [selectedPeriod, customDate, useCustomDate]); // Added customDate and useCustomDate
+  // Only load data on mount and when Apply is clicked (not on every state change)
+  if (!useCustomDate) {
+    loadDashboardData();
+  }
+}, [selectedPeriod]);
 
   const loadDashboardData = async () => {
   setLoading(true);
@@ -53,9 +57,11 @@ const [useCustomDate, setUseCustomDate] = useState(false);const [selectedTab, se
     let startDate, endDate, dayCount;
     
     if (useCustomDate && dateRange.from && dateRange.to) {
-      // Using custom date range
+      // Using custom date range - PROPERLY USE BOTH DATES
       startDate = new Date(dateRange.from);
       endDate = new Date(dateRange.to);
+      // Add 1 day to endDate to include the full day
+      endDate.setHours(23, 59, 59, 999);
       dayCount = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
     } else {
       // Using preset period
@@ -65,35 +71,41 @@ const [useCustomDate, setUseCustomDate] = useState(false);const [selectedTab, se
       dayCount = selectedPeriod;
     }
     
+    // Format dates for SQL
+    const sqlStartDate = startDate.toISOString().split('T')[0];
+    const sqlEndDate = endDate.toISOString().split('T')[0];
+    
+    console.log('Loading data from', sqlStartDate, 'to', sqlEndDate, '(', dayCount, 'days)');
     
     // Load overview (doesn't need date range)
     const { data: overviewData } = await supabase
       .rpc('get_dashboard_overview');
     setOverview(overviewData);
 
-    // Load activity metrics with calculated date range
+    // Load activity metrics with BOTH dates
     const { data: activityData } = await supabase
       .rpc('get_activity_metrics', {
-        p_start_date: startDate.toISOString().split('T')[0],
-        p_end_date: new Date().toISOString().split('T')[0]
+        p_start_date: sqlStartDate,
+        p_end_date: sqlEndDate  // Now actually using the end date!
       });
     setActivityMetrics(activityData || []);
 
-    // Load user growth metrics with calculated day count
+    // For functions that use day count, we need to be careful
+    // Some of your SQL functions might need updating to accept date ranges
+    // For now, using day count but this might show more data than the range
     const { data: growthData } = await supabase
       .rpc('get_user_growth_metrics', {
         p_days: dayCount
       });
     setUserGrowth(growthData || []);
 
-    // Load engagement metrics with calculated day count
     const { data: engagementData } = await supabase
       .rpc('get_engagement_metrics', {
         p_days: dayCount
       });
     setEngagementMetrics(engagementData || []);
 
-    // Load top rounds (use shorter period for top rounds if looking at long range)
+    // Top rounds should respect the date range
     const topRoundsDays = dayCount > 30 ? 7 : dayCount;
     const { data: topRoundsData } = await supabase
       .rpc('get_top_rounds', {
@@ -102,7 +114,7 @@ const [useCustomDate, setUseCustomDate] = useState(false);const [selectedTab, se
       });
     setTopRounds(topRoundsData || []);
 
-    // Load emoji breakdown with calculated day count
+    // Emoji breakdown
     const { data: emojiData } = await supabase
       .rpc('get_emoji_breakdown', dayCount ? { p_days: dayCount } : {});
     setEmojiBreakdown(emojiData || []);
@@ -168,15 +180,18 @@ const [useCustomDate, setUseCustomDate] = useState(false);const [selectedTab, se
     value={useCustomDate ? 'custom' : selectedPeriod}
     onChange={(e) => {
       if (e.target.value === 'custom') {
+        // Set custom mode but DON'T load data yet
         setUseCustomDate(true);
-        // Set default range to last 30 days for convenience
+        // Pre-fill with last 30 days as default
         const from = new Date();
+        const to = new Date();
         from.setDate(from.getDate() - 30);
         setDateRange({
           from: from.toISOString().split('T')[0],
-          to: new Date().toISOString().split('T')[0]
+          to: to.toISOString().split('T')[0]
         });
       } else {
+        // Preset period - load immediately
         setUseCustomDate(false);
         setSelectedPeriod(Number(e.target.value));
       }
@@ -193,73 +208,85 @@ const [useCustomDate, setUseCustomDate] = useState(false);const [selectedTab, se
   </select>
   
   {useCustomDate && (
-    <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
-      <label className="text-sm text-gray-600">From:</label>
-      <input
-        type="date"
-        value={dateRange.from}
-        onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
-        max={dateRange.to}
-        className="px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-      />
-      <label className="text-sm text-gray-600">To:</label>
-      <input
-        type="date"
-        value={dateRange.to}
-        onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-        min={dateRange.from}
-        max={new Date().toISOString().split('T')[0]}
-        className="px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-green-500"
-      />
-      <button
-        onClick={() => loadDashboardData()}
-        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-      >
-        Apply
-      </button>
-    </div>
-  )}
-  
-  {useCustomDate && (
-    <div className="flex gap-2 text-xs">
-      <button
-        onClick={() => {
-          const from = new Date();
-          from.setDate(from.getDate() - 7);
-          setDateRange({
-            from: from.toISOString().split('T')[0],
-            to: new Date().toISOString().split('T')[0]
-          });
-        }}
-        className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
-      >
-        Last 7d
-      </button>
-      <button
-        onClick={() => {
-          const from = new Date();
-          from.setMonth(from.getMonth() - 1);
-          setDateRange({
-            from: from.toISOString().split('T')[0],
-            to: new Date().toISOString().split('T')[0]
-          });
-        }}
-        className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
-      >
-        Last month
-      </button>
-      <button
-        onClick={() => {
-          setDateRange({
-            from: '2025-10-01', // Your launch date
-            to: new Date().toISOString().split('T')[0]
-          });
-        }}
-        className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
-      >
-        Since launch
-      </button>
-    </div>
+    <>
+      <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
+        <label className="text-sm text-gray-600">From:</label>
+        <input
+          type="date"
+          value={dateRange.from}
+          onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+          max={dateRange.to || new Date().toISOString().split('T')[0]}
+          className="px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+        <label className="text-sm text-gray-600">To:</label>
+        <input
+          type="date"
+          value={dateRange.to}
+          onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+          min={dateRange.from}
+          max={new Date().toISOString().split('T')[0]}
+          className="px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+        />
+        <button
+          onClick={() => loadDashboardData()}
+          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium"
+        >
+          Apply
+        </button>
+        <button
+          onClick={() => {
+            setUseCustomDate(false);
+            setSelectedPeriod(30);
+          }}
+          className="px-3 py-1 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 text-sm"
+        >
+          Cancel
+        </button>
+      </div>
+      
+      {/* Quick presets */}
+      <div className="flex gap-2 text-xs ml-2">
+        <button
+          onClick={() => {
+            const from = new Date();
+            const to = new Date();
+            from.setDate(from.getDate() - 7);
+            setDateRange({
+              from: from.toISOString().split('T')[0],
+              to: to.toISOString().split('T')[0]
+            });
+          }}
+          className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
+        >
+          Last week
+        </button>
+        <button
+          onClick={() => {
+            const from = new Date();
+            const to = new Date();
+            from.setMonth(from.getMonth() - 1);
+            setDateRange({
+              from: from.toISOString().split('T')[0],
+              to: to.toISOString().split('T')[0]
+            });
+          }}
+          className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
+        >
+          Last month
+        </button>
+        <button
+          onClick={() => {
+            setDateRange({
+              from: '2024-10-01', // Your launch date
+              to: new Date().toISOString().split('T')[0]
+            });
+          }}
+          className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
+        >
+          Since launch
+        </button>
+      </div>
+    </>
   )}
 </div>
           </div>

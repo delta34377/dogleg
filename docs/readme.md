@@ -411,6 +411,31 @@ Key patterns to maintain:
   - `following` - Only people you follow
   - `discover` - Only discovery content (excludes following)
 
+## 🎯 Admin Dashboard & Analytics
+
+### Access
+The admin dashboard is available at `/admin` (restricted to admin email only).
+
+### Features
+- **Overview Dashboard** (`/admin`) - Quick stats and navigation hub
+- **Analytics Dashboard** (`/admin/analytics`) - Comprehensive metrics and charts
+- **Feed Algorithm Controls** (`/admin/feed-algorithm`) - Tune the discovery algorithm
+
+### Metrics Tracked
+- User growth and retention (DAU/WAU/MAU)
+- Content engagement rates
+- Viral content detection
+- User behavior segments
+- Session duration and frequency
+- Peak activity times
+
+### Development Roadmap
+- ✅ **Phase 1: Core Analytics** (Complete)
+- 📅 **Phase 2: User Behavior** (Next)
+- 📅 **Phase 3: Advanced Visualizations**
+- 📅 **Phase 4: Moderation Tools**
+- 📅 **Phase 5: Real-time & Performance**
+
 ### Authentication Best Practices
 - **NEVER add auth checks in child components** - causes race conditions
 - **Let ProtectedRoute handle all /login redirects** - single guard pattern

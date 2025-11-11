@@ -28,7 +28,11 @@ const AdminDashboard = () => {
   const [emojiBreakdown, setEmojiBreakdown] = useState([]);
 const [selectedPeriod, setSelectedPeriod] = useState(30);
 const [customDate, setCustomDate] = useState('');
-const [useCustomDate, setUseCustomDate] = useState(false);  const [selectedTab, setSelectedTab] = useState('overview');
+const [dateRange, setDateRange] = useState({
+  from: '',
+  to: new Date().toISOString().split('T')[0] // Default to today
+});
+const [useCustomDate, setUseCustomDate] = useState(false);const [selectedTab, setSelectedTab] = useState('overview');
   
 
   // Check if user is admin
@@ -46,21 +50,21 @@ const [useCustomDate, setUseCustomDate] = useState(false);  const [selectedTab, 
   const loadDashboardData = async () => {
   setLoading(true);
   try {
-    // Calculate the start date based on selection
-    let startDate;
-    let dayCount;
+    let startDate, endDate, dayCount;
     
-    if (useCustomDate && customDate) {
-      // Using custom date
-      startDate = new Date(customDate);
-      // Calculate days between custom date and today
-      dayCount = Math.ceil((new Date() - startDate) / (1000 * 60 * 60 * 24));
+    if (useCustomDate && dateRange.from && dateRange.to) {
+      // Using custom date range
+      startDate = new Date(dateRange.from);
+      endDate = new Date(dateRange.to);
+      dayCount = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
     } else {
       // Using preset period
+      endDate = new Date();
       startDate = new Date();
       startDate.setDate(startDate.getDate() - selectedPeriod);
       dayCount = selectedPeriod;
     }
+    
     
     // Load overview (doesn't need date range)
     const { data: overviewData } = await supabase
@@ -158,13 +162,20 @@ const [useCustomDate, setUseCustomDate] = useState(false);  const [selectedTab, 
             </div>
             
             {/* Period Selector */}
-<div className="flex items-center gap-2">
+<div className="flex items-center gap-2 flex-wrap">
   <label className="text-sm text-gray-600">Period:</label>
   <select
     value={useCustomDate ? 'custom' : selectedPeriod}
     onChange={(e) => {
       if (e.target.value === 'custom') {
         setUseCustomDate(true);
+        // Set default range to last 30 days for convenience
+        const from = new Date();
+        from.setDate(from.getDate() - 30);
+        setDateRange({
+          from: from.toISOString().split('T')[0],
+          to: new Date().toISOString().split('T')[0]
+        });
       } else {
         setUseCustomDate(false);
         setSelectedPeriod(Number(e.target.value));
@@ -177,20 +188,77 @@ const [useCustomDate, setUseCustomDate] = useState(false);  const [selectedTab, 
     <option value={30}>Last 30 days</option>
     <option value={60}>Last 60 days</option>
     <option value={90}>Last 90 days</option>
-    <option value="custom">Custom Date Range</option>
+    <option value={365}>Last year</option>
+    <option value="custom">Custom Range</option>
   </select>
   
   {useCustomDate && (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg">
       <label className="text-sm text-gray-600">From:</label>
       <input
         type="date"
-        value={customDate}
-        onChange={(e) => setCustomDate(e.target.value)}
-        max={new Date().toISOString().split('T')[0]}
-        className="px-3 py-1 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+        value={dateRange.from}
+        onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+        max={dateRange.to}
+        className="px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-green-500"
       />
-      <span className="text-sm text-gray-600">to today</span>
+      <label className="text-sm text-gray-600">To:</label>
+      <input
+        type="date"
+        value={dateRange.to}
+        onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+        min={dateRange.from}
+        max={new Date().toISOString().split('T')[0]}
+        className="px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+      />
+      <button
+        onClick={() => loadDashboardData()}
+        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+      >
+        Apply
+      </button>
+    </div>
+  )}
+  
+  {useCustomDate && (
+    <div className="flex gap-2 text-xs">
+      <button
+        onClick={() => {
+          const from = new Date();
+          from.setDate(from.getDate() - 7);
+          setDateRange({
+            from: from.toISOString().split('T')[0],
+            to: new Date().toISOString().split('T')[0]
+          });
+        }}
+        className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
+      >
+        Last 7d
+      </button>
+      <button
+        onClick={() => {
+          const from = new Date();
+          from.setMonth(from.getMonth() - 1);
+          setDateRange({
+            from: from.toISOString().split('T')[0],
+            to: new Date().toISOString().split('T')[0]
+          });
+        }}
+        className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
+      >
+        Last month
+      </button>
+      <button
+        onClick={() => {
+          setDateRange({
+            from: '2025-10-01', // Your launch date
+            to: new Date().toISOString().split('T')[0]
+          });
+        }}
+        className="px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
+      >
+        Since launch
+      </button>
     </div>
   )}
 </div>

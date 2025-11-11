@@ -1,7 +1,7 @@
 // AdminOverview.js - Landing page for /admin route
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../services/supabase';
+import { supabase } from '../../services/supabase';
 import { 
   BarChart3, Sliders, Users, Activity, Target, Heart,
   TrendingUp, Calendar, Award, Globe

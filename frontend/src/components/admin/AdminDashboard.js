@@ -1,8 +1,8 @@
 // AdminDashboard.js - Main admin dashboard component
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../services/supabase';
-import { useAuth } from '../context/AuthContext';
+import { supabase } from '../../services/supabase';
+import { useAuth } from '../../context/AuthContext';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,

@@ -212,84 +212,107 @@ export const roundsService = {
   },
 
   // Get comments for rounds
-getComments: async (roundIds) => {
-  if (!roundIds || roundIds.length === 0) return { data: [], error: null }
-  
-  const { data, error } = await supabase
-    .from('comments')
-    .select(`
-      *,
-      profiles!comments_user_id_fkey (
-        username,
-        full_name,
-        avatar_url
-      )
-    `)
-    .in('round_id', roundIds)
-    .order('created_at', { ascending: true })
-  
-  return { data, error }
-},
+  getComments: async (roundIds) => {
+    if (!roundIds || roundIds.length === 0) return { data: [], error: null }
+    
+    const { data, error } = await supabase
+      .from('comments')
+      .select(`
+        *,
+        profiles!comments_user_id_fkey (
+          username,
+          full_name,
+          avatar_url
+        )
+      `)
+      .in('round_id', roundIds)
+      .order('created_at', { ascending: true })
+    
+    return { data, error }
+  },
 
+  // Get feed with everything included
+  getFeedWithEverything: async (limit = 10, offset = 0) => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { data: null, error: 'Not authenticated' }
 
-
-// In roundsService.js, add this method:
-getFeedWithEverything: async (limit = 10, offset = 0) => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { data: null, error: 'Not authenticated' }
-
-  const { data, error } = await supabase.rpc('get_feed_with_everything', {
-    user_id_param: user.id,
-    limit_num: limit,
-    offset_num: offset
-  })
-
-  if (error) {
-    console.error('Error fetching feed:', error)
-    return { data: null, error }
-  }
-
-  return { 
-    data: {
-      rounds: data.rounds || [],
-      reactions: data.reactions || [],
-      comments: data.comments || [],
-      userReactions: data.user_reactions || []
-    }, 
-    error: null 
-  }
-},
-
-// NEW: Smart blended feed with discovery
-getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRatio = 0.3) => {
-  try {
-    const { data, error } = await supabase.rpc('get_feed_with_discovery', {
-      p_limit: limit,
-      p_offset: offset,
-      p_mode: mode,
-      p_discover_ratio: discoverRatio
+    const { data, error } = await supabase.rpc('get_feed_with_everything', {
+      user_id_param: user.id,
+      limit_num: limit,
+      offset_num: offset
     })
 
     if (error) {
-      console.error('Error fetching feed with discovery:', error)
+      console.error('Error fetching feed:', error)
       return { data: null, error }
     }
 
-    // The RPC returns everything we need in the right format
     return { 
       data: {
-        rounds: data?.rounds || []
-      },
+        rounds: data.rounds || [],
+        reactions: data.reactions || [],
+        comments: data.comments || [],
+        userReactions: data.user_reactions || []
+      }, 
       error: null 
     }
-  } catch (error) {
-    console.error('Feed error:', error)
-    return { data: null, error }
-  }
-},
+  },
 
+  // UPDATED: Smart blended feed with discovery (now supports chronological toggle)
+  getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRatio = 0.3) => {
+    try {
+      // Check admin settings for chronological preference
+      const settings = JSON.parse(localStorage.getItem('feedAlgorithmSettings') || '{}')
+      
+      // Choose which SQL function to use based on settings
+      const functionName = settings.useChronological 
+        ? 'get_feed_chronological_mixed'  // New chronological version
+        : 'get_feed_with_discovery'       // Original scored version
+      
+      // Call the appropriate function
+      const { data, error } = await supabase.rpc(functionName, {
+        p_limit: limit,
+        p_offset: offset,
+        p_mode: mode,
+        p_discover_ratio: discoverRatio
+      })
 
-// ADD this function to your existing roundsService.js:
+      if (error) {
+        console.error(`Error fetching feed (${functionName}):`, error)
+        // Fallback to original if new function doesn't exist
+        if (error.message?.includes('does not exist') && functionName === 'get_feed_chronological_mixed') {
+          console.log('Falling back to original feed function')
+          const { data: fallbackData, error: fallbackError } = await supabase.rpc('get_feed_with_discovery', {
+            p_limit: limit,
+            p_offset: offset,
+            p_mode: mode,
+            p_discover_ratio: discoverRatio
+          })
+          
+          if (fallbackError) {
+            return { data: null, error: fallbackError }
+          }
+          
+          return {
+            data: { rounds: fallbackData?.rounds || [] },
+            error: null
+          }
+        }
+        return { data: null, error }
+      }
+
+      // The RPC returns everything we need in the right format
+      return { 
+        data: {
+          rounds: data?.rounds || []
+        },
+        error: null 
+      }
+    } catch (error) {
+      console.error('Feed error:', error)
+      return { data: null, error }
+    }
+  },
 
   // Get rounds for a specific user
   getUserRounds: async (userId, limit = 20, offset = 0) => {
@@ -311,7 +334,6 @@ getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRat
 
     return { data, error }
   },
-
 
   // Save a comment with user association
   saveComment: async (roundId, content) => {
@@ -389,49 +411,50 @@ getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRat
     }
   },
 
+  // Get my rounds with everything
   getMyRoundsWithEverything: async (limit = 10, offset = 0) => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { data: null, error: 'Not authenticated' }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { data: null, error: 'Not authenticated' }
 
-  const { data, error } = await supabase.rpc('get_my_rounds_with_everything', {
-    user_id_param: user.id,
-    limit_num: limit,
-    offset_num: offset
-  })
+    const { data, error } = await supabase.rpc('get_my_rounds_with_everything', {
+      user_id_param: user.id,
+      limit_num: limit,
+      offset_num: offset
+    })
 
-  if (error) {
-    console.error('Error fetching my rounds:', error)
-    return { data: null, error }
-  }
+    if (error) {
+      console.error('Error fetching my rounds:', error)
+      return { data: null, error }
+    }
 
-  return { 
-    data: {
-      rounds: data.rounds || [],
-      reactions: data.reactions || [],
-      comments: data.comments || [],
-      userReactions: data.user_reactions || []
-    }, 
-    error: null 
-  }
-},
+    return { 
+      data: {
+        rounds: data.rounds || [],
+        reactions: data.reactions || [],
+        comments: data.comments || [],
+        userReactions: data.user_reactions || []
+      }, 
+      error: null 
+    }
+  },
 
-// Add this to roundsService.js
-getRoundByShortCode: async (shortCode) => {
-  const { data, error } = await supabase
-    .from('rounds')
-    .select(`
-      *,
-      profiles:user_id (
-        username,
-        full_name,
-        avatar_url
-      )
-    `)
-    .eq('short_code', shortCode)
-    .single()
-  
-  return { data, error }
-},
+  // Get round by short code
+  getRoundByShortCode: async (shortCode) => {
+    const { data, error } = await supabase
+      .from('rounds')
+      .select(`
+        *,
+        profiles:user_id (
+          username,
+          full_name,
+          avatar_url
+        )
+      `)
+      .eq('short_code', shortCode)
+      .single()
+    
+    return { data, error }
+  },
 
   // Get a single round with full details
   getRound: async (roundId) => {

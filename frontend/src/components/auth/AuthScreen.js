@@ -320,7 +320,11 @@ function AuthScreen({ onSuccess }) {
     const cleaned = e.target.value.toLowerCase().replace(/\s/g, '')
     setUsername(cleaned)
   }}
-  className="..."
+  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+  placeholder="johndoe"
+  autoComplete="username"
+  required
+  disabled={loading}
   pattern="[a-z0-9_]{3,20}"
   title="3-20 characters (letters, numbers, underscores)"
 />

@@ -358,11 +358,15 @@ const [selectedTab, setSelectedTab] = useState('overview');
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
                       dataKey="date" 
-                      tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      tickFormatter={(date) => {
+  // Force local timezone interpretation by adding noon time
+  const d = new Date(date + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}}
                     />
                     <YAxis />
                     <Tooltip 
-                      labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                      labelFormatter={(date) => new Date(date + 'T12:00:00').toLocaleDateString()}
                       formatter={(value) => formatNumber(value)}
                     />
                     <Area type="monotone" dataKey="total_users" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
@@ -408,11 +412,15 @@ const [selectedTab, setSelectedTab] = useState('overview');
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 
-                    tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    tickFormatter={(date) => {
+  // Force local timezone interpretation by adding noon time
+  const d = new Date(date + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}}
                   />
                   <YAxis />
                   <Tooltip 
-                    labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                    labelFormatter={(date) => new Date(date + 'T12:00:00').toLocaleDateString()}
                     formatter={(value) => formatNumber(value)}
                   />
                   <Legend />
@@ -438,11 +446,15 @@ const [selectedTab, setSelectedTab] = useState('overview');
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 
-                    tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    tickFormatter={(date) => {
+  // Force local timezone interpretation by adding noon time
+  const d = new Date(date + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}}
                   />
                   <YAxis />
                   <Tooltip 
-                    labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                    labelFormatter={(date) => new Date(date + 'T12:00:00').toLocaleDateString()}
                     formatter={(value) => typeof value === 'number' ? value.toFixed(2) : value}
                   />
                   <Legend />
@@ -500,11 +512,15 @@ const [selectedTab, setSelectedTab] = useState('overview');
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 
-                    tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    tickFormatter={(date) => {
+  // Force local timezone interpretation by adding noon time
+  const d = new Date(date + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}}
                   />
                   <YAxis />
                   <Tooltip 
-                    labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                    labelFormatter={(date) => new Date(date + 'T12:00:00').toLocaleDateString()}
                     formatter={(value) => formatNumber(value)}
                   />
                   <Legend />
@@ -531,11 +547,15 @@ const [selectedTab, setSelectedTab] = useState('overview');
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 
-                    tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    tickFormatter={(date) => {
+  // Force local timezone interpretation by adding noon time
+  const d = new Date(date + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}}
                   />
                   <YAxis />
                   <Tooltip 
-                    labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                    labelFormatter={(date) => new Date(date + 'T12:00:00').toLocaleDateString()}
                     formatter={(value) => `${value?.toFixed(1)}%`}
                   />
                   <Legend />
@@ -559,11 +579,16 @@ const [selectedTab, setSelectedTab] = useState('overview');
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis 
                     dataKey="date" 
-                    tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    tickFormatter={(date) => {
+  // Force local timezone interpretation by adding noon time
+  const d = new Date(date + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}}
                   />
                   <YAxis />
                   <Tooltip 
-                    labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                    labelFormatter={(date) => new Date(date + 'T12:00:00').toLocaleDateString()}
+
                   />
                   <Bar dataKey="viral_rounds_count" fill="#f59e0b" name="Viral Rounds (5+ reactions)" />
                 </BarChart>

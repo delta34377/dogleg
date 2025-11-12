@@ -313,17 +313,17 @@ function AuthScreen({ onSuccess }) {
                 Username
               </label>
               <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="johndoe"
-                autoComplete="username"
-                required
-                disabled={loading}
-                pattern="[a-z0-9_]{3,20}"
-                title="3-20 characters, lowercase letters, numbers, and underscores only"
-              />
+  type="text"
+  value={username}
+  onChange={(e) => {
+    // Auto-lowercase and remove spaces as they type
+    const cleaned = e.target.value.toLowerCase().replace(/\s/g, '')
+    setUsername(cleaned)
+  }}
+  className="..."
+  pattern="[a-z0-9_]{3,20}"
+  title="3-20 characters (letters, numbers, underscores)"
+/>
             </div>
 
             <div>

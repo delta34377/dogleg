@@ -315,17 +315,13 @@ function AuthScreen({ onSuccess }) {
               <input
   type="text"
   value={username}
-  onChange={(e) => {
-    // Auto-lowercase and remove spaces as they type
-    const cleaned = e.target.value.toLowerCase().replace(/\s/g, '')
-    setUsername(cleaned)
-  }}
+  onChange={(e) => setUsername(e.target.value)}  // Let them type whatever
   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
   placeholder="johndoe"
   autoComplete="username"
   required
   disabled={loading}
-  pattern="[a-z0-9_]{3,20}"
+  pattern="[a-zA-Z0-9_]{3,20}"  // Accept uppercase in pattern
   title="3-20 characters (letters, numbers, underscores)"
 />
             </div>

@@ -143,15 +143,14 @@ const NotificationDropdown = () => {
       onClick={() => setIsOpen(false)}
     />
     
-    {/* Dropdown - Better positioning */}
-    <div className="absolute right-0 mt-2 
-      w-[calc(100vw-2rem)] sm:w-96 
-      max-w-sm sm:max-w-none
-      -translate-x-4 sm:translate-x-0
-      bg-white rounded-lg shadow-lg border border-gray-200 
-      z-50 
-      max-h-[50vh] sm:max-h-[70vh] 
-      overflow-hidden">
+    {/* Dropdown - Fixed positioning */}
+<div className="absolute mt-2 
+  left-auto right-2 sm:right-0
+  w-[min(calc(100vw-1rem),24rem)] sm:w-96
+  bg-white rounded-lg shadow-lg border border-gray-200 
+  z-50 
+  max-h-[50vh] sm:max-h-[70vh] 
+  overflow-hidden">
       
       <div className="p-3 border-b border-gray-200">
         <h3 className="font-semibold text-gray-900">Notifications</h3>

@@ -1,4 +1,4 @@
-// ModerationDashboard.js - Full Enhanced Version with User Management
+// ModerationDashboard.js - COMPLETE FIXED VERSION
 import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
 import { 
@@ -20,6 +20,7 @@ const ModerationDashboard = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteStatus, setDeleteStatus] = useState({ show: false, success: false, message: '' });
+  const [openDropdown, setOpenDropdown] = useState(null); // ADD THIS
   
   // Sorting state for users
   const [sortBy, setSortBy] = useState('created_at');
@@ -33,10 +34,29 @@ const ModerationDashboard = () => {
   // Calculate total pages
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
+  // Close dropdown when clicking outside - ADD THIS
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.dropdown-wrapper')) {
+        setOpenDropdown(null);
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
   // Fetch data based on active tab
   useEffect(() => {
     fetchData();
   }, [activeTab, currentPage, itemsPerPage, sortBy, sortOrder]);
+
+  // Also refetch when search is cleared - ADD THIS
+  useEffect(() => {
+    if (searchTerm === '') {
+      fetchData();
+    }
+  }, [searchTerm]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -145,9 +165,15 @@ const ModerationDashboard = () => {
       : <ArrowDown className="w-4 h-4 text-green-600" />;
   };
 
+  // Toggle dropdown on click - ADD THIS
+  const toggleDropdown = (userId) => {
+    setOpenDropdown(openDropdown === userId ? null : userId);
+  };
+
   const handleUserAction = (user, action) => {
     setSelectedUser(user);
     setShowUserActionModal(action);
+    setOpenDropdown(null); // Close dropdown
   };
 
   const confirmUserAction = async () => {
@@ -166,7 +192,7 @@ const ModerationDashboard = () => {
           setDeleteStatus({
             show: true,
             success: true,
-            message: `Deleted ${result.data.rounds_deleted} rounds, ${result.data.comments_deleted} comments, ${result.data.reactions_deleted} reactions`
+            message: `Deleted ${result.data.rounds_deleted} rounds, ${result.data.comments_deleted} comments, ${result.data.reactions_deleted} reactions. Refreshing...`
           });
         }
       } else if (showUserActionModal === 'ban') {
@@ -190,8 +216,10 @@ const ModerationDashboard = () => {
       // Refresh data
       fetchData();
       
-      // Clear feed cache by triggering a refresh
-      window.dispatchEvent(new Event('feedRefresh'));
+      // Force refresh the page to clear all caches - IMPORTANT FIX
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
       
       setTimeout(() => {
         setDeleteStatus({ show: false, success: false, message: '' });
@@ -250,14 +278,16 @@ const ModerationDashboard = () => {
       setDeleteStatus({
         show: true,
         success: true,
-        message: `${itemToDelete.type} deleted successfully`
+        message: `${itemToDelete.type} deleted successfully. Refreshing...`
       });
       
       // Refresh data
       fetchData();
       
-      // Clear feed cache
-      window.dispatchEvent(new Event('feedRefresh'));
+      // Force page reload after a short delay to clear all caches - IMPORTANT FIX
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
       
       setTimeout(() => {
         setDeleteStatus({ show: false, success: false, message: '' });
@@ -284,7 +314,6 @@ const ModerationDashboard = () => {
   const clearSearch = () => {
     setSearchTerm('');
     setCurrentPage(1);
-    fetchData();
   };
 
   const formatDate = (dateString) => {
@@ -422,7 +451,7 @@ const ModerationDashboard = () => {
         </nav>
       </div>
 
-      {/* Search Bar and Controls */}
+      {/* Search Bar and Controls - ENHANCED WITH CLEAR BUTTON */}
       <div className="flex flex-col sm:flex-row gap-4">
         <form onSubmit={handleSearch} className="flex gap-2 flex-1">
           <div className="relative flex-1">
@@ -444,7 +473,7 @@ const ModerationDashboard = () => {
                 onClick={clearSearch}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             )}
           </div>
@@ -454,6 +483,16 @@ const ModerationDashboard = () => {
           >
             Search
           </button>
+          {/* ADD VISIBLE CLEAR BUTTON */}
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Clear
+            </button>
+          )}
         </form>
         
         <div className="flex items-center gap-2">
@@ -472,11 +511,12 @@ const ModerationDashboard = () => {
         </div>
       </div>
 
-      {/* Results Info */}
+      {/* Results Info - ENHANCED */}
       {!loading && totalCount > 0 && (
         <div className="flex justify-between items-center text-sm text-gray-600">
           <div>
             Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} results
+            {searchTerm && ` for "${searchTerm}"`}
           </div>
         </div>
       )}
@@ -600,12 +640,18 @@ const ModerationDashboard = () => {
                           {user.followers_count || 0}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="relative inline-block text-left">
-                            <div className="dropdown">
-                              <button className="p-1 rounded hover:bg-gray-100">
-                                <MoreVertical className="w-4 h-4 text-gray-500" />
-                              </button>
-                              <div className="dropdown-content absolute right-0 z-10 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden hover:block">
+                          <div className="relative dropdown-wrapper">
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleDropdown(user.id);
+                              }}
+                              className="p-1 rounded hover:bg-gray-100"
+                            >
+                              <MoreVertical className="w-4 h-4 text-gray-500" />
+                            </button>
+                            {openDropdown === user.id && (
+                              <div className="absolute right-0 z-10 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
                                 <div className="py-1">
                                   <button
                                     onClick={() => handleUserAction(user, 'delete_content')}
@@ -624,7 +670,7 @@ const ModerationDashboard = () => {
                                   </button> */}
                                 </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -634,7 +680,7 @@ const ModerationDashboard = () => {
               </div>
             )}
 
-            {/* Comments Table (unchanged) */}
+            {/* Comments Table */}
             {activeTab === 'comments' && (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -692,7 +738,7 @@ const ModerationDashboard = () => {
               </div>
             )}
 
-            {/* Rounds Table (unchanged) */}
+            {/* Rounds Table */}
             {activeTab === 'rounds' && (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -784,7 +830,7 @@ const ModerationDashboard = () => {
         )}
       </div>
 
-      {/* Pagination (unchanged) */}
+      {/* Enhanced Pagination */}
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">

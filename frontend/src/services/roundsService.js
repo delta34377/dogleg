@@ -259,25 +259,24 @@ export const roundsService = {
   },
 
   // UPDATED: Smart blended feed with discovery (now supports chronological toggle)
-  getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRatio = 0.3) => {
+  // In roundsService.js, find getFeedWithDiscovery and update it:
+getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRatio = 0.3) => {
   try {
-    // Don't check localStorage anymore - just use params
-    const functionName = mode === 'following' 
-      ? 'get_feed_chronological_mixed'
-      : 'get_feed_with_discovery'
+    // ALWAYS use chronological function now
+    const functionName = 'get_feed_chronological_mixed'
     
     const { data, error } = await supabase.rpc(functionName, {
       p_limit: limit,
       p_offset: offset,
-      p_mode: mode === 'following' ? 'following' : 'mixed',
+      p_mode: mode,
       p_discover_ratio: discoverRatio
     })
-    
+
     if (error) {
       console.error(`Error fetching feed (${functionName}):`, error)
       return { data: null, error }
     }
-    
+
     return { 
       data: { rounds: data?.rounds || [] },
       error: null 

@@ -95,6 +95,29 @@
   - 3-dot dropdown menus for user actions
   - Clear search functionality with visible button
   - Force page reload after deletions to clear caches
+  - RPC functions exclude soft-deleted content from feeds
+  - Force page reload after deletions to ensure cache clearing
+  - Admin guard preventing deployment errors with early returns
+  - ✅ **Notifications System**
+  - Bell icon in header with red dot indicator for new notifications
+  - Dropdown showing last 30 days of activity
+  - Notification types: comments, reactions, follows
+  - Follow back buttons inline in notifications
+  - Mobile-optimized dropdown with overlay for easy dismissal
+  - Auto-marks as read when opened (updates last_notifications_check)
+  - Database triggers auto-create notifications on actions
+  - 30-second polling for new notification check
+  - Navigate to rounds/profiles from notifications
+
+- ✅ **Profile Navigation Improvements**
+  - Fixed comment expansion state resetting on navigation
+  - Added key={location.pathname} to UserProfile for fresh instances
+  - Comments stay expanded when clicking usernames
+
+- ✅ **Consistent Loading States**
+  - Skeleton loaders across all pages (Feed, UserProfile)
+  - Profile page skeleton includes header and rounds
+  - Better visual feedback during data loading
 
 
 ## 🔄 Currently Working On
@@ -175,6 +198,10 @@
 - **Performance**: No unnecessary getSession() calls on quick tab switches
 - **React Best Practices**: Proper useMemo dependencies, cleanup in useEffect
 - **Mobile Optimization**: Visibility API + pageshow for all browser scenarios
+- Notifications use last_notifications_check in profiles table
+- Component key pattern for same-component navigation (UserProfile)
+- Soft delete pattern with is_deleted flags (never hard delete)
+- Notification dropdown: fixed positioning mobile, absolute desktop
 
 
 ## ❌ Blockers

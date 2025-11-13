@@ -13,6 +13,21 @@ I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Strava
 - ✅ My Rounds page with database integration
 - ✅ Reactions and comments saving to database
 - ✅ User authentication
+- ✅ **Notifications System** - Bell icon with dropdown showing comments, reactions, follows
+  - Red dot indicator for new notifications
+  - Last 30 days of activity shown
+  - Follow back buttons inline
+  - Mobile-optimized dropdown positioning
+  - Auto-marks as read when opened
+  - Database triggers creating notifications automatically
+  
+- ✅ **Profile Navigation Fix** - Comments no longer collapse when clicking usernames
+  - Used key={location.pathname} on UserProfile component
+  - Ensures fresh component instance on profile changes
+  
+- ✅ **Consistent Loading States** - Skeleton loaders across all pages
+  - Profile page now uses same skeleton pattern as Feed
+  - Better visual feedback during data loading
 
 ### Recently Fixed
 - ✅ Infinite loading on tab switch (useRef solution in AuthContext)
@@ -65,6 +80,9 @@ I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Strava
 3. **Robust Parsing**: Handle both `expires_at` as number (UNIX) and string (ISO)
 4. **Single Guard**: ProtectedRoute is the ONLY place that redirects to /login
 5. **Event Sources**: Use visibilitychange and pageshow, but NOT focus (fires too often)
+6. **Component Keys for Navigation**: Use location.pathname as key when navigating between same component types (prevents state persistence issues)
+7. **Notification Dropdown Positioning**: Fixed positioning on mobile, absolute on desktop for proper alignment
+8. **Soft Delete Pattern**: is_deleted flags with RPC functions filtering them out, not actual DELETE operations
 
 
 # Feed Strategy Decision
@@ -99,6 +117,11 @@ I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Strava
   - Delete all content from a user
   - View user statistics
   - Soft delete system (content hidden but retained)
+  - **Soft Delete System**:
+  - Content marked as is_deleted=true but retained in database
+  - Feed functions exclude soft-deleted content automatically
+  - Moderation actions logged for audit trail
+  - Force page refresh after deletions to clear caches
 
 ## Tech Stack
 - **Database:** Supabase (PostgreSQL) - COMPLETED

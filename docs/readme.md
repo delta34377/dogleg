@@ -34,6 +34,16 @@ Our "For You" feed intelligently mixes content for maximum engagement:
 
 **Admin Panel** - Algorithm tuning interface (admin-only)
 
+### Notifications System
+- **Bell Icon**: Header notification button with red dot indicator
+- **Dropdown**: Shows last 30 days of activity
+- **Notification Types**: Comments, reactions, follows
+- **Database Triggers**: Auto-create notifications on user actions
+- **Smart Polling**: Checks for new notifications every 30 seconds
+- **Mark as Read**: Updates `last_notifications_check` when opened
+- **Mobile Optimized**: Fixed positioning with overlay for easy dismissal
+- **Follow Back**: Inline follow buttons in follow notifications
+
 **Key Features**:
 - No empty feeds for new users
 - Waterfall fill when following content is sparse
@@ -179,6 +189,12 @@ if (loading || (!user && rechecking)) showSpinner()
 3. **Robust Parsing**: Defensive handling of different Supabase version formats
 4. **Single Source of Truth**: Auth state listener, not getSession()
 5. **Non-blocking Profile**: Profile loads async without blocking auth
+
+triggers
+├── update_follow_counts() (auto-maintains follower counts)
+├── reaction_notification (creates notifications)
+├── comment_notification (creates notifications)
+└── follow_notification (creates notifications)
 
 #### Known Issues Resolved
 - ✅ Tab switch doesn't cause logout
@@ -453,6 +469,12 @@ The admin dashboard is available at `/admin` (restricted to admin email only).
   - `delete_user_content_admin()` - Remove all user content
   - `get_all_users_admin()` - Paginated user management
 
+  - **Implementation Details**:
+  - Hooks must be called before early returns (React rules)
+  - Force page reload after deletions to clear caches
+  - RPC functions automatically exclude soft-deleted content
+  - Admin guard with proper hook ordering for deployment
+
 ### Development Roadmap
 - ✅ **Phase 1: Core Analytics** (Complete)
 - 📅 **Phase 2: User Behavior** (Next)
@@ -492,6 +514,11 @@ console.log('Refocus check:', {
 - **Clean up old files** - prevents storage bloat
 - **Use public buckets for user-facing content**
 - **Set appropriate CORS headers** - for cross-origin access
+### Component Best Practices
+- **Use key prop for navigation**: `key={location.pathname}` when navigating between same component types
+- **Dropdown positioning**: Fixed on mobile, absolute on desktop
+- **Loading states**: Consistent skeleton loaders across all pages
+- **Event cleanup**: Always remove event listeners in useEffect cleanup
 
 
 
@@ -520,5 +547,5 @@ Key context: "I'm building Dogleg, a social golf app like Strava/Instagram for g
 
 ---
 
-**Last Updated:** October 2025  
-**Version:** 0.9.0 (Beta)
+**Last Updated:** November 2025  
+**Version:** 0.9.5 (Beta)

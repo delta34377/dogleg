@@ -134,13 +134,19 @@ const NotificationDropdown = () => {
         )}
       </button>
 
-      {/* Dropdown */}
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-[70vh] overflow-hidden">
-          <div className="p-3 border-b border-gray-200">
-            <h3 className="font-semibold text-gray-900">Notifications</h3>
-            <p className="text-xs text-gray-500">Last 30 days</p>
-          </div>
+      {/* Dropdown - RESPONSIVE POSITIONING */}
+{isOpen && (
+  <div className="fixed sm:absolute 
+    left-4 right-4 sm:left-auto sm:right-0 
+    top-[4.5rem] sm:top-auto sm:mt-2
+    sm:w-96 
+    bg-white rounded-lg shadow-lg border border-gray-200 
+    z-50 max-h-[70vh] overflow-hidden">
+    
+    <div className="p-3 border-b border-gray-200">
+      <h3 className="font-semibold text-gray-900">Notifications</h3>
+      <p className="text-xs text-gray-500">Last 30 days</p>
+    </div>
           
           <div className="overflow-y-auto max-h-[calc(70vh-60px)]">
             {loading ? (

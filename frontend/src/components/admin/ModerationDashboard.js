@@ -1,14 +1,15 @@
-// ModerationDashboard.js - Admin moderation interface
+// ModerationDashboard.js - Improved with better pagination and search
 import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
-import { Trash2, Search, Users, MessageSquare, Flag, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Trash2, Search, Users, MessageSquare, Flag, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 
 const ModerationDashboard = () => {
   const [activeTab, setActiveTab] = useState('users');
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteStatus, setDeleteStatus] = useState({ show: false, success: false, message: '' });
@@ -18,17 +19,18 @@ const ModerationDashboard = () => {
   const [comments, setComments] = useState([]);
   const [rounds, setRounds] = useState([]);
   
-  const ITEMS_PER_PAGE = 50;
+  // Calculate total pages
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   // Fetch data based on active tab
   useEffect(() => {
     fetchData();
-  }, [activeTab, currentPage, searchTerm]);
+  }, [activeTab, currentPage, itemsPerPage]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const offset = (currentPage - 1) * ITEMS_PER_PAGE;
+      const offset = (currentPage - 1) * itemsPerPage;
       
       switch(activeTab) {
         case 'users':
@@ -49,9 +51,9 @@ const ModerationDashboard = () => {
   };
 
   const fetchUsers = async (offset) => {
-    const { data, error, count } = await supabase.rpc('get_all_users_admin', {
+    const { data, error } = await supabase.rpc('get_all_users_admin', {
       search_query: searchTerm || '',
-      limit_num: ITEMS_PER_PAGE,
+      limit_num: itemsPerPage,
       offset_num: offset
     });
     
@@ -60,14 +62,19 @@ const ModerationDashboard = () => {
       return;
     }
     
-    setUsers(data || []);
-    setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
+    if (data && data.length > 0) {
+      setUsers(data);
+      setTotalCount(data[0].total_count || 0);
+    } else {
+      setUsers([]);
+      setTotalCount(0);
+    }
   };
 
   const fetchComments = async (offset) => {
-    const { data, error, count } = await supabase.rpc('get_all_comments_admin', {
+    const { data, error } = await supabase.rpc('get_all_comments_admin', {
       search_query: searchTerm || '',
-      limit_num: ITEMS_PER_PAGE,
+      limit_num: itemsPerPage,
       offset_num: offset
     });
     
@@ -76,14 +83,19 @@ const ModerationDashboard = () => {
       return;
     }
     
-    setComments(data || []);
-    setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
+    if (data && data.length > 0) {
+      setComments(data);
+      setTotalCount(data[0].total_count || 0);
+    } else {
+      setComments([]);
+      setTotalCount(0);
+    }
   };
 
   const fetchRounds = async (offset) => {
-    const { data, error, count } = await supabase.rpc('get_all_rounds_admin', {
+    const { data, error } = await supabase.rpc('get_all_rounds_admin', {
       search_query: searchTerm || '',
-      limit_num: ITEMS_PER_PAGE,
+      limit_num: itemsPerPage,
       offset_num: offset
     });
     
@@ -92,8 +104,13 @@ const ModerationDashboard = () => {
       return;
     }
     
-    setRounds(data || []);
-    setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
+    if (data && data.length > 0) {
+      setRounds(data);
+      setTotalCount(data[0].total_count || 0);
+    } else {
+      setRounds([]);
+      setTotalCount(0);
+    }
   };
 
   const handleDelete = (item, type) => {
@@ -116,7 +133,7 @@ const ModerationDashboard = () => {
           break;
         case 'round':
           result = await supabase.rpc('delete_round_admin', {
-            round_id: itemToDelete.id
+            p_round_id: itemToDelete.id  // Note: using p_round_id to match the fixed function
           });
           break;
         default:
@@ -176,6 +193,66 @@ const ModerationDashboard = () => {
     fetchData();
   };
 
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
+
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
+  };
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 7;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 4) {
+        for (let i = 1; i <= 5; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
+
+  // Determine sort order text
+  const getSortOrderText = () => {
+    switch(activeTab) {
+      case 'users':
+        return 'Newest users first';
+      case 'comments':
+        return 'Most recent comments first';
+      case 'rounds':
+        return 'Most recent rounds first';
+      default:
+        return 'Most recent first';
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -214,7 +291,7 @@ const ModerationDashboard = () => {
             }`}
           >
             <Users className="w-4 h-4" />
-            Users
+            Users {totalCount > 0 && activeTab === 'users' && `(${totalCount})`}
           </button>
           <button
             onClick={() => {
@@ -229,7 +306,7 @@ const ModerationDashboard = () => {
             }`}
           >
             <MessageSquare className="w-4 h-4" />
-            Comments
+            Comments {totalCount > 0 && activeTab === 'comments' && `(${totalCount})`}
           </button>
           <button
             onClick={() => {
@@ -244,34 +321,61 @@ const ModerationDashboard = () => {
             }`}
           >
             <Flag className="w-4 h-4" />
-            Rounds
+            Rounds {totalCount > 0 && activeTab === 'rounds' && `(${totalCount})`}
           </button>
         </nav>
       </div>
 
-      {/* Search Bar */}
-      <form onSubmit={handleSearch} className="flex gap-2 max-w-md">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={
-              activeTab === 'users' ? 'Search by username or email...' :
-              activeTab === 'comments' ? 'Search comment content...' :
-              'Search by course name...'
-            }
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          />
+      {/* Search Bar and Controls */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <form onSubmit={handleSearch} className="flex gap-2 flex-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={
+                activeTab === 'users' ? 'Search by username, email, or name...' :
+                activeTab === 'comments' ? 'Search by content or author...' :
+                'Search by course, city, state, username, score...'
+              }
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Search
+          </button>
+        </form>
+        
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-600">Show:</label>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+            className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span className="text-sm text-gray-600">per page</span>
         </div>
-        <button
-          type="submit"
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-        >
-          Search
-        </button>
-      </form>
+      </div>
+
+      {/* Results Info */}
+      {!loading && totalCount > 0 && (
+        <div className="flex justify-between items-center text-sm text-gray-600">
+          <div>
+            Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} results
+          </div>
+          <div>{getSortOrderText()}</div>
+        </div>
+      )}
 
       {/* Content Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -283,206 +387,212 @@ const ModerationDashboard = () => {
           <>
             {/* Users Table */}
             {activeTab === 'users' && (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Joined
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Rounds
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Followers
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {users.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          {user.avatar_url ? (
-                            <img 
-                              src={user.avatar_url} 
-                              alt="" 
-                              className="w-8 h-8 rounded-full mr-3"
-                            />
-                          ) : (
-                            <div className="w-8 h-8 rounded-full bg-gray-200 mr-3 flex items-center justify-center">
-                              <span className="text-xs text-gray-500">
-                                {user.username?.[0]?.toUpperCase() || '?'}
-                              </span>
-                            </div>
-                          )}
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">
-                              @{user.username}
-                            </div>
-                            {user.full_name && (
-                              <div className="text-sm text-gray-500">
-                                {user.full_name}
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Email
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Joined
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Rounds
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Followers
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {users.map((user) => (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            {user.avatar_url ? (
+                              <img 
+                                src={user.avatar_url} 
+                                alt="" 
+                                className="w-8 h-8 rounded-full mr-3"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-gray-200 mr-3 flex items-center justify-center">
+                                <span className="text-xs text-gray-500">
+                                  {user.username?.[0]?.toUpperCase() || '?'}
+                                </span>
                               </div>
                             )}
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                @{user.username || 'no-username'}
+                              </div>
+                              {user.full_name && (
+                                <div className="text-sm text-gray-500">
+                                  {user.full_name}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(user.created_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.rounds_count || 0}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {user.followers_count || 0}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.email || 'No email'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(user.created_at)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.rounds_count || 0}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.followers_count || 0}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {/* Comments Table */}
             {activeTab === 'comments' && (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Author
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Comment
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Round
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {comments.map((comment) => (
-                    <tr key={comment.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          @{comment.author_username}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900 max-w-xs truncate">
-                          {comment.content}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {comment.round_course_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(comment.created_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => handleDelete(comment, 'comment')}
-                          className="text-red-600 hover:text-red-900 flex items-center gap-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete
-                        </button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Author
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Comment
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Round
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {comments.map((comment) => (
+                      <tr key={comment.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            @{comment.author_username || 'unknown'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 max-w-xs truncate" title={comment.content}>
+                            {comment.content}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {comment.round_course_name || 'Unknown course'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {formatDate(comment.created_at)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => handleDelete(comment, 'comment')}
+                            className="text-red-600 hover:text-red-900 flex items-center gap-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {/* Rounds Table */}
             {activeTab === 'rounds' && (
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Player
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Course
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Score
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date Played
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Reactions
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Comments
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {rounds.map((round) => (
-                    <tr key={round.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          @{round.username}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
-                          {round.course_name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {round.city}, {round.state}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {round.total_score}
-                        </div>
-                        {round.par && (
-                          <div className="text-sm text-gray-500">
-                            Par {round.par}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(round.played_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {round.reaction_count || 0}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {round.comment_count || 0}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => handleDelete(round, 'round')}
-                          className="text-red-600 hover:text-red-900 flex items-center gap-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete
-                        </button>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Player
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Course
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Score
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date Played
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Reactions
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Comments
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {rounds.map((round) => (
+                      <tr key={round.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            @{round.username || 'unknown'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">
+                            {round.course_name || 'Unknown course'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {[round.city, round.state].filter(Boolean).join(', ') || 'Unknown location'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">
+                            {round.total_score || '-'}
+                          </div>
+                          {round.par && (
+                            <div className="text-sm text-gray-500">
+                              Par {round.par}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {round.played_at ? formatDate(round.played_at) : '-'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {round.reaction_count || 0}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {round.comment_count || 0}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button
+                            onClick={() => handleDelete(round, 'round')}
+                            className="text-red-600 hover:text-red-900 flex items-center gap-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
 
             {/* Empty State */}
@@ -490,45 +600,52 @@ const ModerationDashboard = () => {
               (activeTab === 'comments' && comments.length === 0) ||
               (activeTab === 'rounds' && rounds.length === 0)) && (
               <div className="p-8 text-center text-gray-500">
-                No {activeTab} found
+                {searchTerm ? `No ${activeTab} found matching "${searchTerm}"` : `No ${activeTab} found`}
               </div>
             )}
           </>
         )}
       </div>
 
-      {/* Pagination */}
+      {/* Enhanced Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-            disabled={currentPage === 1}
-            className={`px-4 py-2 rounded-lg ${
-              currentPage === 1
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Previous
-          </button>
-          
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            {[...Array(Math.min(5, totalPages))].map((_, i) => {
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-              
-              return (
+            <button
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+              className={`p-2 rounded-lg ${
+                currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+              title="First page"
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </button>
+            
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`px-3 py-2 rounded-lg ${
+                currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <ChevronLeft className="w-4 h-4 inline mr-1" />
+              Previous
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            {getPageNumbers().map((pageNum, index) => (
+              pageNum === '...' ? (
+                <span key={`ellipsis-${index}`} className="px-3 py-2">...</span>
+              ) : (
                 <button
-                  key={i}
-                  onClick={() => setCurrentPage(pageNum)}
+                  key={pageNum}
+                  onClick={() => handlePageChange(pageNum)}
                   className={`w-10 h-10 rounded-lg ${
                     pageNum === currentPage
                       ? 'bg-green-600 text-white'
@@ -537,21 +654,37 @@ const ModerationDashboard = () => {
                 >
                   {pageNum}
                 </button>
-              );
-            })}
+              )
+            ))}
           </div>
           
-          <button
-            onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-            disabled={currentPage === totalPages}
-            className={`px-4 py-2 rounded-lg ${
-              currentPage === totalPages
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Next
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className={`px-3 py-2 rounded-lg ${
+                currentPage === totalPages
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Next
+              <ChevronRight className="w-4 h-4 inline ml-1" />
+            </button>
+            
+            <button
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              className={`p-2 rounded-lg ${
+                currentPage === totalPages
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+              title="Last page"
+            >
+              <ChevronsRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       )}
 

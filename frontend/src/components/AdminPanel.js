@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { getFeedSettings, saveFeedSettings } from '../services/feedSettingsService'  // ← Fixed path (../ not ../../)
+import { getFeedSettings, saveFeedSettings } from '../services/feedSettingsService'
 
 function AdminPanel() {
   const { user } = useAuth()
@@ -14,6 +14,7 @@ function AdminPanel() {
     mode: 'following',
     discoveryRatio: 0,
     feedLimit: 10,
+    useChronological: true,  // Add this to defaults
     // UI-only fields (not saved to DB)
     popularThreshold: 3,
     commentThreshold: 2,
@@ -35,8 +36,7 @@ function AdminPanel() {
         setSettings({
           ...defaultSettings,  // Keep UI-only fields
           ...currentSettings,   // Override with DB values
-          // Convert mode to useChronological for UI toggle
-          useChronological: currentSettings.mode === 'following'
+          useChronological: true  // Always true since we only use chronological function
         })
       } catch (error) {
         console.error('Error loading settings:', error)
@@ -63,26 +63,17 @@ function AdminPanel() {
   }
   
   const handleChange = (field, value) => {
-    setSettings(prev => {
-      const updated = { ...prev, [field]: value }
-      
-      // Sync mode with useChronological toggle
-      if (field === 'useChronological') {
-        updated.mode = value ? 'following' : 'mixed'
-      }
-      if (field === 'mode') {
-        updated.useChronological = value === 'following'
-      }
-      
-      return updated
-    })
+    setSettings(prev => ({
+      ...prev,
+      [field]: value
+    }))
   }
   
   const applySettings = async () => {
     try {
-      // Only save the core feed settings to DB
+      // Save the core feed settings to DB
       const settingsToSave = {
-        mode: settings.useChronological ? 'following' : 'mixed',
+        mode: settings.mode,
         discoveryRatio: settings.discoveryRatio,
         feedLimit: settings.feedLimit
       }
@@ -101,8 +92,6 @@ function AdminPanel() {
     }
   }
 
-
-  
   const resetToDefaults = () => {
     setSettings(defaultSettings)
     localStorage.removeItem('feedAlgorithmSettings')
@@ -131,50 +120,28 @@ function AdminPanel() {
         )}
         
         <div className="space-y-6">
-          {/* NEW: Feed Ordering Toggle */}
+          {/* Feed Ordering Info - Now just informational */}
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
             <div className="flex items-center justify-between mb-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Feed Ordering Method
+                  Feed Ordering: Chronological
                 </label>
                 <p className="text-xs text-gray-500 mt-1">
-                  {settings.useChronological 
-                    ? 'Pure chronological - reactions won\'t affect order' 
-                    : 'Score-based - engagement affects round visibility'}
+                  All feeds use pure chronological ordering - newest rounds always appear first
                 </p>
               </div>
-              <button
-                onClick={() => handleChange('useChronological', !settings.useChronological)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  settings.useChronological ? 'bg-green-600' : 'bg-gray-300'
-                }`}
-              >
-                <span className="sr-only">Use chronological ordering</span>
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    settings.useChronological ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
+              <div className="text-2xl">📅</div>
             </div>
-            <div className="text-xs">
-              <span className="font-medium">
-                {settings.useChronological ? '📅 Chronological' : '📊 Algorithm Scored'}
-              </span>
-              {' - '}
-              <span className="text-gray-600">
-                {settings.useChronological 
-                  ? 'Newest rounds always appear first'
-                  : 'Popular rounds can appear above newer ones'}
-              </span>
+            <div className="text-xs text-gray-600">
+              Reactions and engagement do NOT affect round visibility or order
             </div>
           </div>
           
           {/* Feed Mode */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Feed Mode
+              Feed Content Mode
             </label>
             <select
               value={settings.mode}
@@ -185,10 +152,15 @@ function AdminPanel() {
               <option value="following">Following Only</option>
               <option value="discover">Discovery Only</option>
             </select>
+            <p className="text-xs text-gray-500 mt-1">
+              {settings.mode === 'mixed' && "Shows rounds from people you follow PLUS popular/nearby rounds"}
+              {settings.mode === 'following' && "Shows ONLY rounds from people you follow"}
+              {settings.mode === 'discover' && "Shows ONLY discovery rounds (popular/nearby)"}
+            </p>
           </div>
           
           {/* Discovery Ratio */}
-          <div>
+          <div className={settings.mode !== 'mixed' ? 'opacity-50' : ''}>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Discovery Mix: {Math.round(settings.discoveryRatio * 100)}% discovery / {Math.round((1 - settings.discoveryRatio) * 100)}% following
             </label>
@@ -207,6 +179,11 @@ function AdminPanel() {
               <span>50/50</span>
               <span>All Discovery</span>
             </div>
+            {settings.mode !== 'mixed' && (
+              <p className="text-xs text-orange-600 mt-1">
+                ⚠️ Only applies in Mixed mode
+              </p>
+            )}
           </div>
           
           {/* Popular Round Thresholds */}
@@ -256,81 +233,6 @@ function AdminPanel() {
             />
           </div>
           
-          {/* Scoring Weights - Show warning if chronological is enabled */}
-          <div className={settings.useChronological ? 'opacity-50' : ''}>
-            <h3 className="font-medium text-gray-700 mb-3">
-              Scoring Weights (must total 100%)
-              {settings.useChronological && (
-                <span className="text-xs text-orange-600 ml-2">
-                  ⚠️ Disabled when using chronological ordering
-                </span>
-              )}
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Recency: {Math.round(settings.recencyWeight * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={settings.recencyWeight}
-                  disabled={settings.useChronological}
-                  onChange={(e) => {
-                    const newValue = parseFloat(e.target.value)
-                    const remaining = 1 - newValue
-                    handleChange('recencyWeight', newValue)
-                    // Auto-adjust other weights proportionally
-                    if (remaining > 0) {
-                      const engagementRatio = settings.engagementWeight / (settings.engagementWeight + settings.affinityWeight)
-                      handleChange('engagementWeight', remaining * engagementRatio)
-                      handleChange('affinityWeight', remaining * (1 - engagementRatio))
-                    }
-                  }}
-                  className="w-full"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Engagement: {Math.round(settings.engagementWeight * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={settings.engagementWeight}
-                  disabled={settings.useChronological}
-                  onChange={(e) => handleChange('engagementWeight', parseFloat(e.target.value))}
-                  className="w-full"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm text-gray-600 mb-1">
-                  Course Affinity: {Math.round(settings.affinityWeight * 100)}%
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={settings.affinityWeight}
-                  disabled={settings.useChronological}
-                  onChange={(e) => handleChange('affinityWeight', parseFloat(e.target.value))}
-                  className="w-full"
-                />
-              </div>
-              
-              <div className="text-sm text-gray-500">
-                Total: {Math.round((settings.recencyWeight + settings.engagementWeight + settings.affinityWeight) * 100)}%
-              </div>
-            </div>
-          </div>
-          
           {/* Feed Pagination */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -349,30 +251,15 @@ function AdminPanel() {
           
           {/* Current Settings Display */}
           <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-medium text-gray-700 mb-2">Current Algorithm Formula:</h3>
-            {settings.useChronological ? (
-              <div>
-                <code className="text-xs text-gray-600">
-                  Order = Newest First (Pure Chronological)
-                </code>
-                <div className="mt-2 text-xs text-gray-500">
-                  Reactions and engagement do NOT affect round visibility or order
-                </div>
-              </div>
-            ) : (
-              <div>
-                <code className="text-xs text-gray-600">
-                  Score = {(settings.recencyWeight).toFixed(1)} * recency_score + {(settings.engagementWeight).toFixed(1)} * engagement_score + {(settings.affinityWeight).toFixed(1)} * affinity_score
-                </code>
-                <div className="mt-2 text-xs text-gray-500">
-                  Engagement (reactions/comments) affects round visibility and order
-                </div>
-              </div>
-            )}
-            <div className="mt-2 text-xs text-gray-500">
-              Mode: {settings.mode} | 
-              Discovery: {Math.round(settings.discoveryRatio * 100)}% | 
-              Popular: {settings.popularThreshold}+ reactions or {settings.commentThreshold}+ comments
+            <h3 className="font-medium text-gray-700 mb-2">Current Settings:</h3>
+            <div className="text-xs text-gray-600 space-y-1">
+              <div>📅 Order: <span className="font-medium">Chronological (newest first)</span></div>
+              <div>📰 Mode: <span className="font-medium">{settings.mode}</span></div>
+              {settings.mode === 'mixed' && (
+                <div>🔀 Mix: <span className="font-medium">{Math.round(settings.discoveryRatio * 100)}% discovery / {Math.round((1 - settings.discoveryRatio) * 100)}% following</span></div>
+              )}
+              <div>📊 Page size: <span className="font-medium">{settings.feedLimit} rounds</span></div>
+              <div>🔥 Popular threshold: <span className="font-medium">{settings.popularThreshold}+ reactions or {settings.commentThreshold}+ comments</span></div>
             </div>
           </div>
           
@@ -402,14 +289,14 @@ function AdminPanel() {
         </div>
       </div>
       
-      {/* Quick Stats */}
+      {/* Quick Presets */}
       <div className="mt-6 bg-white rounded-lg shadow p-4">
         <h3 className="font-medium text-gray-700 mb-3">Quick Presets:</h3>
         <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => {
-              setSettings({...defaultSettings, mode: 'following', discoveryRatio: 0, useChronological: true})
-              setMessage('Preset: Following Only (Chronological)')
+              setSettings({...defaultSettings, mode: 'following', discoveryRatio: 0})
+              setMessage('Preset: Following Only')
             }}
             className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 text-sm"
           >
@@ -418,8 +305,8 @@ function AdminPanel() {
           
           <button
             onClick={() => {
-              setSettings({...defaultSettings, discoveryRatio: 0.5, useChronological: true})
-              setMessage('Preset: 50/50 Mix (Chronological)')
+              setSettings({...defaultSettings, mode: 'mixed', discoveryRatio: 0.5})
+              setMessage('Preset: 50/50 Mix')
             }}
             className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 text-sm"
           >
@@ -428,8 +315,18 @@ function AdminPanel() {
           
           <button
             onClick={() => {
-              setSettings({...defaultSettings, mode: 'discover', discoveryRatio: 1, useChronological: true})
-              setMessage('Preset: Discovery Only (Chronological)')
+              setSettings({...defaultSettings, mode: 'mixed', discoveryRatio: 0.3})
+              setMessage('Preset: 70/30 Mix')
+            }}
+            className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 text-sm"
+          >
+            70/30 Mix
+          </button>
+          
+          <button
+            onClick={() => {
+              setSettings({...defaultSettings, mode: 'discover', discoveryRatio: 1})
+              setMessage('Preset: Discovery Only')
             }}
             className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 text-sm"
           >
@@ -438,32 +335,22 @@ function AdminPanel() {
           
           <button
             onClick={() => {
-              setSettings({...defaultSettings, recencyWeight: 0.8, engagementWeight: 0.15, affinityWeight: 0.05, useChronological: true})
-              setMessage('Preset: Pure Chronological')
+              setSettings({...defaultSettings, mode: 'mixed', discoveryRatio: 0.1})
+              setMessage('Preset: Minimal Discovery (90/10)')
             }}
             className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 text-sm"
           >
-            Pure Time Order
+            Minimal Discovery
           </button>
           
           <button
             onClick={() => {
-              setSettings({...defaultSettings, recencyWeight: 0.3, engagementWeight: 0.6, affinityWeight: 0.1, useChronological: false})
-              setMessage('Preset: Engagement-Based (Scored)')
+              setSettings({...defaultSettings, mode: 'mixed', discoveryRatio: 0.7})
+              setMessage('Preset: Discovery Heavy (30/70)')
             }}
             className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 text-sm"
           >
-            Popular First
-          </button>
-          
-          <button
-            onClick={() => {
-              setSettings({...defaultSettings, recencyWeight: 0.3, engagementWeight: 0.2, affinityWeight: 0.5, useChronological: false})
-              setMessage('Preset: Course-Based (Scored)')
-            }}
-            className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 text-sm"
-          >
-            Course Affinity
+            Discovery Heavy
           </button>
         </div>
       </div>

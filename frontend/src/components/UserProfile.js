@@ -679,15 +679,57 @@ function UserProfile() {
 
   // LOADING CHECK - ADD THIS BEFORE THE MAIN RETURN
   if (!profileUser) {
-    return (
-      <div className="max-w-4xl mx-auto p-2 sm:p-4">
-        <div className="text-center py-8">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-          <p className="mt-2 text-gray-600">Loading profile...</p>
+  return (
+    <div className="max-w-4xl mx-auto p-2 sm:p-4">
+      {/* Profile skeleton */}
+      <div className="bg-white rounded-lg shadow-sm mb-3 sm:mb-4 animate-pulse">
+        <div className="p-3 sm:p-6">
+          <div className="flex flex-row items-center gap-3 sm:gap-4">
+            <div className="w-12 h-12 sm:w-20 sm:h-20 bg-gray-200 rounded-full flex-shrink-0"></div>
+            <div className="flex-1 min-w-0">
+              <div className="h-6 bg-gray-200 rounded w-32 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-48"></div>
+            </div>
+          </div>
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t flex justify-around">
+            <div className="h-6 bg-gray-200 rounded w-16"></div>
+            <div className="h-6 bg-gray-200 rounded w-16"></div>
+            <div className="h-6 bg-gray-200 rounded w-16"></div>
+          </div>
         </div>
       </div>
-    )
-  }
+      
+      {/* Rounds skeleton - same as Feed */}
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+        <div className="rounded-lg border border-gray-200">
+          <div className="p-3 sm:p-6 bg-gray-50 rounded-lg">
+            <div className="space-y-3 sm:space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
+                  <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-3 sm:pb-4 border-b">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                        <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                      </div>
+                      <div>
+                        <div className="h-10 w-16 bg-gray-200 rounded"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="px-2 sm:px-4 py-4">
+                    <div className="h-32 bg-gray-200 rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
   const isOwnProfile = currentUser?.id === profileUser?.id
 
@@ -860,7 +902,7 @@ function UserProfile() {
                       {/* Real photos only */}
                       {round.photo && (
                         <div className="px-2 sm:px-4 pt-2 sm:pt-4">
-                          <div className="aspect-video rounded-lg overflow-hidden">
+<div className="aspect-square sm:aspect-[4/3] md:aspect-video rounded-lg overflow-hidden">
                             <img 
                               src={round.photo} 
                               alt="Golf course or something captured from round" 

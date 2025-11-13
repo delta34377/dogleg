@@ -182,7 +182,26 @@ useEffect(() => {
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [settings])
+
+// Listen for feed refresh events from admin panel
+useEffect(() => {
+  const handleFeedRefresh = () => {
+    // Clear cached data and reload
+    setRounds([])
+    setOffset(0)
+    setHasMore(true)
+    if (settings) {
+      loadFeed(false)
+    }
+  }
+
+  window.addEventListener('feedRefresh', handleFeedRefresh)
   
+  return () => {
+    window.removeEventListener('feedRefresh', handleFeedRefresh)
+  }
+}, [settings]) // Include settings in deps since loadFeed needs it
+
     const toggleReaction = async (roundId, reaction) => {
     // Store previous state in case we need to revert
     const previousRounds = rounds

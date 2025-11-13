@@ -1,7 +1,12 @@
-// ModerationDashboard.js - Improved with better pagination and search
+// ModerationDashboard.js - Full Enhanced Version with User Management
 import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
-import { Trash2, Search, Users, MessageSquare, Flag, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { 
+  Trash2, Search, Users, MessageSquare, Flag, AlertTriangle, 
+  CheckCircle, ChevronLeft, ChevronRight, ChevronsLeft, 
+  ChevronsRight, X, Ban, ArrowUpDown, ArrowUp, ArrowDown,
+  MoreVertical
+} from 'lucide-react';
 
 const ModerationDashboard = () => {
   const [activeTab, setActiveTab] = useState('users');
@@ -11,8 +16,14 @@ const ModerationDashboard = () => {
   const [totalCount, setTotalCount] = useState(0);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showUserActionModal, setShowUserActionModal] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleteStatus, setDeleteStatus] = useState({ show: false, success: false, message: '' });
+  
+  // Sorting state for users
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('DESC');
   
   // Data states
   const [users, setUsers] = useState([]);
@@ -25,7 +36,7 @@ const ModerationDashboard = () => {
   // Fetch data based on active tab
   useEffect(() => {
     fetchData();
-  }, [activeTab, currentPage, itemsPerPage]);
+  }, [activeTab, currentPage, itemsPerPage, sortBy, sortOrder]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -54,7 +65,9 @@ const ModerationDashboard = () => {
     const { data, error } = await supabase.rpc('get_all_users_admin', {
       search_query: searchTerm || '',
       limit_num: itemsPerPage,
-      offset_num: offset
+      offset_num: offset,
+      sort_by: sortBy,
+      sort_order: sortOrder
     });
     
     if (error) {
@@ -113,6 +126,95 @@ const ModerationDashboard = () => {
     }
   };
 
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'ASC' ? 'DESC' : 'ASC');
+    } else {
+      setSortBy(column);
+      setSortOrder('DESC');
+    }
+    setCurrentPage(1);
+  };
+
+  const getSortIcon = (column) => {
+    if (sortBy !== column) {
+      return <ArrowUpDown className="w-4 h-4 text-gray-400" />;
+    }
+    return sortOrder === 'ASC' 
+      ? <ArrowUp className="w-4 h-4 text-green-600" />
+      : <ArrowDown className="w-4 h-4 text-green-600" />;
+  };
+
+  const handleUserAction = (user, action) => {
+    setSelectedUser(user);
+    setShowUserActionModal(action);
+  };
+
+  const confirmUserAction = async () => {
+    if (!selectedUser) return;
+    
+    setLoading(true);
+    try {
+      let result;
+      
+      if (showUserActionModal === 'delete_content') {
+        result = await supabase.rpc('delete_user_content_admin', {
+          p_user_id: selectedUser.id
+        });
+        
+        if (!result.error && result.data) {
+          setDeleteStatus({
+            show: true,
+            success: true,
+            message: `Deleted ${result.data.rounds_deleted} rounds, ${result.data.comments_deleted} comments, ${result.data.reactions_deleted} reactions`
+          });
+        }
+      } else if (showUserActionModal === 'ban') {
+        result = await supabase.rpc('toggle_user_ban_admin', {
+          p_user_id: selectedUser.id
+        });
+        
+        if (!result.error) {
+          setDeleteStatus({
+            show: true,
+            success: true,
+            message: `User ${result.data ? 'banned' : 'unbanned'} successfully`
+          });
+        }
+      }
+      
+      if (result?.error) {
+        throw result.error;
+      }
+      
+      // Refresh data
+      fetchData();
+      
+      // Clear feed cache by triggering a refresh
+      window.dispatchEvent(new Event('feedRefresh'));
+      
+      setTimeout(() => {
+        setDeleteStatus({ show: false, success: false, message: '' });
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error with user action:', error);
+      setDeleteStatus({
+        show: true,
+        success: false,
+        message: `Failed: ${error.message}`
+      });
+      
+      setTimeout(() => {
+        setDeleteStatus({ show: false, success: false, message: '' });
+      }, 3000);
+    } finally {
+      setLoading(false);
+      setShowUserActionModal(false);
+      setSelectedUser(null);
+    }
+  };
+
   const handleDelete = (item, type) => {
     setItemToDelete({ ...item, type });
     setShowDeleteModal(true);
@@ -133,7 +235,7 @@ const ModerationDashboard = () => {
           break;
         case 'round':
           result = await supabase.rpc('delete_round_admin', {
-            p_round_id: itemToDelete.id  // Note: using p_round_id to match the fixed function
+            p_round_id: itemToDelete.id
           });
           break;
         default:
@@ -154,7 +256,9 @@ const ModerationDashboard = () => {
       // Refresh data
       fetchData();
       
-      // Hide status after 3 seconds
+      // Clear feed cache
+      window.dispatchEvent(new Event('feedRefresh'));
+      
       setTimeout(() => {
         setDeleteStatus({ show: false, success: false, message: '' });
       }, 3000);
@@ -175,6 +279,12 @@ const ModerationDashboard = () => {
       setShowDeleteModal(false);
       setItemToDelete(null);
     }
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    setCurrentPage(1);
+    fetchData();
   };
 
   const formatDate = (dateString) => {
@@ -237,20 +347,6 @@ const ModerationDashboard = () => {
     }
     
     return pages;
-  };
-
-  // Determine sort order text
-  const getSortOrderText = () => {
-    switch(activeTab) {
-      case 'users':
-        return 'Newest users first';
-      case 'comments':
-        return 'Most recent comments first';
-      case 'rounds':
-        return 'Most recent rounds first';
-      default:
-        return 'Most recent first';
-    }
   };
 
   return (
@@ -340,8 +436,17 @@ const ModerationDashboard = () => {
                 activeTab === 'comments' ? 'Search by content or author...' :
                 'Search by course, city, state, username, score...'
               }
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
           <button
             type="submit"
@@ -373,7 +478,6 @@ const ModerationDashboard = () => {
           <div>
             Showing {((currentPage - 1) * itemsPerPage) + 1} - {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount} results
           </div>
-          <div>{getSortOrderText()}</div>
         </div>
       )}
 
@@ -385,26 +489,68 @@ const ModerationDashboard = () => {
           </div>
         ) : (
           <>
-            {/* Users Table */}
+            {/* Users Table with Sortable Columns */}
             {activeTab === 'users' && (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        User
+                        <button
+                          onClick={() => handleSort('username')}
+                          className="flex items-center gap-1 hover:text-gray-700"
+                        >
+                          User
+                          {getSortIcon('username')}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Email
+                        <button
+                          onClick={() => handleSort('email')}
+                          className="flex items-center gap-1 hover:text-gray-700"
+                        >
+                          Email
+                          {getSortIcon('email')}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Joined
+                        <button
+                          onClick={() => handleSort('created_at')}
+                          className="flex items-center gap-1 hover:text-gray-700"
+                        >
+                          Joined
+                          {getSortIcon('created_at')}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Rounds
+                        <button
+                          onClick={() => handleSort('rounds')}
+                          className="flex items-center gap-1 hover:text-gray-700"
+                        >
+                          Rounds
+                          {getSortIcon('rounds')}
+                        </button>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Followers
+                        <button
+                          onClick={() => handleSort('comments')}
+                          className="flex items-center gap-1 hover:text-gray-700"
+                        >
+                          Comments
+                          {getSortIcon('comments')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button
+                          onClick={() => handleSort('followers')}
+                          className="flex items-center gap-1 hover:text-gray-700"
+                        >
+                          Followers
+                          {getSortIcon('followers')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
                       </th>
                     </tr>
                   </thead>
@@ -448,7 +594,38 @@ const ModerationDashboard = () => {
                           {user.rounds_count || 0}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {user.comments_count || 0}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {user.followers_count || 0}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="relative inline-block text-left">
+                            <div className="dropdown">
+                              <button className="p-1 rounded hover:bg-gray-100">
+                                <MoreVertical className="w-4 h-4 text-gray-500" />
+                              </button>
+                              <div className="dropdown-content absolute right-0 z-10 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 hidden hover:block">
+                                <div className="py-1">
+                                  <button
+                                    onClick={() => handleUserAction(user, 'delete_content')}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    Delete All Content
+                                  </button>
+                                  {/* Ban feature ready but commented out until backend support */}
+                                  {/* <button
+                                    onClick={() => handleUserAction(user, 'ban')}
+                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                  >
+                                    <Ban className="w-4 h-4" />
+                                    Ban User
+                                  </button> */}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -457,7 +634,7 @@ const ModerationDashboard = () => {
               </div>
             )}
 
-            {/* Comments Table */}
+            {/* Comments Table (unchanged) */}
             {activeTab === 'comments' && (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -515,7 +692,7 @@ const ModerationDashboard = () => {
               </div>
             )}
 
-            {/* Rounds Table */}
+            {/* Rounds Table (unchanged) */}
             {activeTab === 'rounds' && (
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -607,7 +784,7 @@ const ModerationDashboard = () => {
         )}
       </div>
 
-      {/* Enhanced Pagination */}
+      {/* Pagination (unchanged) */}
       {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -716,6 +893,51 @@ const ModerationDashboard = () => {
                   onClick={() => {
                     setShowDeleteModal(false);
                     setItemToDelete(null);
+                  }}
+                  className="mt-3 px-4 py-2 bg-white text-gray-700 text-base font-medium rounded-md w-full shadow-sm border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Action Modal */}
+      {showUserActionModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                {showUserActionModal === 'ban' ? (
+                  <Ban className="h-6 w-6 text-red-600" />
+                ) : (
+                  <Trash2 className="h-6 w-6 text-red-600" />
+                )}
+              </div>
+              <h3 className="text-lg leading-6 font-medium text-gray-900 mt-4">
+                {showUserActionModal === 'ban' ? 'Ban User' : 'Delete User Content'}
+              </h3>
+              <div className="mt-2 px-7 py-3">
+                <p className="text-sm text-gray-500">
+                  {showUserActionModal === 'ban' 
+                    ? `Are you sure you want to ban @${selectedUser?.username}?`
+                    : `This will delete all rounds, comments, and reactions from @${selectedUser?.username}.`
+                  }
+                </p>
+              </div>
+              <div className="items-center px-4 py-3">
+                <button
+                  onClick={confirmUserAction}
+                  className="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  {showUserActionModal === 'ban' ? 'Ban User' : 'Delete All Content'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowUserActionModal(false);
+                    setSelectedUser(null);
                   }}
                   className="mt-3 px-4 py-2 bg-white text-gray-700 text-base font-medium rounded-md w-full shadow-sm border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
                 >

@@ -22,6 +22,7 @@ import AdminDashboard from './components/admin/AdminDashboard'
 function AuthenticatedApp() {
   const [activeView, setActiveView] = useState('feed')
   const feedRef = useRef(null)
+  const roundsRef = useRef(null)
   const { user, profile, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
@@ -37,6 +38,17 @@ function AuthenticatedApp() {
     }
   }
   
+  // Handle My Rounds tab click - scroll to top if already on rounds
+const handleMyRoundsClick = () => {
+  if (activeView === 'rounds' && roundsRef.current) {
+    // Already on rounds, trigger scroll to top
+    roundsRef.current.scrollToTop()
+  } else {
+    // Not on rounds, just switch to rounds
+    setActiveView('rounds')
+  }
+}
+
   // Check if we're on a user profile page
   const isUserProfilePage = location.pathname.startsWith('/profile/') && location.pathname !== '/profile'
   
@@ -334,7 +346,7 @@ function AuthenticatedApp() {
           </button>
 
           <button
-            onClick={() => setActiveView('rounds')}
+  onClick={handleMyRoundsClick}
             className={`flex flex-col items-center justify-center gap-1 ${
               activeView === 'rounds' ? 'text-green-600' : 'text-gray-600'
             }`}
@@ -380,7 +392,7 @@ function AuthenticatedApp() {
             </button>
 
             <button
-              onClick={() => setActiveView('rounds')}
+  onClick={handleMyRoundsClick}
               className={`flex-1 py-4 px-4 text-center font-medium transition-colors ${
                 activeView === 'rounds'
                   ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
@@ -400,7 +412,7 @@ function AuthenticatedApp() {
       <div className="pt-4 pb-20 md:pb-4">
         {activeView === 'feed' && <Feed ref={feedRef} />}
         {activeView === 'search' && <CourseSearch />}
-        {activeView === 'rounds' && <MyRounds />}
+{activeView === 'rounds' && <MyRounds ref={roundsRef} />}
         {activeView === 'profile' && <Profile />}
       </div>
     </div>

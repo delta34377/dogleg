@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
 import { roundsService } from '../services/roundsService'
 import { followService } from '../services/followService'
 import { useAuth } from '../context/AuthContext'
@@ -8,7 +8,7 @@ import { getDisplayName } from '../utils/courseNameUtils'
 import { getInitials } from '../utils/avatarUtils'
 import AvatarUpload from '../components/AvatarUpload'
 
-function MyRounds() {
+const MyRounds = forwardRef((props, ref) => {
   const { user, profile } = useAuth() 
   const navigate = useNavigate()
   const [rounds, setRounds] = useState([])
@@ -365,6 +365,15 @@ const toggleReaction = async (roundId, reaction) => {
   const [showAllComments, setShowAllComments] = useState(false)
   const [newComment, setNewComment] = useState('')
   
+  // Expose methods to parent component
+useImperativeHandle(ref, () => ({
+  scrollToTop: () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Optionally, you could also refresh the rounds here:
+    // loadRounds()
+  }
+}))
+
   const comments = round.comments || []
   const visibleComments = showAllComments ? comments : comments.slice(-3)
   
@@ -988,5 +997,5 @@ const toggleReaction = async (roundId, reaction) => {
     </div>
   )
 }
-
+)
 export default MyRounds

@@ -134,7 +134,7 @@ const NotificationDropdown = () => {
         )}
       </button>
 
-    {/* Dropdown */}
+  {/* Dropdown */}
 {isOpen && (
   <>
     {/* Mobile overlay backdrop */}
@@ -143,14 +143,14 @@ const NotificationDropdown = () => {
       onClick={() => setIsOpen(false)}
     />
     
-    {/* Dropdown - Fixed positioning */}
-<div className="absolute mt-2 
-  left-auto right-2 sm:right-0
-  w-[min(calc(100vw-1rem),24rem)] sm:w-96
-  bg-white rounded-lg shadow-lg border border-gray-200 
-  z-50 
-  max-h-[50vh] sm:max-h-[70vh] 
-  overflow-hidden">
+    {/* Dropdown with fixed positioning on mobile */}
+    <div className="fixed sm:absolute top-16 sm:top-auto sm:mt-2 
+      inset-x-2 sm:inset-x-auto sm:right-0 sm:left-auto
+      sm:w-96
+      bg-white rounded-lg shadow-lg border border-gray-200 
+      z-50 
+      max-h-[50vh] sm:max-h-[70vh] 
+      overflow-hidden">
       
       <div className="p-3 border-b border-gray-200">
         <h3 className="font-semibold text-gray-900">Notifications</h3>
@@ -232,7 +232,7 @@ const NotificationDropdown = () => {
       </div>
     </div>
   </>
- )}
+)}
     </div>
   );
 };

@@ -145,7 +145,7 @@ const NotificationDropdown = () => {
     
     {/* Dropdown with fixed positioning on mobile */}
     <div className="fixed sm:absolute top-16 sm:top-auto sm:mt-2 
-      inset-x-2 sm:inset-x-auto sm:-right-12 sm:left-auto
+      inset-x-2 sm:inset-x-auto sm:left-0 sm:right-auto
       sm:w-96
       bg-white rounded-lg shadow-lg border border-gray-200 
       z-50 

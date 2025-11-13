@@ -1,35 +1,51 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import { getFeedSettings, saveFeedSettings } from '../services/feedSettingsService'  // ← Fixed path (../ not ../../)
 
 function AdminPanel() {
   const { user } = useAuth()
   const navigate = useNavigate()
   
-  // CHANGE THIS TO YOUR USER ID OR EMAIL
-  const ADMIN_EMAIL = 'markgreenfield1@gmail.com' // <-- PUT YOUR EMAIL HERE
+  const ADMIN_EMAIL = 'markgreenfield1@gmail.com'
   
-  // Default algorithm settings
+  // Default settings - used if no global settings exist
   const defaultSettings = {
-    discoveryRatio: 0.3,  // 30% discovery, 70% following
-    popularThreshold: 3,   // Min reactions for "popular"
-    commentThreshold: 2,   // Min comments for "popular"
-    nearbyRadius: 15,      // Miles for "near you" courses
-    recencyWeight: 0.6,    // Weight for how recent (0.6 = 60%)
-    engagementWeight: 0.3, // Weight for engagement (reactions/comments)
-    affinityWeight: 0.1,   // Weight for course affinity
-    feedLimit: 10,         // Rounds per page
-    mode: 'mixed',         // 'mixed', 'following', or 'discovery'
-    useChronological: true // NEW: Use chronological ordering instead of score-based
+    mode: 'following',
+    discoveryRatio: 0,
+    feedLimit: 10,
+    // UI-only fields (not saved to DB)
+    popularThreshold: 3,
+    commentThreshold: 2,
+    nearbyRadius: 15,
+    recencyWeight: 0.6,
+    engagementWeight: 0.3,
+    affinityWeight: 0.1
   }
   
-  // Load settings from localStorage or use defaults
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('feedAlgorithmSettings')
-    return saved ? JSON.parse(saved) : defaultSettings
-  })
-  
+  const [settings, setSettings] = useState(defaultSettings)
   const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  
+  // Load current global settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const currentSettings = await getFeedSettings()
+        setSettings({
+          ...defaultSettings,  // Keep UI-only fields
+          ...currentSettings,   // Override with DB values
+          // Convert mode to useChronological for UI toggle
+          useChronological: currentSettings.mode === 'following'
+        })
+      } catch (error) {
+        console.error('Error loading settings:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadSettings()
+  }, [])
   
   // Check if user is admin
   useEffect(() => {
@@ -38,29 +54,54 @@ function AdminPanel() {
     }
   }, [user, navigate])
   
-  // Don't render anything if not admin
   if (!user || user.email !== ADMIN_EMAIL) {
     return null
   }
   
-  const handleChange = (field, value) => {
-    setSettings(prev => ({
-      ...prev,
-      [field]: value
-    }))
+  if (loading) {
+    return <div className="p-4">Loading settings...</div>
   }
   
-  const applySettings = () => {
-    // Save to localStorage
-    localStorage.setItem('feedAlgorithmSettings', JSON.stringify(settings))
-    setMessage('Settings saved! Refreshing feed...')
-    
-    // Refresh the page after a short delay to apply new settings
-    setTimeout(() => {
-      navigate('/')
-      window.location.reload()
-    }, 1000)
+  const handleChange = (field, value) => {
+    setSettings(prev => {
+      const updated = { ...prev, [field]: value }
+      
+      // Sync mode with useChronological toggle
+      if (field === 'useChronological') {
+        updated.mode = value ? 'following' : 'mixed'
+      }
+      if (field === 'mode') {
+        updated.useChronological = value === 'following'
+      }
+      
+      return updated
+    })
   }
+  
+  const applySettings = async () => {
+    try {
+      // Only save the core feed settings to DB
+      const settingsToSave = {
+        mode: settings.useChronological ? 'following' : 'mixed',
+        discoveryRatio: settings.discoveryRatio,
+        feedLimit: settings.feedLimit
+      }
+      
+      await saveFeedSettings(settingsToSave)
+      setMessage('Settings saved globally! All users will see changes.')
+      
+      // Refresh after a moment
+      setTimeout(() => {
+        navigate('/')
+        window.location.reload()
+      }, 1000)
+    } catch (error) {
+      console.error('Error saving settings:', error)
+      setMessage('Error saving settings: ' + error.message)
+    }
+  }
+
+
   
   const resetToDefaults = () => {
     setSettings(defaultSettings)

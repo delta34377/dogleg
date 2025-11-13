@@ -260,59 +260,33 @@ export const roundsService = {
 
   // UPDATED: Smart blended feed with discovery (now supports chronological toggle)
   getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRatio = 0.3) => {
-    try {
-      // Check admin settings for chronological preference
-      const settings = JSON.parse(localStorage.getItem('feedAlgorithmSettings') || '{}')
-      
-      // Choose which SQL function to use based on settings
-      const functionName = settings.useChronological 
-        ? 'get_feed_chronological_mixed'  // New chronological version
-        : 'get_feed_with_discovery'       // Original scored version
-      
-      // Call the appropriate function
-      const { data, error } = await supabase.rpc(functionName, {
-        p_limit: limit,
-        p_offset: offset,
-        p_mode: mode,
-        p_discover_ratio: discoverRatio
-      })
-
-      if (error) {
-        console.error(`Error fetching feed (${functionName}):`, error)
-        // Fallback to original if new function doesn't exist
-        if (error.message?.includes('does not exist') && functionName === 'get_feed_chronological_mixed') {
-          console.log('Falling back to original feed function')
-          const { data: fallbackData, error: fallbackError } = await supabase.rpc('get_feed_with_discovery', {
-            p_limit: limit,
-            p_offset: offset,
-            p_mode: mode,
-            p_discover_ratio: discoverRatio
-          })
-          
-          if (fallbackError) {
-            return { data: null, error: fallbackError }
-          }
-          
-          return {
-            data: { rounds: fallbackData?.rounds || [] },
-            error: null
-          }
-        }
-        return { data: null, error }
-      }
-
-      // The RPC returns everything we need in the right format
-      return { 
-        data: {
-          rounds: data?.rounds || []
-        },
-        error: null 
-      }
-    } catch (error) {
-      console.error('Feed error:', error)
+  try {
+    // Don't check localStorage anymore - just use params
+    const functionName = mode === 'following' 
+      ? 'get_feed_chronological_mixed'
+      : 'get_feed_with_discovery'
+    
+    const { data, error } = await supabase.rpc(functionName, {
+      p_limit: limit,
+      p_offset: offset,
+      p_mode: mode === 'following' ? 'following' : 'mixed',
+      p_discover_ratio: discoverRatio
+    })
+    
+    if (error) {
+      console.error(`Error fetching feed (${functionName}):`, error)
       return { data: null, error }
     }
-  },
+    
+    return { 
+      data: { rounds: data?.rounds || [] },
+      error: null 
+    }
+  } catch (error) {
+    console.error('Feed error:', error)
+    return { data: null, error }
+  }
+},
 
   // Get rounds for a specific user
   getUserRounds: async (userId, limit = 20, offset = 0) => {

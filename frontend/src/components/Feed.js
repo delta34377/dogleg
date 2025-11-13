@@ -6,24 +6,42 @@ import { useNavigate } from 'react-router-dom'
 import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils' 
 import { getInitials } from '../utils/avatarUtils'
-
-
-
+import { getFeedSettings, subscribeToFeedSettings } from '../services/feedSettingsService'
 
 const Feed = forwardRef((props, ref) => {
   const [rounds, setRounds] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [offset, setOffset] = useState(0)
+  const [settings, setSettings] = useState(null) // ADD THIS - was missing!
   const { user } = useAuth()
   const navigate = useNavigate()
+
+  // Load and subscribe to settings FIRST
+  useEffect(() => {
+    let unsubscribe
+    
+    const initSettings = async () => {
+      const s = await getFeedSettings()
+      setSettings(s)
+      
+      // Subscribe to real-time updates
+      unsubscribe = subscribeToFeedSettings((newSettings) => {
+        setSettings(newSettings)
+        // Optional: Reload feed when settings change
+        // window.location.reload()
+      })
+    }
+    
+    initSettings()
+    
+    return () => unsubscribe?.()
+  }, [])
 
   // Expose refresh method to parent component
   useImperativeHandle(ref, () => ({
     refresh: () => {
-      // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' })
-      // Reset state and reload feed
       setRounds([])
       setOffset(0)
       setHasMore(true)
@@ -31,7 +49,7 @@ const Feed = forwardRef((props, ref) => {
     }
   }))
 
-  // Your exact reaction system from MyRounds
+  // Your reaction emojis
   const reactionEmojis = {
     fire: '🔥',
     clap: '👏',
@@ -44,37 +62,33 @@ const Feed = forwardRef((props, ref) => {
   }
 
   const loadFeed = async (loadMore = false) => {
-    if (isLoading) return
+    if (isLoading || !settings) return  // Don't load until settings are ready
     
     setIsLoading(true)
     const currentOffset = loadMore ? offset : 0
     
-    // Get feed rounds with discovery
-// Get algorithm settings from localStorage
-const algorithmSettings = JSON.parse(localStorage.getItem('feedAlgorithmSettings') || '{}')
-const discoveryRatio = algorithmSettings.discoveryRatio || 0.3
-const mode = algorithmSettings.mode || 'mixed'
-const limit = algorithmSettings.feedLimit || 10
-
-const { data: feedData, error } = await roundsService.getFeedWithDiscovery(
-  limit, 
-  currentOffset, 
-  mode, 
-  discoveryRatio
-)
+    // Use settings from state, NOT localStorage
+    const { mode, discoveryRatio, feedLimit } = settings
+    
+    const { data: feedData, error } = await roundsService.getFeedWithDiscovery(
+      feedLimit, 
+      currentOffset, 
+      mode,
+      discoveryRatio
+    )
     
     if (!error && feedData) {
       const feedRounds = feedData.rounds || []
       
-      if (feedRounds.length < 10) {
+      // Use actual limit from settings
+      if (feedRounds.length < feedLimit) {
         setHasMore(false)
       }
       
       const roundIds = feedRounds.map(r => r.id)
       
       if (roundIds.length > 0) {
-        // IMPORTANT FIX: Fetch reactions, comments, and userReactions separately
-        // since getFeedWithDiscovery might not include them
+        // Fetch reactions, comments, and userReactions separately
         const [reactionsData, commentsData, userReactionsData] = await Promise.all([
           roundsService.getReactions(roundIds),
           roundsService.getComments(roundIds),
@@ -85,15 +99,13 @@ const { data: feedData, error } = await roundsService.getFeedWithDiscovery(
         const comments = commentsData.data || []
         const userReactions = userReactionsData.data || []
         
-        // Get follow statuses in one batch call
+        // Get follow statuses
         const uniqueUserIds = [...new Set(feedRounds.map(r => r.user_id).filter(id => id !== user?.id))]
         const followStatuses = uniqueUserIds.length > 0 
           ? await followService.getFollowStatuses(uniqueUserIds)
           : {}
         
         const formattedRounds = feedRounds.map(round => {
-
-          // Use the separately fetched reactions/comments
           const roundReactions = reactions.filter(r => r.round_id === round.id) || []
           const reactionCounts = {
             fire: 0, clap: 0, dart: 0, goat: 0,
@@ -113,14 +125,14 @@ const { data: feedData, error } = await roundsService.getFeedWithDiscovery(
             ...round,
             reactions: reactionCounts,
             comments: roundComments.map(c => ({
-  id: c.id,
-  text: c.content || c.comment_text,
-  author: c.profiles?.username || c.profiles?.full_name || 'Anonymous',
-  author_username: c.profiles?.username || null,  // <-- ADD THIS LINE
-  author_avatar: c.profiles?.avatar_url,
-  date: c.created_at,
-  user_id: c.user_id
-})),
+              id: c.id,
+              text: c.content || c.comment_text,
+              author: c.profiles?.username || c.profiles?.full_name || 'Anonymous',
+              author_username: c.profiles?.username || null,
+              author_avatar: c.profiles?.avatar_url,
+              date: c.created_at,
+              user_id: c.user_id
+            })),
             userReacted: myReactions || [],
             isFollowing: followStatuses[round.user_id] || false,
             source: round.source || 'following',
@@ -147,7 +159,7 @@ const { data: feedData, error } = await roundsService.getFeedWithDiscovery(
 
   // Load more rounds when scrolling
   const handleScroll = useCallback(() => {
-    if (isLoading || !hasMore) return
+    if (isLoading || !hasMore || !settings) return  // Check settings exists
     
     const scrolledToBottom = 
       window.innerHeight + document.documentElement.scrollTop 
@@ -156,18 +168,22 @@ const { data: feedData, error } = await roundsService.getFeedWithDiscovery(
     if (scrolledToBottom) {
       loadFeed(true)
     }
-  }, [isLoading, hasMore, offset])
+  }, [isLoading, hasMore, offset, settings])  // Add settings to deps
 
   useEffect(() => {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [handleScroll])
 
-  useEffect(() => {
+  // Load feed when settings are ready
+useEffect(() => {
+  if (settings && rounds.length === 0) {
     loadFeed()
-  }, [])
-
-  const toggleReaction = async (roundId, reaction) => {
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [settings])
+  
+    const toggleReaction = async (roundId, reaction) => {
     // Store previous state in case we need to revert
     const previousRounds = rounds
     

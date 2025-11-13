@@ -47,8 +47,6 @@ const ModerationDashboard = () => {
     }
   }, [user, navigate]);
 
-  // Early return if not admin
-  if (!user || user.email !== ADMIN_EMAIL) return null;
 
   // Close dropdown when clicking outside - ADD THIS
   useEffect(() => {
@@ -393,6 +391,9 @@ const ModerationDashboard = () => {
     
     return pages;
   };
+
+  // Early return if not admin
+  if (!user || user.email !== ADMIN_EMAIL) return null;
 
   return (
     <div className="space-y-6">

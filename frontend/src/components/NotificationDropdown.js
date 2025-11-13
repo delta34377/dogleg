@@ -134,95 +134,106 @@ const NotificationDropdown = () => {
         )}
       </button>
 
-      {/* Dropdown - RESPONSIVE POSITIONING */}
+    {/* Dropdown */}
 {isOpen && (
-  <div className="fixed sm:absolute 
-    left-4 right-4 sm:left-auto sm:right-0 
-    top-[4.5rem] sm:top-auto sm:mt-2
-    sm:w-96 
-    bg-white rounded-lg shadow-lg border border-gray-200 
-    z-50 max-h-[70vh] overflow-hidden">
+  <>
+    {/* Mobile overlay backdrop */}
+    <div 
+      className="sm:hidden fixed inset-0 z-40" 
+      onClick={() => setIsOpen(false)}
+    />
     
-    <div className="p-3 border-b border-gray-200">
-      <h3 className="font-semibold text-gray-900">Notifications</h3>
-      <p className="text-xs text-gray-500">Last 30 days</p>
-    </div>
-          
-          <div className="overflow-y-auto max-h-[calc(70vh-60px)]">
-            {loading ? (
-              <div className="p-4 text-center text-gray-500">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
-              </div>
-            ) : notifications.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">
-                <p>No notifications yet</p>
-                <p className="text-sm mt-1">When someone interacts with your rounds, you'll see it here</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    onClick={() => handleNotificationClick(notification)}
-                    className="p-3 hover:bg-gray-50 cursor-pointer"
-                  >
-                    <div className="flex gap-3">
-                      {/* Icon/Avatar */}
-                      <div className="flex-shrink-0">
-                        {notification.actor?.avatar_url ? (
-                          <img 
-                            src={notification.actor.avatar_url} 
-                            alt={notification.actor.username}
-                            className="w-10 h-10 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                            <span className="text-green-700 font-semibold text-sm">
-                              {getInitials(notification.actor) || getNotificationIcon(notification.type)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-900">
-                          <span className="font-semibold">{notification.actor?.username || 'Someone'}</span>
-                          {' '}
-                          {notification.type === 'follow' && 'started following you'}
-                          {notification.type === 'reaction' && 'reacted to your round'}
-                          {notification.type === 'comment' && 'commented on your round'}
-                        </p>
-                        
-                        {/* Round info for reactions/comments */}
-                        {notification.round && (
-                          <p className="text-xs text-gray-500 mt-0.5 truncate">
-                            {notification.round.course_name} • {notification.round.total_score}
-                          </p>
-                        )}
-                        
-                        {/* Follow back button */}
-                        {notification.type === 'follow' && !followStatuses[notification.actor_id] && notification.actor_id !== user?.id && (
-                          <button
-                            onClick={(e) => handleFollowBack(notification.actor_id, e)}
-                            className="mt-1 text-xs bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700"
-                          >
-                            Follow back
-                          </button>
-                        )}
-                        
-                        <p className="text-xs text-gray-400 mt-1">
-                          {formatTime(notification.created_at)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+    {/* Dropdown - Better positioning */}
+    <div className="absolute right-0 mt-2 
+      w-[calc(100vw-2rem)] sm:w-96 
+      max-w-sm sm:max-w-none
+      -translate-x-4 sm:translate-x-0
+      bg-white rounded-lg shadow-lg border border-gray-200 
+      z-50 
+      max-h-[50vh] sm:max-h-[70vh] 
+      overflow-hidden">
+      
+      <div className="p-3 border-b border-gray-200">
+        <h3 className="font-semibold text-gray-900">Notifications</h3>
+        <p className="text-xs text-gray-500">Last 30 days</p>
+      </div>
+      
+      <div className="overflow-y-auto max-h-[calc(50vh-60px)] sm:max-h-[calc(70vh-60px)]">
+        {loading ? (
+          <div className="p-4 text-center text-gray-500">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto"></div>
           </div>
-        </div>
-      )}
+        ) : notifications.length === 0 ? (
+          <div className="p-6 sm:p-8 text-center text-gray-500">
+            <p>No notifications yet</p>
+            <p className="text-sm mt-1">When someone interacts with your rounds, you'll see it here</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {notifications.map((notification) => (
+              <div
+                key={notification.id}
+                onClick={() => handleNotificationClick(notification)}
+                className="p-2.5 sm:p-3 hover:bg-gray-50 cursor-pointer"
+              >
+                <div className="flex gap-2 sm:gap-3">
+                  {/* Icon/Avatar */}
+                  <div className="flex-shrink-0">
+                    {notification.actor?.avatar_url ? (
+                      <img 
+                        src={notification.actor.avatar_url} 
+                        alt={notification.actor.username}
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <span className="text-green-700 font-semibold text-xs sm:text-sm">
+                          {getInitials(notification.actor) || getNotificationIcon(notification.type)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900">
+                      <span className="font-semibold">{notification.actor?.username || 'Someone'}</span>
+                      {' '}
+                      {notification.type === 'follow' && 'started following you'}
+                      {notification.type === 'reaction' && 'reacted to your round'}
+                      {notification.type === 'comment' && 'commented on your round'}
+                    </p>
+                    
+                    {/* Round info for reactions/comments */}
+                    {notification.round && (
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">
+                        {notification.round.course_name} • {notification.round.total_score}
+                      </p>
+                    )}
+                    
+                    {/* Follow back button */}
+                    {notification.type === 'follow' && !followStatuses[notification.actor_id] && notification.actor_id !== user?.id && (
+                      <button
+                        onClick={(e) => handleFollowBack(notification.actor_id, e)}
+                        className="mt-1 text-xs bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700"
+                      >
+                        Follow back
+                      </button>
+                    )}
+                    
+                    <p className="text-xs text-gray-400 mt-1">
+                      {formatTime(notification.created_at)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </>
+ )}
     </div>
   );
 };

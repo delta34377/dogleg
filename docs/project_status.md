@@ -80,6 +80,21 @@
   - User segmentation (power_user, active, casual, dormant)
   - Session tracking and page view analytics
   - Admin hub with navigation between tools
+  - ✅ **Content Moderation Dashboard (Admin Phase 2)**
+  - Full moderation panel at `/admin/moderation`
+  - User management with sortable columns
+  - Content deletion (rounds, comments, user's all content)
+  - Soft delete system (content marked deleted but retained)
+  - Search and filter across users, comments, rounds
+  - Pagination with customizable page sizes
+  - Delete confirmations with modals
+  - Admin-only access (markgreenfield1@gmail.com)
+  - SQL RPC functions for all moderation actions
+  - Follower count auto-updating via database triggers
+  - Fixed feed to exclude soft-deleted content
+  - 3-dot dropdown menus for user actions
+  - Clear search functionality with visible button
+  - Force page reload after deletions to clear caches
 
 
 ## 🔄 Currently Working On

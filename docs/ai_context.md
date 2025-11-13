@@ -50,6 +50,14 @@ I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Strava
 - ✅ **Round count consistency** - All pages now count from actual rounds table
 - ✅ **3-dots menu for rounds** - Replaced delete button with expandable menu
 - ✅ **Profile stats accuracy** - Fixed follower/following counts using followService
+- ✅ **Content Moderation System Complete**
+  - Admin dashboard at `/admin/moderation` 
+  - Soft delete system for rounds and comments
+  - User content management (delete all content from user)
+  - Fixed feed functions to exclude soft-deleted content
+  - Follower counts auto-update via database triggers
+  - Search/filter/sort across all content types
+  - Pagination and bulk operations
   
 ### Key Technical Decisions
 1. **userRef Pattern**: Event handlers in useEffect with [] deps use refs to avoid stale closures
@@ -82,7 +90,15 @@ I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Strava
   - Near-you radius
 - **Settings Storage**: localStorage (device-specific)
 - **Apply & Refresh**: Instant feed algorithm updates
-
+## Admin Features (Mark Only)
+- **Analytics Dashboard**: `/admin` - User growth, engagement metrics
+- **Feed Algorithm Control**: `/admin` - Adjust discovery ratio and weights  
+- **Content Moderation**: `/admin/moderation` - User and content management
+  - Search/filter/sort users by activity
+  - Delete individual rounds/comments
+  - Delete all content from a user
+  - View user statistics
+  - Soft delete system (content hidden but retained)
 
 ## Tech Stack
 - **Database:** Supabase (PostgreSQL) - COMPLETED
@@ -101,7 +117,14 @@ tees (TeeID, CourseID, TeeName, TeeColor, Slope, CR, Length1-18...)
 -- User data
 users → rounds → reactions, comments
 users → follows → feed generation
-```
+
+-- Moderation tables
+moderation_log (audit trail for all admin actions)
+rounds/comments (is_deleted soft delete flags)
+
+-- Auto-updating triggers
+update_follow_counts() - maintains follower_count in profiles
+
 
 ### Important Database Notes
 - Using `profiles` table for all user data (NOT `users` table)

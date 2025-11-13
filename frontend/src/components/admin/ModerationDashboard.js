@@ -1,6 +1,8 @@
 // ModerationDashboard.js - COMPLETE FIXED VERSION
 import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   Trash2, Search, Users, MessageSquare, Flag, AlertTriangle, 
   CheckCircle, ChevronLeft, ChevronRight, ChevronsLeft, 
@@ -9,6 +11,10 @@ import {
 } from 'lucide-react';
 
 const ModerationDashboard = () => {
+    // Admin guard
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const ADMIN_EMAIL = 'markgreenfield1@gmail.com';
   const [activeTab, setActiveTab] = useState('users');
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,6 +39,16 @@ const ModerationDashboard = () => {
   
   // Calculate total pages
   const totalPages = Math.ceil(totalCount / itemsPerPage);
+
+  // Check admin access
+  useEffect(() => {
+    if (!user || user.email !== ADMIN_EMAIL) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  // Early return if not admin
+  if (!user || user.email !== ADMIN_EMAIL) return null;
 
   // Close dropdown when clicking outside - ADD THIS
   useEffect(() => {

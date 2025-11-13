@@ -97,7 +97,13 @@ users
 │   └── comments
 ├── follows (who follows whom)
 └── notifications
-```
+
+moderation tables
+├── moderation_log (audit trail)
+└── soft deletes (is_deleted flags on rounds/comments)
+
+triggers
+└── update_follow_counts() (auto-maintains follower counts)
 
 ### Round URL System
 Each round has a unique shareable URL using a 6-character short code:
@@ -420,6 +426,7 @@ The admin dashboard is available at `/admin` (restricted to admin email only).
 - **Overview Dashboard** (`/admin`) - Quick stats and navigation hub
 - **Analytics Dashboard** (`/admin/analytics`) - Comprehensive metrics and charts
 - **Feed Algorithm Controls** (`/admin/feed-algorithm`) - Tune the discovery algorithm
+- **Content Moderation** (`/admin/moderation`) - Full user and content management system
 
 ### Metrics Tracked
 - User growth and retention (DAU/WAU/MAU)
@@ -429,11 +436,28 @@ The admin dashboard is available at `/admin` (restricted to admin email only).
 - Session duration and frequency
 - Peak activity times
 
+### Content Moderation System
+- **User Management**: Search, sort, and filter all users with activity stats
+- **Content Deletion**: 
+  - Individual rounds/comments removal
+  - Bulk delete all content from a user
+  - Soft delete system (content hidden but retained)
+- **Database Implementation**:
+  - `is_deleted` flags for soft deletes
+  - `moderation_log` table for audit trail
+  - Auto-updating follower counts via triggers
+  - Feed functions exclude deleted content
+- **Admin Functions**:
+  - `delete_round_admin()` - Soft delete rounds
+  - `delete_comment_admin()` - Soft delete comments
+  - `delete_user_content_admin()` - Remove all user content
+  - `get_all_users_admin()` - Paginated user management
+
 ### Development Roadmap
 - ✅ **Phase 1: Core Analytics** (Complete)
 - 📅 **Phase 2: User Behavior** (Next)
 - 📅 **Phase 3: Advanced Visualizations**
-- 📅 **Phase 4: Moderation Tools**
+- 📅 **Phase 4: Moderation Tools** (Complete)
 - 📅 **Phase 5: Real-time & Performance**
 
 ### Authentication Best Practices

@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { BarChart3, Sliders, Home, TrendingUp, Users, FileText } from 'lucide-react';
+import { BarChart3, Sliders, Home, TrendingUp, Users, FileText, Shield } from 'lucide-react';
 
 const AdminHub = () => {
   const navigate = useNavigate();
@@ -22,6 +22,7 @@ const AdminHub = () => {
     if (path === '/admin') return 'overview';
     if (path.includes('/admin/analytics')) return 'analytics';
     if (path.includes('/admin/feed-algorithm')) return 'feed';
+    if (path.includes('/admin/moderation')) return 'moderation';
     return 'overview';
   };
 
@@ -80,6 +81,18 @@ const AdminHub = () => {
             >
               <Sliders className="w-4 h-4" />
               <span className="hidden sm:inline">Feed Algorithm</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/admin/moderation')}
+              className={`px-4 py-3 border-b-2 font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'moderation' 
+                  ? 'border-green-600 text-green-600' 
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Shield className="w-4 h-4" />
+              <span className="hidden sm:inline">Moderation</span>
             </button>
           </div>
         </div>

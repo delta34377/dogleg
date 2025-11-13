@@ -17,6 +17,8 @@ import AdminPanel from './components/AdminPanel'
 import AdminHub from './components/admin/AdminHub'
 import AdminOverview from './components/admin/AdminOverview'
 import AdminDashboard from './components/admin/AdminDashboard'
+import ModerationDashboard from './components/admin/ModerationDashboard';
+
 
 // Main authenticated app with navigation
 function AuthenticatedApp() {
@@ -456,6 +458,7 @@ function App() {
             {/* Your existing feed algorithm controls */}
             <Route path="feed-algorithm" element={<AdminPanel />} />
           </Route>
+  <Route path="moderation" element={<ModerationDashboard />} /> 
 
           {/* Profile route */}
           <Route 

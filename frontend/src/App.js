@@ -17,7 +17,9 @@ import AdminPanel from './components/AdminPanel'
 import AdminHub from './components/admin/AdminHub'
 import AdminOverview from './components/admin/AdminOverview'
 import AdminDashboard from './components/admin/AdminDashboard'
-import ModerationDashboard from './components/admin/ModerationDashboard';
+import ModerationDashboard from './components/admin/ModerationDashboard'
+import NotificationDropdown from './components/NotificationDropdown'
+
 
 
 // Main authenticated app with navigation
@@ -94,6 +96,11 @@ const handleMyRoundsClick = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </button>
+
+{/* Notifications */}
+
+<NotificationDropdown />
+
 
                 {/* Secret Admin Button - only shows for admin email */}
                 {user?.email === 'markgreenfield1@gmail.com' && (
@@ -272,6 +279,9 @@ const handleMyRoundsClick = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </button>
+
+{/* Notifications */}
+<NotificationDropdown />
 
               {/* Secret Admin Button */}
               {user?.email === 'markgreenfield1@gmail.com' && (

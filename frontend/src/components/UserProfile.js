@@ -394,13 +394,20 @@ function UserProfile() {
                   <div className="flex-1">
                     {/* Make username clickable if we have the username */}
                     {comment.author_username && comment.author_username !== 'Anonymous' ? (
-                      <button
-                        onClick={() => navigate(`/profile/${comment.author_username}`)}
-                        className="font-semibold text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                      >
-                        {comment.author}
-                      </button>
-                    ) : (
+  <button
+    onClick={(e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      // Small delay to prevent visual glitch
+      setTimeout(() => {
+        navigate(`/profile/${comment.author_username}`)
+      }, 50)
+    }}
+    className="font-semibold text-sm text-blue-600 hover:text-blue-800 hover:underline"
+  >
+    {comment.author}
+  </button>
+) : (
                       <span className="font-semibold text-sm text-blue-600">{comment.author}</span>
                     )}
                     <span className="text-gray-500 text-xs ml-2">• {formatDate(comment.date)}</span>

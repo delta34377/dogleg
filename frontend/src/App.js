@@ -196,7 +196,7 @@ const handleMyRoundsClick = () => {
 
         {/* Main Content */}
         <div className="pt-4 pb-20 md:pb-4">
-          <UserProfile />
+<UserProfile key={location.pathname} />
         </div>
 
         {/* Bottom Navigation Bar (Mobile) */}

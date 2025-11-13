@@ -6,18 +6,19 @@ let cache = null
 function normalize(raw) {
   const r = raw || {}
   
-  // Convert old format to new if needed
-  const mode = r.mode === 'mixed' || r.mode === 'following'
+  // Allow all three modes
+  const mode = r.mode === 'mixed' || r.mode === 'following' || r.mode === 'discover'
     ? r.mode
-    : (r.useChronological === false ? 'mixed' : 'following')
+    : 'following'  // default
     
+  // Adjust discovery ratio based on mode
   const discoveryRatio = Number.isFinite(Number(r.discoveryRatio))
     ? Number(r.discoveryRatio)
-    : (mode === 'mixed' ? 0.3 : 0)
+    : mode === 'discover' ? 1.0 : mode === 'mixed' ? 0.3 : 0
     
   const feedLimit = Number.isFinite(Number(r.feedLimit)) 
     ? Number(r.feedLimit) 
-    : DEFAULTS.feedLimit
+    : 10
     
   return { mode, discoveryRatio, feedLimit }
 }

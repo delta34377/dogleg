@@ -457,8 +457,9 @@ function App() {
             
             {/* Your existing feed algorithm controls */}
             <Route path="feed-algorithm" element={<AdminPanel />} />
+              <Route path="moderation" element={<ModerationDashboard />} /> 
+
           </Route>
-  <Route path="moderation" element={<ModerationDashboard />} /> 
 
           {/* Profile route */}
           <Route 

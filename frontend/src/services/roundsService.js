@@ -66,64 +66,66 @@ export const roundsService = {
 
   // Get rounds for the authenticated user
   getRounds: async (limit = 10, offset = 0) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        return { data: [], error: null } // Return empty if not authenticated
-      }
-
-      const { data, error } = await supabase
-        .from('rounds')
-        .select('*')
-        .eq('user_id', user.id) // Only get user's rounds
-        .order('played_at', { ascending: false })
-        .range(offset, offset + limit - 1)
-      
-      return { data, error }
-    } catch (error) {
-      return { data: null, error }
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      return { data: [], error: null }
     }
-  },
+
+    const { data, error } = await supabase
+      .from('rounds')
+      .select('*')
+      .eq('user_id', user.id)
+      .or('is_deleted.is.null,is_deleted.eq.false')  // ADD THIS LINE
+      .order('played_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+    
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+},
+
 
   // Get feed rounds from followed users
   getFeedRounds: async (limit = 10, offset = 0) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        return { data: [], error: null }
-      }
-
-      // First get the list of users the current user follows
-      const { data: following } = await supabase
-        .from('follows')
-        .select('following_id')
-        .eq('follower_id', user.id)
-      
-      const followingIds = following?.map(f => f.following_id) || []
-      followingIds.push(user.id) // Include own rounds in feed
-
-      // Get rounds from followed users
-      const { data, error } = await supabase
-        .from('rounds')
-        .select(`
-          *,
-          profiles:user_id (
-            username,
-            full_name,
-            avatar_url
-          )
-        `)
-        .in('user_id', followingIds)
-        .order('played_at', { ascending: false })
-        .range(offset, offset + limit - 1)
-      
-      return { data, error }
-    } catch (error) {
-      return { data: null, error }
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      return { data: [], error: null }
     }
-  },
+
+    const { data: following } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', user.id)
+    
+    const followingIds = following?.map(f => f.following_id) || []
+    followingIds.push(user.id)
+
+    const { data, error } = await supabase
+      .from('rounds')
+      .select(`
+        *,
+        profiles:user_id (
+          username,
+          full_name,
+          avatar_url
+        )
+      `)
+      .in('user_id', followingIds)
+      .or('is_deleted.is.null,is_deleted.eq.false')  // ADD THIS LINE
+      .order('played_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+    
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+},
+
 
   // Get reactions for rounds
   getReactions: async (roundIds) => {
@@ -213,23 +215,25 @@ export const roundsService = {
 
   // Get comments for rounds
   getComments: async (roundIds) => {
-    if (!roundIds || roundIds.length === 0) return { data: [], error: null }
-    
-    const { data, error } = await supabase
-      .from('comments')
-      .select(`
-        *,
-        profiles!comments_user_id_fkey (
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
-      .in('round_id', roundIds)
-      .order('created_at', { ascending: true })
-    
-    return { data, error }
-  },
+  if (!roundIds || roundIds.length === 0) return { data: [], error: null }
+  
+  const { data, error } = await supabase
+    .from('comments')
+    .select(`
+      *,
+      profiles!comments_user_id_fkey (
+        username,
+        full_name,
+        avatar_url
+      )
+    `)
+    .in('round_id', roundIds)
+    .eq('is_deleted', false)  // ADD THIS LINE
+    .order('created_at', { ascending: true })
+  
+  return { data, error }
+},
+
 
   // Get feed with everything included
   getFeedWithEverything: async (limit = 10, offset = 0) => {
@@ -289,24 +293,26 @@ getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRat
 
   // Get rounds for a specific user
   getUserRounds: async (userId, limit = 20, offset = 0) => {
-    const { data, error } = await supabase
-      .from('rounds')
-      .select(`
-        *,
-        profiles!rounds_user_id_fkey(
-          username,
-          full_name,
-          avatar_url
-        ),
-        reaction_count:reactions(count),
-        comment_count:comments(count)
-      `)
-      .eq('user_id', userId)
-      .order('played_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+  const { data, error } = await supabase
+    .from('rounds')
+    .select(`
+      *,
+      profiles!rounds_user_id_fkey(
+        username,
+        full_name,
+        avatar_url
+      ),
+      reaction_count:reactions(count),
+      comment_count:comments(count)
+    `)
+    .eq('user_id', userId)
+    .or('is_deleted.is.null,is_deleted.eq.false')  // ADD THIS LINE
+    .order('played_at', { ascending: false })
+    .range(offset, offset + limit - 1)
 
-    return { data, error }
-  },
+  return { data, error }
+},
+
 
   // Save a comment with user association
   saveComment: async (roundId, content) => {
@@ -413,39 +419,41 @@ getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRat
 
   // Get round by short code
   getRoundByShortCode: async (shortCode) => {
-    const { data, error } = await supabase
-      .from('rounds')
-      .select(`
-        *,
-        profiles:user_id (
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
-      .eq('short_code', shortCode)
-      .single()
-    
-    return { data, error }
-  },
+  const { data, error } = await supabase
+    .from('rounds')
+    .select(`
+      *,
+      profiles:user_id (
+        username,
+        full_name,
+        avatar_url
+      )
+    `)
+    .eq('short_code', shortCode)
+    .or('is_deleted.is.null,is_deleted.eq.false')  // ADD THIS LINE
+    .single()
+  
+  return { data, error }
+},
 
   // Get a single round with full details
   getRound: async (roundId) => {
-    const { data, error } = await supabase
-      .from('rounds')
-      .select(`
-        *,
-        profiles:user_id (
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
-      .eq('id', roundId)
-      .single()
-    
-    return { data, error }
-  }
+  const { data, error } = await supabase
+    .from('rounds')
+    .select(`
+      *,
+      profiles:user_id (
+        username,
+        full_name,
+        avatar_url
+      )
+    `)
+    .eq('id', roundId)
+    .or('is_deleted.is.null,is_deleted.eq.false')  // ADD THIS LINE
+    .single()
+  
+  return { data, error }
+}
 }
 
 export default roundsService

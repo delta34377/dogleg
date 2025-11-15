@@ -15,8 +15,9 @@ const ModerationDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const ADMIN_EMAIL = 'markgreenfield1@gmail.com';
-  const [activeTab, setActiveTab] = useState('users');
-  const [loading, setLoading] = useState(false);
+const [activeTab, setActiveTab] = useState(() => {
+  return localStorage.getItem('moderationActiveTab') || 'users';
+});  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -47,6 +48,10 @@ const ModerationDashboard = () => {
     }
   }, [user, navigate]);
 
+  // Save active tab to localStorage
+useEffect(() => {
+  localStorage.setItem('moderationActiveTab', activeTab);
+}, [activeTab]);
 
   // Close dropdown when clicking outside - ADD THIS
   useEffect(() => {

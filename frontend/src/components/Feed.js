@@ -62,7 +62,7 @@ const Feed = forwardRef((props, ref) => {
   }
 
   const loadFeed = async (loadMore = false) => {
-    if (isLoading || !settings) return  // Don't load until settings are ready
+    if (!settings) return  // Only block until settings are ready
     
     setIsLoading(true)
     const currentOffset = loadMore ? offset : 0

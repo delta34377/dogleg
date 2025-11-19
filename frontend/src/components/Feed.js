@@ -10,7 +10,7 @@ import { getFeedSettings, subscribeToFeedSettings } from '../services/feedSettin
 
 const Feed = forwardRef((props, ref) => {
   const [rounds, setRounds] = useState([])
-  const [isLoading, setIsLoading] = useState(true) // Start with true for initial load
+  const [isLoading, setIsLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [offset, setOffset] = useState(0)
   const [settings, setSettings] = useState(null) // ADD THIS - was missing!

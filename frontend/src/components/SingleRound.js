@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { roundsService } from '../services/roundsService'
 import { followService } from '../services/followService'
 import { useAuth } from '../context/AuthContext'
@@ -14,6 +14,8 @@ function SingleRound() {
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
   const navigate = useNavigate()
+const location = useLocation()
+const cameFromInternal = !!location.state?.from
 
   // Your exact reaction system from MyRounds
   const reactionEmojis = {
@@ -547,12 +549,21 @@ function SingleRound() {
     <div className="max-w-4xl mx-auto p-2 sm:p-4">
       <div className="bg-green-700 text-white p-6 rounded-t-lg">
         <h1 className="text-3xl font-bold">⛳ Round Details</h1>
-        <button 
-          onClick={() => navigate(-1)}
-          className="mt-2 text-white hover:underline"
-        >
-          ← Back
-        </button>
+        {cameFromInternal ? (
+  <button 
+    onClick={() => navigate(-1)}
+    className="mt-2 text-white hover:underline"
+  >
+    ← Back
+  </button>
+) : (
+  <button 
+    onClick={() => navigate('/')}
+    className="mt-2 text-white hover:underline"
+  >
+    🏌️ Go to Feed
+  </button>
+)}
       </div>
       
       <div className="bg-white border-x border-b border-gray-200 rounded-b-lg">
@@ -695,7 +706,7 @@ function SingleRound() {
                 <div className="flex gap-4 pb-0.5 pt-3 text-sm text-gray-600">
                   <button 
                     onClick={async () => {
-                      const shareUrl = `${window.location.origin}/rounds/${round.id}`
+const shareUrl = `${window.location.origin}/rounds/${round.short_code}`
                       
                       if (navigator.share) {
                         try {

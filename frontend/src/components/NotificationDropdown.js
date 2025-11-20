@@ -77,7 +77,7 @@ const NotificationDropdown = () => {
       navigate(`/profile/${notification.actor?.username}`);
     } else if (notification.round_id && notification.round?.short_code) {
       // Navigate to the round
-      navigate(`/rounds/${notification.round.short_code}`);
+      navigate(`/rounds/${notification.round.short_code}`, { state: { from: 'notifications' } });
     }
   };
 

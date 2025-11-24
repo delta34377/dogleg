@@ -44,24 +44,40 @@ useEffect(() => {
 }, [navigate])
   
   // Handle Feed tab click - refresh if already on feed
-  const handleFeedClick = () => {
-    if (activeView === 'feed' && feedRef.current) {
-      // Already on feed, trigger refresh and scroll to top
-      feedRef.current.refresh()
-    } else {
-      // Not on feed, just switch to feed
-      setActiveView('feed')
-    }
+const handleFeedClick = () => {
+  if (isSingleRoundPage) {
+    setActiveView('feed')
+    navigate('/')
+  } else if (activeView === 'feed' && feedRef.current) {
+    // Already on feed, trigger refresh and scroll to top
+    feedRef.current.refresh()
+  } else {
+    // Not on feed, just switch to feed
+    setActiveView('feed')
   }
-  
-  // Handle My Rounds tab click - scroll to top if already on rounds
+}
+
+// Handle My Rounds tab click - scroll to top if already on rounds
 const handleMyRoundsClick = () => {
-  if (activeView === 'rounds' && roundsRef.current) {
+  if (isSingleRoundPage) {
+    setActiveView('rounds')
+    navigate('/')
+  } else if (activeView === 'rounds' && roundsRef.current) {
     // Already on rounds, trigger scroll to top
     roundsRef.current.scrollToTop()
   } else {
     // Not on rounds, just switch to rounds
     setActiveView('rounds')
+  }
+}
+
+// Add handler for Add Round
+const handleAddRoundClick = () => {
+  if (isSingleRoundPage) {
+    setActiveView('search')
+    navigate('/')
+  } else {
+    setActiveView('search')
   }
 }
 
@@ -361,7 +377,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
           </button>
 
           <button
-            onClick={() => setActiveView('search')}
+  onClick={handleAddRoundClick}
             className={`flex flex-col items-center justify-center gap-1 ${
               activeView === 'search' ? 'text-green-600' : 'text-gray-600'
             }`}
@@ -405,7 +421,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
             </button>
 
             <button
-              onClick={() => setActiveView('search')}
+  onClick={handleAddRoundClick}
               className={`flex-1 py-4 px-4 text-center font-medium transition-colors ${
                 activeView === 'search'
                   ? 'text-green-600 border-b-2 border-green-600 bg-green-50'

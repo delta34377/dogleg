@@ -1,8 +1,9 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 function ProtectedRoute({ children }) {
   const { user, loading, rechecking } = useAuth()
+  const location = useLocation()  // ADD THIS LINE
 
   // Only show spinner in two cases:
   // 1. Initial loading
@@ -26,7 +27,7 @@ function ProtectedRoute({ children }) {
 
   if (!user) {
     // Redirect to login if not authenticated
-    return <Navigate to="/login" replace />
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />
   }
 
   return children

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { FcGoogle } from 'react-icons/fc'
 import { MdPhone } from 'react-icons/md'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 function AuthScreen({ onSuccess }) {
   // Add mounted ref to prevent state updates after unmount
@@ -22,6 +22,8 @@ function AuthScreen({ onSuccess }) {
   const [success, setSuccess] = useState('')
 
   const navigate = useNavigate()
+  const location = useLocation()  // ADD THIS
+const from = location.state?.from || '/'  // ADD THIS - where to go after login
 
   const { 
     signUp, 
@@ -130,7 +132,7 @@ function AuthScreen({ onSuccess }) {
       setLoading(false)
     } else {
       // Navigate will unmount, so no need to setLoading(false)
-      navigate('/')
+      navigate(from, { replace: true })
     }
   }
 
@@ -167,7 +169,7 @@ function AuthScreen({ onSuccess }) {
           setError(error.message)
           setLoading(false)
         } else {
-          navigate('/') // Consistent with email sign in
+          navigate(from, { replace: true })
         }
       }
     } catch (err) {

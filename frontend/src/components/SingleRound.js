@@ -538,7 +538,10 @@ function SingleRound() {
   // Main render - single round display
   return (
     <div className="max-w-4xl mx-auto p-2 sm:p-4">
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-green-700 text-white p-4 rounded-t-lg">
+        <h1 className="text-2xl font-bold">⛳ Round Details</h1>
+      </div>
+            <div className="bg-white rounded-b-lg shadow-sm overflow-hidden">
               {/* INTEGRATED USER INFO with Follow button */}
               <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-2">
                 <div className="flex items-center justify-between">
@@ -704,8 +707,8 @@ const shareUrl = `${window.location.origin}/rounds/${round.short_code}`
                 <CommentsSection round={round} roundId={round.id} />
               </div>
             </div>
-          
-    </div>
+          </div>
+    
   )
 }
 

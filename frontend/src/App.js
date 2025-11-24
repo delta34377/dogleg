@@ -351,7 +351,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
           <button
             onClick={handleFeedClick}
             className={`flex flex-col items-center justify-center gap-1 ${
-              activeView === 'feed' ? 'text-green-600' : 'text-gray-600'
+                activeView === 'feed' && !isSingleRoundPage ? 'text-green-600' : 'text-gray-600'
             }`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -393,7 +393,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
             <button
               onClick={handleFeedClick}
               className={`flex-1 py-4 px-4 text-center font-medium transition-colors ${
-                activeView === 'feed'
+                  activeView === 'feed' && !isSingleRoundPage
                   ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
               }`}

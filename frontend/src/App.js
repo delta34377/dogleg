@@ -81,6 +81,16 @@ const handleAddRoundClick = () => {
   }
 }
 
+// Add handler for Profile
+const handleProfileClick = () => {
+  if (isSingleRoundPage) {
+    setActiveView('profile')
+    navigate('/')
+  } else {
+    setActiveView('profile')
+  }
+}
+
   // Check if we're on a user profile page
   const isUserProfilePage = location.pathname.startsWith('/profile/') && location.pathname !== '/profile'
 
@@ -326,7 +336,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
               )}
 
               <button
-                onClick={() => setActiveView('profile')}
+  onClick={handleProfileClick}
                 className="flex items-center gap-2 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
               >
                 {profile?.avatar_url ? (

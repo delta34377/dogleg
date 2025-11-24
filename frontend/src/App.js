@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -30,6 +30,18 @@ function AuthenticatedApp() {
   const { user, profile, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  // Handle redirect after OAuth login
+useEffect(() => {
+  const redirectPath = sessionStorage.getItem('redirectAfterLogin')
+  
+  if (redirectPath) {
+    // Clean up storage
+    sessionStorage.removeItem('redirectAfterLogin')
+    
+    // Navigate to the saved path (e.g. /rounds/UM6QVL)
+    navigate(redirectPath, { replace: true })
+  }
+}, [navigate])
   
   // Handle Feed tab click - refresh if already on feed
   const handleFeedClick = () => {

@@ -41,6 +41,13 @@ const from = location.state?.from || '/'  // ADD THIS - where to go after login
     }
   }, [])
 
+  // Save the destination for OAuth redirect
+useEffect(() => {
+  if (from !== '/') {
+    sessionStorage.setItem('redirectAfterLogin', from)
+  }
+}, [from])
+
   // Clear sensitive data when switching modes
   useEffect(() => {
     setError('')
@@ -181,20 +188,25 @@ const from = location.state?.from || '/'  // ADD THIS - where to go after login
   }
 
   const handleGoogleSignIn = async () => {
-    safeSetState(setError)('')
-    safeSetState(setLoading)(true)
+  safeSetState(setError)('')
+  safeSetState(setLoading)(true)
 
-    const { error } = await signInWithGoogle()
-
-    if (!mountedRef.current) return
-
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-    }
-    // Google OAuth handles redirect automatically
-    // Loading stays true for redirect flow
+  // Store redirect path before OAuth redirect
+  if (from !== '/') {
+    sessionStorage.setItem('redirectAfterLogin', from)
   }
+
+  const { error } = await signInWithGoogle()
+
+  if (!mountedRef.current) return
+
+  if (error) {
+    setError(error.message)
+    setLoading(false)
+  }
+  // Google OAuth handles redirect automatically
+  // Loading stays true for redirect flow
+}
 
   const handlePasswordReset = async (e) => {
     e.preventDefault()

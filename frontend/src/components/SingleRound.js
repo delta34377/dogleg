@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { roundsService } from '../services/roundsService'
 import { followService } from '../services/followService'
 import { useAuth } from '../context/AuthContext'
@@ -14,8 +14,6 @@ function SingleRound() {
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
   const navigate = useNavigate()
-const location = useLocation()
-const cameFromInternal = !!location.state?.from
 
   // Your exact reaction system from MyRounds
   const reactionEmojis = {
@@ -497,38 +495,31 @@ const cameFromInternal = !!location.state?.from
 
   // Loading state
   if (isLoading) {
-    return (
-      <div className="max-w-4xl mx-auto p-2 sm:p-4">
-        <div className="bg-green-700 text-white p-6 rounded-t-lg">
-          <h1 className="text-3xl font-bold">⛳ Round Details</h1>
+  return (
+    <div className="max-w-4xl mx-auto p-2 sm:p-4">
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
+        <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
+            <div className="h-4 bg-gray-200 rounded w-32"></div>
+          </div>
         </div>
-        <div className="bg-white border-x border-b border-gray-200 rounded-b-lg">
-          <div className="p-3 sm:p-6 bg-gray-50">
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
-              <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-gray-200 rounded-full"></div>
-                  <div className="h-4 bg-gray-200 rounded w-32"></div>
-                </div>
-              </div>
-              <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-b">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex-1">
-                    <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/3"></div>
-                  </div>
-                  <div>
-                    <div className="h-10 w-16 bg-gray-200 rounded"></div>
-                  </div>
-                </div>
-              </div>
+        <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-b">
+          <div className="flex justify-between items-start mb-2">
+            <div className="flex-1">
+              <div className="h-6 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+            </div>
+            <div>
+              <div className="h-10 w-16 bg-gray-200 rounded"></div>
             </div>
           </div>
         </div>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
   // Normalize round data
   const normalizedRound = {
@@ -547,29 +538,6 @@ const cameFromInternal = !!location.state?.from
   // Main render - single round display
   return (
     <div className="max-w-4xl mx-auto p-2 sm:p-4">
-      <div className="bg-green-700 text-white p-6 rounded-t-lg">
-        <h1 className="text-3xl font-bold">⛳ Round Details</h1>
-        {cameFromInternal ? (
-  <button 
-    onClick={() => navigate(-1)}
-    className="mt-2 text-white hover:underline"
-  >
-    ← Back
-  </button>
-) : (
-  <button 
-    onClick={() => navigate('/')}
-    className="mt-2 text-white hover:underline"
-  >
-    🏌️ Go to Feed
-  </button>
-)}
-      </div>
-      
-      <div className="bg-white border-x border-b border-gray-200 rounded-b-lg">
-        <div className="p-3 sm:p-6 bg-gray-50">
-          <div className="space-y-3 sm:space-y-4">
-            {/* YOUR EXACT ROUND DISPLAY FROM FEED */}
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
               {/* INTEGRATED USER INFO with Follow button */}
               <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-2">
@@ -736,9 +704,7 @@ const shareUrl = `${window.location.origin}/rounds/${round.short_code}`
                 <CommentsSection round={round} roundId={round.id} />
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+          
     </div>
   )
 }

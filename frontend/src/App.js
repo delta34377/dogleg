@@ -67,6 +67,9 @@ const handleMyRoundsClick = () => {
 
   // Check if we're on a user profile page
   const isUserProfilePage = location.pathname.startsWith('/profile/') && location.pathname !== '/profile'
+
+  // Check if we're on a single round page
+const isSingleRoundPage = location.pathname.startsWith('/rounds/')
   
   // If on user profile page, show UserProfile with navigation
   if (isUserProfilePage) {
@@ -433,12 +436,18 @@ const handleMyRoundsClick = () => {
       </div>
 
       {/* Main Content */}
-      <div className="pt-4 pb-20 md:pb-4">
-        {activeView === 'feed' && <Feed ref={feedRef} />}
-        {activeView === 'search' && <CourseSearch />}
-{activeView === 'rounds' && <MyRounds ref={roundsRef} />}
-        {activeView === 'profile' && <Profile />}
-      </div>
+<div className="pt-4 pb-20 md:pb-4">
+  {isSingleRoundPage ? (
+    <SingleRound />
+  ) : (
+    <>
+      {activeView === 'feed' && <Feed ref={feedRef} />}
+      {activeView === 'search' && <CourseSearch />}
+      {activeView === 'rounds' && <MyRounds ref={roundsRef} />}
+      {activeView === 'profile' && <Profile />}
+    </>
+  )}
+</div>
     </div>
   )
 }
@@ -495,13 +504,13 @@ function App() {
           
           {/* Individual round route */}
           <Route 
-            path="/rounds/:roundId" 
-            element={
-              <ProtectedRoute>
-                <SingleRound />
-              </ProtectedRoute>
-            }
-          />
+  path="/rounds/:roundId" 
+  element={
+    <ProtectedRoute>
+      <AuthenticatedApp />
+    </ProtectedRoute>
+  }
+/>
 
           {/* All other authenticated routes */}
           <Route 

@@ -19,6 +19,7 @@ import AdminOverview from './components/admin/AdminOverview'
 import AdminDashboard from './components/admin/AdminDashboard'
 import ModerationDashboard from './components/admin/ModerationDashboard'
 import NotificationDropdown from './components/NotificationDropdown'
+import IOSInstallPrompt from './components/IOSInstallPrompt';
 
 
 
@@ -101,6 +102,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
   if (isUserProfilePage) {
     return (
       <div className="bg-gray-50 min-h-screen">
+      <IOSInstallPrompt />
         {/* Top Bar with User Info */}
         <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
           <div className="max-w-4xl mx-auto px-4">
@@ -296,6 +298,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
 
   return (
     <div className="bg-gray-50 min-h-screen">
+    <IOSInstallPrompt />
       {/* Top Bar with User Info */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-4xl mx-auto px-4">

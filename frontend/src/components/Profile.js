@@ -315,7 +315,16 @@ function Profile() {
                 </button>
               </div>
             </div>
-          )}
+           )}
+        </div>
+
+        {/* Legal Links */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
+          <div className="flex justify-center gap-4 text-sm text-gray-500">
+            <a href="/terms" className="hover:text-gray-700 hover:underline">Terms of Service</a>
+            <span>•</span>
+            <a href="/privacy" className="hover:text-gray-700 hover:underline">Privacy Policy</a>
+          </div>
         </div>
       </div>
     </div>

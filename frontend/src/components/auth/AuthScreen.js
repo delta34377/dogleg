@@ -441,7 +441,7 @@ useEffect(() => {
                 disabled={loading}
               />
               <label htmlFor="newsletter-checkbox" className="text-sm text-gray-600">
-                Send me updates and golf tips (optional)
+                Sign me up for the Dogleg.io newsletter (optional)
               </label>
             </div>
 

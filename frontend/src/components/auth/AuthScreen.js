@@ -14,6 +14,7 @@ function AuthScreen({ onSuccess }) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [username, setUsername] = useState('')
   const [fullName, setFullName] = useState('')
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [phone, setPhone] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [showOtpInput, setShowOtpInput] = useState(false)
@@ -405,7 +406,28 @@ useEffect(() => {
                 disabled={loading}
               />
             </div>
-
+<div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="terms-checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                className="mt-1 h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                required
+                disabled={loading}
+              />
+              <label htmlFor="terms-checkbox" className="text-sm text-gray-600">
+                I am at least 13 years old and agree to the{' '}
+                <a href="/terms" target="_blank" className="text-green-600 hover:underline">
+                  Terms of Service
+                </a>
+                {' '}and{' '}
+                <a href="/privacy" target="_blank" className="text-green-600 hover:underline">
+                  Privacy Policy
+                </a>
+              </label>
+            </div>
+            
             <button
               type="submit"
               disabled={loading}

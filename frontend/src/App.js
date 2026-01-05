@@ -12,6 +12,8 @@ import UserProfile from './components/UserProfile'
 import ResetPassword from './components/ResetPassword'
 import SingleRound from './components/SingleRound'
 import SearchUsers from './pages/SearchUsers'
+import TermsOfService from './pages/TermsOfService'
+import PrivacyPolicy from './pages/PrivacyPolicy'
 import { getInitials } from './utils/avatarUtils'
 import AdminPanel from './components/AdminPanel'
 import AdminHub from './components/admin/AdminHub'
@@ -489,6 +491,8 @@ function App() {
         <Routes>
           <Route path="/login" element={<AuthScreen />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
           
           {/* User search route */}
           <Route 

@@ -107,9 +107,10 @@ useEffect(() => {
     safeSetState(setLoading)(true)
 
     const { error } = await signUp(email, password, {
-      username: username.toLowerCase().replace(/\s/g, ''),
-      full_name: fullName
-    })
+  username: username.toLowerCase().replace(/\s/g, ''),
+  full_name: fullName,
+  wants_newsletter: wantsNewsletter
+})
 
     if (!mountedRef.current) return
 

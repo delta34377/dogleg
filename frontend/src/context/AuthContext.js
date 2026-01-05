@@ -213,6 +213,7 @@ export const AuthProvider = ({ children }) => {
         full_name: metadata.full_name || null,
         avatar_url: metadata.avatar_url || null,
         phone: u?.user?.phone || null,
+          wants_newsletter: metadata.wants_newsletter || false,
         created_at: new Date().toISOString()
       }
 

@@ -15,6 +15,7 @@ function AuthScreen({ onSuccess }) {
   const [username, setUsername] = useState('')
   const [fullName, setFullName] = useState('')
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+  const [wantsNewsletter, setWantsNewsletter] = useState(false)
   const [phone, setPhone] = useState('')
   const [otpCode, setOtpCode] = useState('')
   const [showOtpInput, setShowOtpInput] = useState(false)
@@ -406,6 +407,7 @@ useEffect(() => {
                 disabled={loading}
               />
             </div>
+
 <div className="flex items-start gap-2">
               <input
                 type="checkbox"
@@ -427,7 +429,21 @@ useEffect(() => {
                 </a>
               </label>
             </div>
-            
+
+<div className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                id="newsletter-checkbox"
+                checked={wantsNewsletter}
+                onChange={(e) => setWantsNewsletter(e.target.checked)}
+                className="mt-1 h-4 w-4 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                disabled={loading}
+              />
+              <label htmlFor="newsletter-checkbox" className="text-sm text-gray-600">
+                Send me updates and golf tips (optional)
+              </label>
+            </div>
+
             <button
               type="submit"
               disabled={loading}

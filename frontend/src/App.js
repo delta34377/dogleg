@@ -22,6 +22,7 @@ import AdminDashboard from './components/admin/AdminDashboard'
 import ModerationDashboard from './components/admin/ModerationDashboard'
 import NotificationDropdown from './components/NotificationDropdown'
 import IOSInstallPrompt from './components/IOSInstallPrompt';
+import TestShare from './pages/TestShare'
 
 
 
@@ -544,6 +545,15 @@ function App() {
     </ProtectedRoute>
   }
 />
+
+<Route 
+            path="/test-share" 
+            element={
+              <ProtectedRoute>
+                <TestShare />
+              </ProtectedRoute>
+            } 
+          />
 
           {/* All other authenticated routes */}
           <Route 

@@ -581,16 +581,6 @@ useEffect(() => {
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() => switchAuthMode('phone')}
-                className="w-full flex items-center justify-center gap-3 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50"
-                disabled={loading}
-              >
-                <MdPhone className="text-xl text-green-600" />
-                <span className="font-medium">Phone Number</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={handleGoogleSignIn}
                 className="w-full flex items-center justify-center gap-3 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50"
                 disabled={loading}

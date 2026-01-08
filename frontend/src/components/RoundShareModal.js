@@ -5,27 +5,17 @@ const RoundShareModal = ({ round, onClose, userProfile }) => {
   const [isGenerating, setIsGenerating] = useState(false)
   const cardRef = useRef(null)
 
-  // 1. Helper for GHIN-style score circles/squares
+  // 1. EXACT Style Logic from MyRounds.js
   const getScoreStyle = (score, par) => {
-    if (!score || score === '') return 'text-gray-800'
+    if (!score || score === '') return { backgroundColor: 'white', color: '#999' }
+    
     const diff = parseInt(score) - parseInt(par)
-    
-    // Eagle (-2 or better): Yellow double circle
-    if (diff <= -2) return 'relative flex items-center justify-center w-6 h-6 rounded-full border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold text-xs'
-    
-    // Birdie (-1): Red circle
-    if (diff === -1) return 'relative flex items-center justify-center w-6 h-6 rounded-full border border-red-500 text-red-600 font-bold text-xs'
-    
-    // Par (0): Plain text
-    if (diff === 0) return 'flex items-center justify-center w-6 h-6 text-gray-900 font-bold text-xs'
-    
-    // Bogey (+1): Blue Square
-    if (diff === 1) return 'relative flex items-center justify-center w-6 h-6 border border-blue-500 bg-blue-50 text-blue-800 text-xs'
-    
-    // Double+ (+2): Dark Double Square
-    if (diff >= 2) return 'relative flex items-center justify-center w-6 h-6 border-2 border-gray-800 bg-gray-100 text-gray-900 font-bold text-xs'
-    
-    return 'text-gray-800'
+    if (diff <= -2) return { backgroundColor: '#0d7d0d', color: '#fff' } // Eagle
+    if (diff === -1) return { backgroundColor: '#4caf50', color: '#fff' } // Birdie
+    if (diff === 0) return { backgroundColor: 'white', color: '#333' }    // Par
+    if (diff === 1) return { backgroundColor: '#ffcdd2', color: '#333' }  // Bogey
+    if (diff === 2) return { backgroundColor: '#ef5350', color: '#fff' }  // Double
+    return { backgroundColor: '#c62828', color: '#fff' }                  // Triple+
   }
 
   // 2. Logic to Generate Image
@@ -34,10 +24,9 @@ const RoundShareModal = ({ round, onClose, userProfile }) => {
     if (!cardRef.current) return
 
     try {
-      // Wait for images to load (like avatars/course photos)
       const canvas = await html2canvas(cardRef.current, {
-        useCORS: true, // Critical for Supabase images
-        scale: 3, // 3x resolution for crisp iPhone screens
+        useCORS: true,
+        scale: 3, 
         backgroundColor: null,
         logging: false
       })
@@ -47,7 +36,6 @@ const RoundShareModal = ({ round, onClose, userProfile }) => {
         
         const file = new File([blob], 'dogleg-round.png', { type: 'image/png' })
 
-        // Check if mobile share is supported
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           try {
             await navigator.share({
@@ -59,7 +47,6 @@ const RoundShareModal = ({ round, onClose, userProfile }) => {
             console.log('Share dismissed')
           }
         } else {
-          // Desktop Fallback: Download
           const link = document.createElement('a')
           link.href = canvas.toDataURL('image/png')
           link.download = `dogleg-${round.date || 'share'}.png`
@@ -104,102 +91,120 @@ const RoundShareModal = ({ round, onClose, userProfile }) => {
           </button>
         </div>
 
-        {/* --- THE IMAGE AREA (This gets screenshot) --- */}
+        {/* --- THE IMAGE AREA --- */}
         <div 
           ref={cardRef} 
           className="relative overflow-hidden rounded-xl bg-[#0f172a] text-white shadow-2xl"
           style={{ aspectRatio: '4/5' }}
         >
-            
             {/* Background Image (Darkened) */}
             {round.photo ? (
                 <div className="absolute inset-0 z-0">
-                    <img src={round.photo} className="w-full h-full object-cover opacity-40 mix-blend-overlay" crossOrigin="anonymous" alt="" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent"></div>
+                    <img src={round.photo} className="w-full h-full object-cover opacity-30 mix-blend-overlay" crossOrigin="anonymous" alt="" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-[#0f172a]/80 to-transparent"></div>
                 </div>
             ) : (
-                // Fallback gradient if no photo
                 <div className="absolute inset-0 bg-gradient-to-br from-green-900 to-[#0f172a] z-0"></div>
             )}
 
-            {/* Content */}
+            {/* Content Container */}
             <div className="relative z-10 p-6 flex flex-col h-full justify-between">
                 
-                {/* Top Section */}
+                {/* 1. Header Info */}
                 <div>
-                    <div className="flex items-center gap-2 mb-3 opacity-90">
-                        <span className="text-2xl">🏌️</span>
+                    <div className="flex items-center gap-2 mb-2 opacity-90">
+                        <span className="text-xl">🏌️</span>
                         <span className="font-bold tracking-widest text-xs uppercase">Dogleg.io</span>
                     </div>
                     <div className="text-sm font-light text-gray-300">
                         {userProfile?.username || 'Golfer'} posted a score
                     </div>
-                    <h1 className="text-3xl font-bold leading-tight mt-1 text-white drop-shadow-lg">
+                    <h1 className="text-2xl font-bold leading-tight mt-1 text-white drop-shadow-lg">
                         {round.course_name}
                     </h1>
-                    <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                    <div className="flex items-baseline gap-2 mt-2">
+                        <span className="text-6xl font-black tracking-tighter text-white drop-shadow-2xl">
+                            {round.total}
+                        </span>
+                        <span className={`text-2xl font-bold drop-shadow-lg ${diffScore.toString().includes('+') ? 'text-blue-400' : diffScore === 'E' ? 'text-white' : 'text-green-400'}`}>
+                            ({diffScore})
+                        </span>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">
                        {round.date ? new Date(round.date).toLocaleDateString() : new Date().toLocaleDateString()} • {round.city}
                     </p>
                 </div>
 
-                {/* Big Score Display */}
-                <div className="flex items-baseline gap-3 my-2">
-                    <span className="text-9xl font-black tracking-tighter text-white drop-shadow-2xl">
-                        {round.total}
-                    </span>
-                    <span className={`text-4xl font-bold drop-shadow-lg ${diffScore.toString().includes('+') ? 'text-blue-400' : diffScore === 'E' ? 'text-white' : 'text-green-400'}`}>
-                        ({diffScore})
-                    </span>
-                </div>
-
-                {/* Scorecard Grid */}
-                <div className="bg-white text-gray-900 rounded-lg p-3 shadow-xl">
+                {/* 2. THE SCORECARD (Exact replica of MyRounds style) */}
+                <div className="bg-white text-gray-900 rounded-lg p-3 shadow-xl mt-2">
                     {hasHoles ? (
-                        <div className="grid grid-cols-10 gap-y-1 text-center text-[10px]">
-                             {/* Front 9 Header */}
-                            <div className="col-span-1 text-left font-bold text-gray-400">#</div>
-                            {[1,2,3,4,5,6,7,8,9].map(n => <div key={n} className="text-gray-400">{n}</div>)}
-                            <div className="text-gray-400 border-l border-gray-200 pl-1">Out</div>
-
-                             {/* Front 9 Scores */}
-                            <div className="col-span-1 text-left font-bold text-gray-800">Sc</div>
-                            {round.holes.slice(0,9).map((score, i) => (
-                                <div key={i} className="flex justify-center">
-                                    <div className={getScoreStyle(score, pars[i])}>{score}</div>
+                        <div className="flex flex-col gap-4">
+                             {/* --- FRONT 9 --- */}
+                             <div>
+                                <div className="bg-gray-100 px-2 py-1 rounded mb-1 inline-block">
+                                    <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Front 9</div>
                                 </div>
-                            ))}
-                            <div className="font-bold border-l border-gray-200 pl-1 flex items-center justify-center">{round.front9}</div>
+                                <div className="grid grid-cols-10 gap-0.5 text-center text-[10px]">
+                                    {/* Hole Numbers */}
+                                    {[1,2,3,4,5,6,7,8,9].map(n => <div key={n} className="text-gray-400 font-medium pb-1">{n}</div>)}
+                                    <div className="text-gray-800 font-bold pb-1 border-l border-gray-200">OUT</div>
 
-                             {/* Back 9 Header */}
-                             <div className="col-span-1 text-left font-bold text-gray-400 mt-2">#</div>
-                            {[10,11,12,13,14,15,16,17,18].map(n => <div key={n} className="text-gray-400 mt-2">{n}</div>)}
-                            <div className="text-gray-400 border-l border-gray-200 pl-1 mt-2">In</div>
-
-                             {/* Back 9 Scores */}
-                            <div className="col-span-1 text-left font-bold text-gray-800">Sc</div>
-                            {round.holes.slice(9,18).map((score, i) => (
-                                <div key={i} className="flex justify-center">
-                                    <div className={getScoreStyle(score, pars[i+9])}>{score}</div>
+                                    {/* Scores */}
+                                    {round.holes.slice(0,9).map((score, i) => (
+                                        <div key={i} className="flex justify-center h-6">
+                                            <div 
+                                                className="w-full h-full flex items-center justify-center rounded font-bold"
+                                                style={getScoreStyle(score, pars[i])}
+                                            >
+                                                {score}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="font-bold bg-gray-900 text-white rounded flex items-center justify-center h-6 ml-0.5">{round.front9}</div>
                                 </div>
-                            ))}
-                            <div className="font-bold border-l border-gray-200 pl-1 flex items-center justify-center">{round.back9}</div>
+                             </div>
+
+                             {/* --- BACK 9 --- */}
+                             <div>
+                                <div className="bg-gray-100 px-2 py-1 rounded mb-1 inline-block">
+                                    <div className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">Back 9</div>
+                                </div>
+                                <div className="grid grid-cols-10 gap-0.5 text-center text-[10px]">
+                                    {/* Hole Numbers */}
+                                    {[10,11,12,13,14,15,16,17,18].map(n => <div key={n} className="text-gray-400 font-medium pb-1">{n}</div>)}
+                                    <div className="text-gray-800 font-bold pb-1 border-l border-gray-200">IN</div>
+
+                                    {/* Scores */}
+                                    {round.holes.slice(9,18).map((score, i) => (
+                                        <div key={i} className="flex justify-center h-6">
+                                            <div 
+                                                className="w-full h-full flex items-center justify-center rounded font-bold"
+                                                style={getScoreStyle(score, pars[i+9])}
+                                            >
+                                                {score}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div className="font-bold bg-gray-900 text-white rounded flex items-center justify-center h-6 ml-0.5">{round.back9}</div>
+                                </div>
+                             </div>
                         </div>
                     ) : (
-                        // Fallback
-                        <div className="flex justify-around items-center px-4 py-2">
+                        // Fallback (Simple View)
+                        <div className="flex justify-around items-center px-4 py-4">
                             <div className="text-center">
-                                <div className="text-xs text-gray-500 uppercase font-bold">Front</div>
-                                <div className="text-2xl font-bold">{round.front9 || '-'}</div>
+                                <div className="text-xs text-gray-500 uppercase font-bold mb-1">Front</div>
+                                <div className="text-3xl font-bold">{round.front9 || '-'}</div>
                             </div>
-                            <div className="h-8 w-px bg-gray-200"></div>
+                            <div className="h-10 w-px bg-gray-200"></div>
                             <div className="text-center">
-                                <div className="text-xs text-gray-500 uppercase font-bold">Back</div>
-                                <div className="text-2xl font-bold">{round.back9 || '-'}</div>
+                                <div className="text-xs text-gray-500 uppercase font-bold mb-1">Back</div>
+                                <div className="text-3xl font-bold">{round.back9 || '-'}</div>
                             </div>
-                            <div className="h-8 w-px bg-gray-200"></div>
+                            <div className="h-10 w-px bg-gray-200"></div>
                             <div className="text-center">
-                                <div className="text-xs text-gray-500 uppercase font-bold">Total</div>
-                                <div className="text-2xl font-bold text-blue-900">{round.total}</div>
+                                <div className="text-xs text-gray-500 uppercase font-bold mb-1">Total</div>
+                                <div className="text-3xl font-bold text-blue-900">{round.total}</div>
                             </div>
                         </div>
                     )}
@@ -229,7 +234,7 @@ const RoundShareModal = ({ round, onClose, userProfile }) => {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Creating Image...
+                    Generating...
                 </>
             ) : (
                 <>

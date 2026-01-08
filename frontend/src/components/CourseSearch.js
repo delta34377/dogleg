@@ -495,9 +495,23 @@ function CourseSearch() {
                   >
                     Select Course
                   </button>
-                  </div>
+                   </div>
               </div>
             ))}
+          </div>
+
+          {/* Can't find course help text */}
+          <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+            <p className="text-sm text-gray-500">
+              Can't find your course?{' '}
+              <a 
+                href="mailto:courses@dogleg.io?subject=Add%20a%20Course"
+                className="text-green-600 hover:text-green-700 underline"
+              >
+                Email us at courses@dogleg.io
+              </a>
+              {' '}with the course name and location and we'll add it.
+            </p>
           </div>
         </div>
       </div>

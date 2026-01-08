@@ -250,7 +250,7 @@ useEffect(() => {
           {(authMode === 'signin' || authMode === 'signup') && (
             <div className="mt-4">
               <p className="text-lg font-semibold text-green-700 mb-3">
-                Track. Share. Connect.
+                Your Golf Life, Socialized.
               </p>
               <div className="flex flex-col gap-1 text-sm text-gray-600">
                 <p>⛳ Log your rounds in seconds</p>

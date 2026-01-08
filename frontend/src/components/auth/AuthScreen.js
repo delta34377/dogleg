@@ -241,16 +241,32 @@ useEffect(() => {
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
-            <span className="text-3xl">🏌️</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-3">
+            <span className="text-2xl">🏌️</span>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Dogleg.io</h1>
-          <p className="text-gray-600 mt-2">
-            {authMode === 'signin' && 'Welcome back!'}
-            {authMode === 'signup' && 'Create your account'}
-            {authMode === 'phone' && 'Sign in with your phone'}
-            {authMode === 'reset' && 'Reset your password'}
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">Dogleg.io</h1>
+          
+          {/* Marketing content for signin/signup */}
+          {(authMode === 'signin' || authMode === 'signup') && (
+            <div className="mt-4">
+              <p className="text-lg font-semibold text-green-700 mb-3">
+                Track. Share. Connect.
+              </p>
+              <div className="flex flex-col gap-1 text-sm text-gray-600">
+                <p>⛳ Log your rounds in seconds</p>
+                <p>👥 Follow friends and see their scores</p>
+                <p>🔥 React and comment on rounds</p>
+              </div>
+            </div>
+          )}
+          
+          {/* Simple subtitle for other modes */}
+          {authMode === 'phone' && (
+            <p className="text-gray-600 mt-2">Sign in with your phone</p>
+          )}
+          {authMode === 'reset' && (
+            <p className="text-gray-600 mt-2">Reset your password</p>
+          )}
         </div>
 
         {/* Error and Success Messages */}

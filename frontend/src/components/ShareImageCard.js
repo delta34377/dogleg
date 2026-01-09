@@ -146,7 +146,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
       ref={ref}
       style={{
         width: '360px',
-        height: '450px',
+        height: '440px',
         borderRadius: '16px',
         overflow: 'hidden',
         display: 'flex',
@@ -194,7 +194,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            padding: '12px 16px',
+            padding: '8px 14px 12px 14px',
             color: 'white',
           }}
         >
@@ -204,12 +204,12 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              marginBottom: '8px',
+              marginBottom: '4px',
               textShadow: '0 1px 2px rgba(0,0,0,0.6), 0 1px 6px rgba(0,0,0,0.4)',
             }}
           >
-            <span style={{ fontSize: '20px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>🏌️</span>
-            <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Dogleg.io</span>
+            <span style={{ fontSize: '18px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>🏌️</span>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Dogleg.io</span>
           </div>
           
           {/* Course info - pushed to bottom with marginTop auto */}
@@ -278,8 +278,8 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
       <div 
         style={{
           flex: 1,
-          background: '#e2e8f0',
-          padding: '8px 10px',
+          background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)',
+          padding: '6px 10px 8px 10px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
@@ -292,13 +292,14 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '2px' }}>
                 {[1,2,3,4,5,6,7,8,9,'Out'].map(h => (
                   <div key={`f-hole-${h}`} style={{ 
-                    height: '14px',
+                    height: '16px',
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
-                    fontSize: '9px',
+                    fontSize: '10px',
                     fontWeight: 500,
                     color: '#64748b',
+                    lineHeight: 1,
                   }}>
                     {h}
                   </div>
@@ -307,23 +308,25 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '2px' }}>
                 {pars.slice(0,9).map((p, i) => (
                   <div key={`f-par-${i}`} style={{ 
-                    height: '14px',
+                    height: '16px',
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
-                    fontSize: '9px',
+                    fontSize: '10px',
                     color: '#94a3b8',
+                    lineHeight: 1,
                   }}>
                     {p}
                   </div>
                 ))}
                 <div style={{ 
-                  height: '14px',
+                  height: '16px',
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  fontSize: '9px',
+                  fontSize: '10px',
                   color: '#94a3b8',
+                  lineHeight: 1,
                 }}>
                   {pars.slice(0,9).reduce((a,b) => a + parseInt(b), 0)}
                 </div>
@@ -334,31 +337,33 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
                   const colors = scoreColors[scoreClass] || scoreColors['par-score']
                   return (
                     <div key={`f-score-${i}`} style={{ 
-                      height: '26px',
+                      height: '28px',
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       fontWeight: 600,
                       borderRadius: '4px',
                       background: colors.background,
                       color: colors.color,
                       border: colors.border || 'none',
+                      lineHeight: 1,
                     }}>
                       {s || '-'}
                     </div>
                   )
                 })}
                 <div style={{ 
-                  height: '26px',
+                  height: '28px',
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  fontSize: '12px',
+                  fontSize: '13px',
                   fontWeight: 700,
                   borderRadius: '4px',
                   background: '#1e293b',
                   color: 'white',
+                  lineHeight: 1,
                 }}>
                   {round.front9}
                 </div>
@@ -370,13 +375,14 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '2px' }}>
                 {[10,11,12,13,14,15,16,17,18,'In'].map(h => (
                   <div key={`b-hole-${h}`} style={{ 
-                    height: '14px',
+                    height: '16px',
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
-                    fontSize: '9px',
+                    fontSize: '10px',
                     fontWeight: 500,
                     color: '#64748b',
+                    lineHeight: 1,
                   }}>
                     {h}
                   </div>
@@ -385,23 +391,25 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '2px' }}>
                 {pars.slice(9,18).map((p, i) => (
                   <div key={`b-par-${i}`} style={{ 
-                    height: '14px',
+                    height: '16px',
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
-                    fontSize: '9px',
+                    fontSize: '10px',
                     color: '#94a3b8',
+                    lineHeight: 1,
                   }}>
                     {p}
                   </div>
                 ))}
                 <div style={{ 
-                  height: '14px',
+                  height: '16px',
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  fontSize: '9px',
+                  fontSize: '10px',
                   color: '#94a3b8',
+                  lineHeight: 1,
                 }}>
                   {pars.slice(9,18).reduce((a,b) => a + parseInt(b), 0)}
                 </div>
@@ -412,31 +420,33 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
                   const colors = scoreColors[scoreClass] || scoreColors['par-score']
                   return (
                     <div key={`b-score-${i}`} style={{ 
-                      height: '26px',
+                      height: '28px',
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center',
-                      fontSize: '12px',
+                      fontSize: '13px',
                       fontWeight: 600,
                       borderRadius: '4px',
                       background: colors.background,
                       color: colors.color,
                       border: colors.border || 'none',
+                      lineHeight: 1,
                     }}>
                       {s || '-'}
                     </div>
                   )
                 })}
                 <div style={{ 
-                  height: '26px',
+                  height: '28px',
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
-                  fontSize: '12px',
+                  fontSize: '13px',
                   fontWeight: 700,
                   borderRadius: '4px',
                   background: '#1e293b',
                   color: 'white',
+                  lineHeight: 1,
                 }}>
                   {round.back9}
                 </div>
@@ -448,23 +458,23 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
           <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
             <div style={{
               background: 'white',
-              padding: '16px 28px',
+              padding: '14px 24px',
               borderRadius: '12px',
               textAlign: 'center',
               boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
             }}>
-              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Front 9</div>
-              <div style={{ fontSize: '32px', fontWeight: 700, color: '#1e293b' }}>{round.front9}</div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', lineHeight: 1 }}>Front 9</div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: '#1e293b', lineHeight: 1 }}>{round.front9}</div>
             </div>
             <div style={{
               background: 'white',
-              padding: '16px 28px',
+              padding: '14px 24px',
               borderRadius: '12px',
               textAlign: 'center',
               boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
             }}>
-              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Back 9</div>
-              <div style={{ fontSize: '32px', fontWeight: 700, color: '#1e293b' }}>{round.back9}</div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', lineHeight: 1 }}>Back 9</div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: '#1e293b', lineHeight: 1 }}>{round.back9}</div>
             </div>
           </div>
         ) : (
@@ -472,13 +482,13 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <div style={{
               background: 'white',
-              padding: '20px 48px',
+              padding: '16px 40px',
               borderRadius: '12px',
               textAlign: 'center',
               boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
             }}>
-              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>Par {round.par || 72}</div>
-              <div style={{ fontSize: '40px', fontWeight: 700, color: '#1e293b' }}>Total: {round.total}</div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px', lineHeight: 1 }}>Par {round.par || 72}</div>
+              <div style={{ fontSize: '36px', fontWeight: 700, color: '#1e293b', lineHeight: 1 }}>Total: {round.total}</div>
             </div>
           </div>
         )}

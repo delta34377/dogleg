@@ -11,16 +11,10 @@ const getDisplayName = (round) => {
   const toProperCase = (str) => {
     if (!str) return str
     if (str === str.toUpperCase() && str.length > 2) {
-      return str
-        .toLowerCase()
-        .split(' ')
-        .map((word, index) => {
-          if (index > 0 && ['of', 'at', 'the'].includes(word)) {
-            return word
-          }
-          return word.charAt(0).toUpperCase() + word.slice(1)
-        })
-        .join(' ')
+      return str.toLowerCase().split(' ').map((word, index) => {
+        if (index > 0 && ['of', 'at', 'the'].includes(word)) return word
+        return word.charAt(0).toUpperCase() + word.slice(1)
+      }).join(' ')
     }
     return str
   }
@@ -89,17 +83,16 @@ function ShareModal({ round, username, onClose }) {
         return
       }
       
-      // Set a timeout - if image doesn't load in 5 seconds, continue without it
+      // Set a timeout - if image doesn't load in 3 seconds, continue without it
       const timeout = setTimeout(() => {
         console.log('Image load timeout, continuing without photo')
         setImageLoaded(true)
-      }, 5000)
+      }, 3000)
       
       try {
-        const response = await fetch(photoUrl, { mode: 'cors' })
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`)
-        }
+        const response = await fetch(photoUrl) // Standard fetch is usually fine with blob conversion
+        if (!response.ok) throw new Error(`HTTP ${response.status}`)
+        
         const blob = await response.blob()
         const reader = new FileReader()
         reader.onloadend = () => {
@@ -109,7 +102,6 @@ function ShareModal({ round, username, onClose }) {
         }
         reader.onerror = () => {
           clearTimeout(timeout)
-          console.error('FileReader error')
           setImageLoaded(true)
         }
         reader.readAsDataURL(blob)
@@ -126,7 +118,7 @@ function ShareModal({ round, username, onClose }) {
   // Generate preview once image is loaded
   useEffect(() => {
     if (imageLoaded) {
-      // Small delay to ensure React has rendered the card with the image
+      // Small delay to ensure React has rendered the card
       const timer = setTimeout(() => {
         generatePreview()
       }, 300)
@@ -137,8 +129,9 @@ function ShareModal({ round, username, onClose }) {
   const generatePreview = async () => {
     if (cardRef.current) {
       try {
+        // CHANGED: Use scale 1 for preview (faster on mobile)
         const canvas = await html2canvas(cardRef.current, {
-          scale: 2,
+          scale: 1, 
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#e2e8f0',
@@ -147,10 +140,10 @@ function ShareModal({ round, username, onClose }) {
         setPreviewUrl(canvas.toDataURL('image/png'))
       } catch (error) {
         console.error('Error generating preview:', error)
-        // Try again with simpler settings
+        // Try one more time with super basic settings if first fails
         try {
           const canvas = await html2canvas(cardRef.current, {
-            scale: 1,
+            scale: 0.8,
             backgroundColor: '#e2e8f0',
           })
           setPreviewUrl(canvas.toDataURL('image/png'))
@@ -169,7 +162,6 @@ function ShareModal({ round, username, onClose }) {
       setTimeout(() => setLinkCopied(false), 2000)
     } catch (error) {
       console.error('Failed to copy link:', error)
-      // Fallback for older browsers
       const textArea = document.createElement('textarea')
       textArea.value = shareUrl
       document.body.appendChild(textArea)
@@ -189,18 +181,17 @@ function ShareModal({ round, username, onClose }) {
         throw new Error('Card ref not available')
       }
       
+      // Keep high quality for the actual share
       const canvas = await html2canvas(cardRef.current, {
-        scale: 3, // High quality
+        scale: 3, 
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#e2e8f0',
         logging: false,
       })
       
-      // Convert to blob
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
       
-      // Check if native share is available (mobile)
       if (navigator.share && navigator.canShare) {
         const file = new File([blob], `dogleg-round-${round.short_code || round.id}.png`, { type: 'image/png' })
         
@@ -216,7 +207,7 @@ function ShareModal({ round, username, onClose }) {
         }
       }
       
-      // Fallback: download the image
+      // Fallback: download
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -323,7 +314,7 @@ function ShareModal({ round, username, onClose }) {
         </div>
       </div>
       
-      {/* Hidden card for html2canvas - rendered at body level to avoid clipping */}
+      {/* Hidden card for html2canvas - rendered at body level */}
       {createPortal(
         <ShareImageCard 
           ref={cardRef}

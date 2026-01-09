@@ -8,16 +8,10 @@ const getDisplayName = (round) => {
   const toProperCase = (str) => {
     if (!str) return str
     if (str === str.toUpperCase() && str.length > 2) {
-      return str
-        .toLowerCase()
-        .split(' ')
-        .map((word, index) => {
-          if (index > 0 && ['of', 'at', 'the'].includes(word)) {
-            return word
-          }
-          return word.charAt(0).toUpperCase() + word.slice(1)
-        })
-        .join(' ')
+      return str.toLowerCase().split(' ').map((word, index) => {
+        if (index > 0 && ['of', 'at', 'the'].includes(word)) return word
+        return word.charAt(0).toUpperCase() + word.slice(1)
+      }).join(' ')
     }
     return str
   }
@@ -153,33 +147,49 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
         flexDirection: 'column',
         background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        position: 'absolute',
-        left: '-500px',
+        // CHANGED: Fixed position to avoid scrolling issues during generation
+        position: 'fixed',
+        left: '-9999px',
         top: '0',
       }}
     >
       {/* Photo section (top) - 58% */}
-      <div 
-        style={{
-          position: 'relative',
-          height: '58%',
-          ...(hasPhoto 
-            ? {
-                backgroundImage: `url(${photoUrl})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }
-            : {
-                background: 'linear-gradient(135deg, #166534 0%, #15803d 40%, #14532d 100%)',
-              }
-          ),
-        }}
-      >
+      <div style={{ position: 'relative', height: '58%', width: '100%', overflow: 'hidden' }}>
+        {/* CHANGED: Use real img tag instead of background-image for better memory handling */}
+        {hasPhoto ? (
+          <img 
+            src={photoUrl} 
+            alt="Course"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              zIndex: 0
+            }}
+          />
+        ) : (
+          <div 
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(135deg, #166534 0%, #15803d 40%, #14532d 100%)',
+              zIndex: 0
+            }}
+          />
+        )}
+
         {/* Overlay */}
         <div 
           style={{
             position: 'absolute',
             inset: 0,
+            zIndex: 1,
             background: hasPhoto 
               ? 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.5) 100%)'
               : 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.2) 100%)',
@@ -190,7 +200,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
         <div 
           style={{
             position: 'relative',
-            zIndex: 1,
+            zIndex: 2,
             height: '100%',
             display: 'flex',
             flexDirection: 'column',

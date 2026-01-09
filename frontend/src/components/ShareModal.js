@@ -1,6 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
-import html2canvas from 'html2canvas'
-import ShareImageCard from './ShareImageCard'
+import { useState, useEffect, useCallback } from 'react'
 
 const getDisplayName = (round) => {
   let courseName = round.course_name
@@ -9,14 +7,10 @@ const getDisplayName = (round) => {
   const toProperCase = (str) => {
     if (!str) return str
     if (str === str.toUpperCase() && str.length > 2) {
-      return str
-        .toLowerCase()
-        .split(' ')
-        .map((word, index) => {
-          if (index > 0 && ['of', 'at', 'the'].includes(word)) return word
-          return word.charAt(0).toUpperCase() + word.slice(1)
-        })
-        .join(' ')
+      return str.toLowerCase().split(' ').map((word, index) => {
+        if (index > 0 && ['of', 'at', 'the'].includes(word)) return word
+        return word.charAt(0).toUpperCase() + word.slice(1)
+      }).join(' ')
     }
     return str
   }
@@ -46,68 +40,304 @@ function ShareModal({ round, username, onClose }) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)
-  const [imageDataUrl, setImageDataUrl] = useState(null)
-  const [photoLoaded, setPhotoLoaded] = useState(false)
-  const cardRef = useRef(null)
+  const [generatedBlob, setGeneratedBlob] = useState(null)
   
   const shareUrl = `https://dogleg.io/rounds/${round.short_code || round.id}`
   const photoUrl = round.photo || round.photo_url
 
-  // Step 1: Load and compress photo
-  useEffect(() => {
-    if (!photoUrl) {
-      setPhotoLoaded(true)
-      return
-    }
+  const generateImage = useCallback(async (scale = 3) => {
+    const W = 360 * scale
+    const H = 450 * scale
+    const canvas = document.createElement('canvas')
+    canvas.width = W
+    canvas.height = H
+    const ctx = canvas.getContext('2d')
     
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      const maxWidth = 400
-      const scale = Math.min(1, maxWidth / img.width)
-      const canvas = document.createElement('canvas')
-      canvas.width = img.width * scale
-      canvas.height = img.height * scale
-      const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      setImageDataUrl(canvas.toDataURL('image/jpeg', 0.8))
-      setPhotoLoaded(true)
-    }
-    img.onerror = () => {
-      console.log('Photo load error')
-      setPhotoLoaded(true)
-    }
-    img.src = photoUrl
-  }, [photoUrl])
-
-  // Step 2: Generate preview after photo loads
-  useEffect(() => {
-    if (!photoLoaded) return
-    if (!cardRef.current) return
+    // Scale everything
+    ctx.scale(scale, scale)
     
-    const timer = setTimeout(async () => {
+    const photoH = 450 * 0.55
+    const scorecardH = 450 - photoH
+    
+    // Load photo first if exists
+    let photoImg = null
+    if (photoUrl) {
       try {
-        const canvas = await html2canvas(cardRef.current, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#e2e8f0',
-          onclone: (clonedDoc, element) => {
-            element.style.position = 'static'
-            element.style.opacity = '1'
-            element.style.left = '0'
-            element.style.top = '0'
-          }
+        photoImg = await new Promise((resolve, reject) => {
+          const img = new Image()
+          img.crossOrigin = 'anonymous'
+          img.onload = () => resolve(img)
+          img.onerror = () => reject(new Error('Photo load failed'))
+          img.src = photoUrl
         })
-        setPreviewUrl(canvas.toDataURL('image/png'))
       } catch (e) {
-        console.error('Preview generation failed:', e)
+        console.log('Photo failed to load, using gradient')
+      }
+    }
+    
+    // Draw photo section
+    if (photoImg) {
+      // Draw photo covering the area
+      const imgRatio = photoImg.width / photoImg.height
+      const areaRatio = 360 / photoH
+      let dw, dh, dx, dy
+      if (imgRatio > areaRatio) {
+        dh = photoH
+        dw = photoH * imgRatio
+        dx = -(dw - 360) / 2
+        dy = 0
+      } else {
+        dw = 360
+        dh = 360 / imgRatio
+        dx = 0
+        dy = -(dh - photoH) / 2
+      }
+      ctx.drawImage(photoImg, dx, dy, dw, dh)
+      
+      // Dark overlay
+      const overlay = ctx.createLinearGradient(0, 0, 0, photoH)
+      overlay.addColorStop(0, 'rgba(0,0,0,0.4)')
+      overlay.addColorStop(0.4, 'rgba(0,0,0,0.15)')
+      overlay.addColorStop(1, 'rgba(0,0,0,0.5)')
+      ctx.fillStyle = overlay
+      ctx.fillRect(0, 0, 360, photoH)
+    } else {
+      // Green gradient fallback
+      const grad = ctx.createLinearGradient(0, 0, 360, photoH)
+      grad.addColorStop(0, '#15803d')
+      grad.addColorStop(0.5, '#166534')
+      grad.addColorStop(1, '#14532d')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, 360, photoH)
+    }
+    
+    // Text on photo section
+    ctx.fillStyle = 'white'
+    ctx.textBaseline = 'top'
+    
+    // Branding
+    ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif'
+    ctx.fillText('🏌️ DOGLEG.IO', 14, 8)
+    
+    // Bottom text area
+    const bottomY = photoH - 115
+    
+    ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif'
+    ctx.globalAlpha = 0.95
+    ctx.fillText(`${username} posted a score`, 14, bottomY)
+    ctx.globalAlpha = 1
+    
+    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, sans-serif'
+    const courseName = getDisplayName(round)
+    ctx.fillText(courseName, 14, bottomY + 16)
+    
+    const formatDate = (d) => {
+      if (!d) return ''
+      const [y, m, day] = d.split('T')[0].split('-')
+      return `${parseInt(m)}/${parseInt(day)}/${y}`
+    }
+    
+    ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif'
+    ctx.globalAlpha = 0.9
+    ctx.fillText(`${formatDate(round.date)} • ${round.city}, ${round.state}`, 14, bottomY + 40)
+    ctx.globalAlpha = 1
+    
+    // Big score
+    ctx.font = 'bold 60px -apple-system, BlinkMacSystemFont, sans-serif'
+    ctx.fillText(String(round.total), 14, bottomY + 52)
+    
+    // Vs par
+    const calcVsPar = () => {
+      if (!round.par && !round.coursePars) return null
+      let par = round.par || 72
+      if (round.holes && round.holes.some(h => h) && round.coursePars) {
+        par = round.holes.reduce((s, score, i) => score ? s + parseInt(round.coursePars[i] || 4) : s, 0)
+      }
+      const diff = round.total - par
+      return diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`
+    }
+    
+    const vsPar = calcVsPar()
+    if (vsPar) {
+      ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.fillStyle = vsPar.startsWith('-') ? '#4ade80' : vsPar.startsWith('+') ? '#fca5a5' : 'white'
+      const scoreWidth = ctx.measureText(String(round.total)).width
+      ctx.fillText(`(${vsPar})`, 14 + scoreWidth + 8, bottomY + 75)
+    }
+    
+    // Scorecard section
+    const scGrad = ctx.createLinearGradient(0, photoH, 0, 450)
+    scGrad.addColorStop(0, '#e2e8f0')
+    scGrad.addColorStop(1, '#cbd5e1')
+    ctx.fillStyle = scGrad
+    ctx.fillRect(0, photoH, 360, scorecardH)
+    
+    // Scorecard content
+    const hasHoles = round.holes && round.holes.some(h => h !== '' && h !== null)
+    const pars = round.coursePars || Array(18).fill(4)
+    
+    const getScoreColor = (score, par) => {
+      if (!score) return { bg: '#ffffff', fg: '#334155' }
+      const diff = parseInt(score) - parseInt(par)
+      if (diff <= -2) return { bg: '#0d7d0d', fg: '#ffffff' }
+      if (diff === -1) return { bg: '#4caf50', fg: '#ffffff' }
+      if (diff === 0) return { bg: '#ffffff', fg: '#334155' }
+      if (diff === 1) return { bg: '#ffcdd2', fg: '#333333' }
+      if (diff === 2) return { bg: '#ef5350', fg: '#ffffff' }
+      return { bg: '#c62828', fg: '#ffffff' }
+    }
+    
+    // Round rect helper
+    const roundRect = (x, y, w, h, r) => {
+      ctx.beginPath()
+      ctx.moveTo(x + r, y)
+      ctx.lineTo(x + w - r, y)
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+      ctx.lineTo(x + w, y + h - r)
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+      ctx.lineTo(x + r, y + h)
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+      ctx.lineTo(x, y + r)
+      ctx.quadraticCurveTo(x, y, x + r, y)
+      ctx.closePath()
+    }
+    
+    if (hasHoles) {
+      const cellW = 32
+      const gap = 2
+      const startX = 8
+      let y = photoH + 6
+      
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      
+      // Front 9 - Hole numbers
+      ctx.font = '600 10px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.fillStyle = '#475569'
+      for (let i = 0; i < 9; i++) {
+        ctx.fillText(String(i + 1), startX + i * (cellW + gap) + cellW/2, y + 9)
+      }
+      ctx.fillText('Out', startX + 9 * (cellW + gap) + cellW/2, y + 9)
+      
+      y += 18
+      // Front 9 - Pars
+      ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.fillStyle = '#64748b'
+      for (let i = 0; i < 9; i++) {
+        ctx.fillText(String(pars[i]), startX + i * (cellW + gap) + cellW/2, y + 9)
+      }
+      const frontPar = pars.slice(0, 9).reduce((a, b) => a + parseInt(b), 0)
+      ctx.fillText(String(frontPar), startX + 9 * (cellW + gap) + cellW/2, y + 9)
+      
+      y += 18
+      // Front 9 - Scores
+      ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, sans-serif'
+      for (let i = 0; i < 9; i++) {
+        const score = round.holes[i]
+        const colors = getScoreColor(score, pars[i])
+        ctx.fillStyle = colors.bg
+        roundRect(startX + i * (cellW + gap), y, cellW, 32, 4)
+        ctx.fill()
+        ctx.fillStyle = colors.fg
+        ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 16)
+      }
+      // Out total
+      ctx.fillStyle = '#1e293b'
+      roundRect(startX + 9 * (cellW + gap), y, cellW, 32, 4)
+      ctx.fill()
+      ctx.fillStyle = 'white'
+      ctx.fillText(String(round.front9), startX + 9 * (cellW + gap) + cellW/2, y + 16)
+      
+      y += 38
+      // Back 9 - Hole numbers
+      ctx.font = '600 10px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.fillStyle = '#475569'
+      for (let i = 0; i < 9; i++) {
+        ctx.fillText(String(i + 10), startX + i * (cellW + gap) + cellW/2, y + 9)
+      }
+      ctx.fillText('In', startX + 9 * (cellW + gap) + cellW/2, y + 9)
+      
+      y += 18
+      // Back 9 - Pars
+      ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.fillStyle = '#64748b'
+      for (let i = 0; i < 9; i++) {
+        ctx.fillText(String(pars[i + 9]), startX + i * (cellW + gap) + cellW/2, y + 9)
+      }
+      const backPar = pars.slice(9, 18).reduce((a, b) => a + parseInt(b), 0)
+      ctx.fillText(String(backPar), startX + 9 * (cellW + gap) + cellW/2, y + 9)
+      
+      y += 18
+      // Back 9 - Scores
+      ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, sans-serif'
+      for (let i = 0; i < 9; i++) {
+        const score = round.holes[i + 9]
+        const colors = getScoreColor(score, pars[i + 9])
+        ctx.fillStyle = colors.bg
+        roundRect(startX + i * (cellW + gap), y, cellW, 32, 4)
+        ctx.fill()
+        ctx.fillStyle = colors.fg
+        ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 16)
+      }
+      // In total
+      ctx.fillStyle = '#1e293b'
+      roundRect(startX + 9 * (cellW + gap), y, cellW, 32, 4)
+      ctx.fill()
+      ctx.fillStyle = 'white'
+      ctx.fillText(String(round.back9), startX + 9 * (cellW + gap) + cellW/2, y + 16)
+      
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
+    } else {
+      // Simple front/back display
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      const centerY = photoH + scorecardH / 2
+      
+      // Front 9 box
+      ctx.fillStyle = 'white'
+      roundRect(80, centerY - 35, 80, 70, 12)
+      ctx.fill()
+      
+      // Back 9 box
+      roundRect(200, centerY - 35, 80, 70, 12)
+      ctx.fill()
+      
+      ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.fillStyle = '#64748b'
+      ctx.fillText('Front 9', 120, centerY - 15)
+      ctx.fillText('Back 9', 240, centerY - 15)
+      
+      ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.fillStyle = '#1e293b'
+      ctx.fillText(String(round.front9 || '--'), 120, centerY + 15)
+      ctx.fillText(String(round.back9 || '--'), 240, centerY + 15)
+      
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
+    }
+    
+    return canvas
+  }, [photoUrl, round, username])
+
+  // Generate preview on mount
+  useEffect(() => {
+    const generate = async () => {
+      try {
+        const canvas = await generateImage(2) // Lower scale for preview
+        setPreviewUrl(canvas.toDataURL('image/png'))
+        
+        // Also generate full-res blob for sharing
+        const fullCanvas = await generateImage(3)
+        const blob = await new Promise(resolve => fullCanvas.toBlob(resolve, 'image/png'))
+        setGeneratedBlob(blob)
+      } catch (e) {
+        console.error('Image generation failed:', e)
         setPreviewUrl('error')
       }
-    }, 500)
-    
-    return () => clearTimeout(timer)
-  }, [photoLoaded, imageDataUrl])
+    }
+    generate()
+  }, [generateImage])
 
   const handleCopyLink = async () => {
     try {
@@ -125,28 +355,13 @@ function ShareModal({ round, username, onClose }) {
   }
 
   const handleShareImage = async () => {
-    if (!cardRef.current) return
+    if (!generatedBlob) return
     
     setIsGenerating(true)
     
     try {
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 3,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#e2e8f0',
-        onclone: (clonedDoc, element) => {
-          element.style.position = 'static'
-          element.style.opacity = '1'
-          element.style.left = '0'
-          element.style.top = '0'
-        }
-      })
-      
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
-      
       if (navigator.share && navigator.canShare) {
-        const file = new File([blob], `dogleg-round-${round.short_code || round.id}.png`, { type: 'image/png' })
+        const file = new File([generatedBlob], `dogleg-round-${round.short_code || round.id}.png`, { type: 'image/png' })
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
@@ -159,7 +374,7 @@ function ShareModal({ round, username, onClose }) {
       }
       
       // Fallback: download
-      const url = URL.createObjectURL(blob)
+      const url = URL.createObjectURL(generatedBlob)
       const link = document.createElement('a')
       link.href = url
       link.download = `dogleg-round-${round.short_code || round.id}.png`
@@ -169,7 +384,7 @@ function ShareModal({ round, username, onClose }) {
       URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Share error:', error)
-      alert('Failed to generate image. Please try again.')
+      alert('Failed to share image. Please try again.')
     }
     
     setIsGenerating(false)
@@ -227,13 +442,13 @@ function ShareModal({ round, username, onClose }) {
           
           <button
             onClick={handleShareImage}
-            disabled={isGenerating || !previewUrl || previewUrl === 'error'}
+            disabled={isGenerating || !generatedBlob}
             className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:bg-gray-400"
           >
             {isGenerating ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                <span>Generating...</span>
+                <span>Sharing...</span>
               </>
             ) : (
               <>
@@ -250,9 +465,6 @@ function ShareModal({ round, username, onClose }) {
           </p>
         </div>
       </div>
-      
-      {/* Hidden card for html2canvas */}
-      <ShareImageCard ref={cardRef} round={round} username={username} photoUrl={imageDataUrl} />
     </div>
   )
 }

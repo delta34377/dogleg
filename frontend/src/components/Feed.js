@@ -7,6 +7,7 @@ import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils' 
 import { getInitials } from '../utils/avatarUtils'
 import { getFeedSettings, subscribeToFeedSettings } from '../services/feedSettingsService'
+import ShareModal from './ShareModal'
 
 const Feed = forwardRef((props, ref) => {
   const [rounds, setRounds] = useState([])
@@ -16,6 +17,7 @@ const Feed = forwardRef((props, ref) => {
   const [settings, setSettings] = useState(null) // ADD THIS - was missing!
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [shareRound, setShareRound] = useState(null)
 
   // Load and subscribe to settings FIRST
   useEffect(() => {
@@ -851,10 +853,13 @@ useEffect(() => {
 
                     {/* Share button */}
                     <div className="flex gap-4 pb-0.5 pt-3 text-sm text-gray-600">
-                      <button className="flex items-center gap-2 hover:text-gray-800">
-                        <span>🔗</span>
-                        <span>Share</span>
-                      </button>
+                    <button 
+  onClick={() => setShareRound(normalizedRound)}
+  className="flex items-center gap-2 hover:text-gray-800"
+>
+  <span>🔗</span>
+  <span>Share</span>
+</button>
                     </div>
 
                     {/* Comments with EXACT gray background */}
@@ -882,6 +887,14 @@ useEffect(() => {
           </div>
         )}
       </div>
+
+      {shareRound && (
+  <ShareModal
+    round={shareRound}
+    username={shareRound.profiles?.username || 'golfer'}
+    onClose={() => setShareRound(null)}
+  />
+)}
     </div>
   )
 })

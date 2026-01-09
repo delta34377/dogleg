@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
+// Utility function to intelligently display course/club names
 const getDisplayName = (round) => {
   let courseName = round.course_name
   let clubName = round.club_name
@@ -21,16 +22,40 @@ const getDisplayName = (round) => {
   if (!courseName || courseName === 'Unknown Course' || courseName === 'Course Name N/A') {
     return clubName || 'Unknown Course'
   }
+  
   if (!clubName) return courseName
   
-  const cleanCourse = courseName.toLowerCase().replace(/golf|club|country|cc|course|resort|links/gi, '').replace(/[^a-z0-9]/g, ' ').trim()
-  const cleanClub = clubName.toLowerCase().replace(/golf|club|country|cc|course|resort|links/gi, '').replace(/[^a-z0-9]/g, ' ').trim()
+  const singleWordsThatNeedCourse = [
+    'Old', 'New', 'North', 'South', 'East', 'West',
+    'Championship', 'Palmer', 'Club', 'Woodfield',
+    'Executive', 'Blue', 'Red', 'Gold', 'Silver'
+  ]
+  
+  if (singleWordsThatNeedCourse.includes(courseName)) {
+    courseName = courseName + ' Course'
+  }
+  
+  const cleanCourse = courseName.toLowerCase()
+    .replace(/golf|club|country|cc|course|resort|links/gi, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .trim()
+  
+  const cleanClub = clubName.toLowerCase()
+    .replace(/golf|club|country|cc|course|resort|links/gi, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .trim()
+  
   const courseWords = cleanCourse.split(' ').filter(w => w.length > 2)
   const clubWords = cleanClub.split(' ').filter(w => w.length > 2)
   
   if (courseWords.length > 0) {
-    const matchingWords = courseWords.filter(word => clubWords.some(clubWord => clubWord.includes(word) || word.includes(clubWord)))
-    if (matchingWords.length / courseWords.length >= 0.7) return clubName
+    const matchingWords = courseWords.filter(word => 
+      clubWords.some(clubWord => clubWord.includes(word) || word.includes(clubWord))
+    )
+    
+    if (matchingWords.length / courseWords.length >= 0.7) {
+      return clubName
+    }
   }
   
   return `${courseName} @ ${clubName}`
@@ -45,18 +70,36 @@ function ShareModal({ round, username, onClose }) {
   const shareUrl = `https://dogleg.io/rounds/${round.short_code || round.id}`
   const photoUrl = round.photo || round.photo_url
 
+  // Helper to shrink text to fit width
+  const drawTextToFit = (ctx, text, x, y, maxWidth, initialFontSize) => {
+    let fontSize = initialFontSize
+    ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`
+    
+    // Shrink font until it fits
+    while (ctx.measureText(text).width > maxWidth && fontSize > 10) {
+      fontSize -= 1
+      ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`
+    }
+    
+    ctx.fillText(text, x, y)
+    // Reset font for next operations (optional, but good practice)
+    return fontSize
+  }
+
   const generateImage = useCallback(async (scale = 3) => {
     const W = 360 * scale
-    const H = 450 * scale
+    const H = 450 * scale // Standard 4:5 Instagram ratio
     const canvas = document.createElement('canvas')
     canvas.width = W
     canvas.height = H
     const ctx = canvas.getContext('2d')
     
-    // Scale everything
+    // Scale everything context-wise so we can use logical pixels (360x450)
     ctx.scale(scale, scale)
     
-    const photoH = 450 * 0.55
+    // --- LAYOUT CONFIGURATION ---
+    // Increase photo height percentage to reduce gray space at bottom
+    const photoH = 450 * 0.65 // 65% photo, 35% scorecard
     const scorecardH = 450 - photoH
     
     // Load photo first if exists
@@ -75,9 +118,9 @@ function ShareModal({ round, username, onClose }) {
       }
     }
     
-    // Draw photo section
+    // 1. DRAW PHOTO BACKGROUND
     if (photoImg) {
-      // Draw photo covering the area
+      // Draw photo covering the area (object-fit: cover logic)
       const imgRatio = photoImg.width / photoImg.height
       const areaRatio = 360 / photoH
       let dw, dh, dx, dy
@@ -94,11 +137,11 @@ function ShareModal({ round, username, onClose }) {
       }
       ctx.drawImage(photoImg, dx, dy, dw, dh)
       
-      // Dark overlay
+      // Dark overlay for text legibility
       const overlay = ctx.createLinearGradient(0, 0, 0, photoH)
-      overlay.addColorStop(0, 'rgba(0,0,0,0.4)')
-      overlay.addColorStop(0.4, 'rgba(0,0,0,0.15)')
-      overlay.addColorStop(1, 'rgba(0,0,0,0.5)')
+      overlay.addColorStop(0, 'rgba(0,0,0,0.6)')   // Darker at top for branding
+      overlay.addColorStop(0.3, 'rgba(0,0,0,0.2)') // Middle clear
+      overlay.addColorStop(1, 'rgba(0,0,0,0.5)')   // Bottom fade
       ctx.fillStyle = overlay
       ctx.fillRect(0, 0, 360, photoH)
     } else {
@@ -111,42 +154,55 @@ function ShareModal({ round, username, onClose }) {
       ctx.fillRect(0, 0, 360, photoH)
     }
     
-    // Text on photo section
+    // 2. TEXT & CONTENT
     ctx.fillStyle = 'white'
     ctx.textBaseline = 'top'
     
-    // Branding
+    // -- Branding (Top Left) --
     ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif'
-    ctx.fillText('🏌️ DOGLEG.IO', 14, 8)
+    ctx.fillText('🏌️ DOGLEG.IO', 16, 16)
     
-    // Bottom text area
-    const bottomY = photoH - 115
+    // -- User & Course Info (Moved UP) --
+    // We start positioning from top down now
+    let currentY = 50 
     
-    ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif'
+    // Username
+    ctx.font = '13px -apple-system, BlinkMacSystemFont, sans-serif'
     ctx.globalAlpha = 0.95
-    ctx.fillText(`${username} posted a score`, 14, bottomY)
+    ctx.fillText(`${username} posted a score`, 16, currentY)
     ctx.globalAlpha = 1
     
-    ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, sans-serif'
-    const courseName = getDisplayName(round)
-    ctx.fillText(courseName, 14, bottomY + 16)
+    currentY += 20 // Spacing
     
+    // Course Name (Auto-shrink fit)
+    const courseName = getDisplayName(round)
+    drawTextToFit(ctx, courseName, 16, currentY, 320, 28) // Max width 320px, max font 28px
+    
+    currentY += 34 // Spacing based on max font size
+    
+    // Date & Location
     const formatDate = (d) => {
       if (!d) return ''
       const [y, m, day] = d.split('T')[0].split('-')
       return `${parseInt(m)}/${parseInt(day)}/${y}`
     }
     
-    ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif'
+    ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif'
     ctx.globalAlpha = 0.9
-    ctx.fillText(`${formatDate(round.date)} • ${round.city}, ${round.state}`, 14, bottomY + 40)
+    ctx.fillText(`${formatDate(round.date)} • ${round.city}, ${round.state}`, 16, currentY)
     ctx.globalAlpha = 1
     
-    // Big score
-    ctx.font = 'bold 60px -apple-system, BlinkMacSystemFont, sans-serif'
-    ctx.fillText(String(round.total), 14, bottomY + 52)
+    currentY += 20 // Spacing before big score
     
-    // Vs par
+    // -- Big Score --
+    ctx.font = 'bold 80px -apple-system, BlinkMacSystemFont, sans-serif'
+    const scoreText = String(round.total)
+    ctx.fillText(scoreText, 14, currentY)
+    
+    // Measure width of score so we can place VsPar next to it without overlap
+    const scoreWidth = ctx.measureText(scoreText).width
+    
+    // -- Vs Par --
     const calcVsPar = () => {
       if (!round.par && !round.coursePars) return null
       let par = round.par || 72
@@ -159,20 +215,22 @@ function ShareModal({ round, username, onClose }) {
     
     const vsPar = calcVsPar()
     if (vsPar) {
-      ctx.font = 'bold 22px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif'
       ctx.fillStyle = vsPar.startsWith('-') ? '#4ade80' : vsPar.startsWith('+') ? '#fca5a5' : 'white'
-      const scoreWidth = ctx.measureText(String(round.total)).width
-      ctx.fillText(`(${vsPar})`, 14 + scoreWidth + 8, bottomY + 75)
+      
+      // Position: x = margin + scoreWidth + GAP
+      // y = align with the baseline of the big number roughly (top + offset)
+      ctx.fillText(`(${vsPar})`, 14 + scoreWidth + 15, currentY + 42) 
     }
     
-    // Scorecard section
+    // 3. SCORECARD SECTION
     const scGrad = ctx.createLinearGradient(0, photoH, 0, 450)
-    scGrad.addColorStop(0, '#e2e8f0')
-    scGrad.addColorStop(1, '#cbd5e1')
+    scGrad.addColorStop(0, '#f1f5f9') // lighter gray
+    scGrad.addColorStop(1, '#e2e8f0') // darker gray
     ctx.fillStyle = scGrad
     ctx.fillRect(0, photoH, 360, scorecardH)
     
-    // Scorecard content
+    // Scorecard content logic
     const hasHoles = round.holes && round.holes.some(h => h !== '' && h !== null)
     const pars = round.coursePars || Array(18).fill(4)
     
@@ -187,7 +245,7 @@ function ShareModal({ round, username, onClose }) {
       return { bg: '#c62828', fg: '#ffffff' }
     }
     
-    // Round rect helper
+    // Helper to draw rounded rectangles
     const roundRect = (x, y, w, h, r) => {
       ctx.beginPath()
       ctx.moveTo(x + r, y)
@@ -203,103 +261,118 @@ function ShareModal({ round, username, onClose }) {
     }
     
     if (hasHoles) {
+      // Compact scorecard drawing
       const cellW = 32
       const gap = 2
-      const startX = 8
-      let y = photoH + 6
+      const startX = 10 // center horizontally
+      
+      // Vertically center the scorecard in the available gray space
+      // Total scorecard height needed approx: 18 + 18 + 32 (front) + 10 (gap) + 18 + 18 + 32 (back) = ~150px
+      // Available space: scorecardH (~157px). It fits tightly.
+      let y = photoH + (scorecardH - 146) / 2 
       
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       
-      // Front 9 - Hole numbers
+      // --- FRONT 9 ---
+      // Hole numbers
       ctx.font = '600 10px -apple-system, BlinkMacSystemFont, sans-serif'
-      ctx.fillStyle = '#475569'
-      for (let i = 0; i < 9; i++) {
-        ctx.fillText(String(i + 1), startX + i * (cellW + gap) + cellW/2, y + 9)
-      }
-      ctx.fillText('Out', startX + 9 * (cellW + gap) + cellW/2, y + 9)
-      
-      y += 18
-      // Front 9 - Pars
-      ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
       ctx.fillStyle = '#64748b'
       for (let i = 0; i < 9; i++) {
-        ctx.fillText(String(pars[i]), startX + i * (cellW + gap) + cellW/2, y + 9)
+        ctx.fillText(String(i + 1), startX + i * (cellW + gap) + cellW/2, y)
+      }
+      ctx.fillText('Out', startX + 9 * (cellW + gap) + cellW/2, y)
+      
+      y += 14 // spacing row
+      
+      // Pars
+      ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.fillStyle = '#94a3b8'
+      for (let i = 0; i < 9; i++) {
+        ctx.fillText(String(pars[i]), startX + i * (cellW + gap) + cellW/2, y)
       }
       const frontPar = pars.slice(0, 9).reduce((a, b) => a + parseInt(b), 0)
-      ctx.fillText(String(frontPar), startX + 9 * (cellW + gap) + cellW/2, y + 9)
+      ctx.fillText(String(frontPar), startX + 9 * (cellW + gap) + cellW/2, y)
       
-      y += 18
-      // Front 9 - Scores
+      y += 20 // spacing to score box
+      
+      // Scores
       ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, sans-serif'
       for (let i = 0; i < 9; i++) {
         const score = round.holes[i]
         const colors = getScoreColor(score, pars[i])
         ctx.fillStyle = colors.bg
-        roundRect(startX + i * (cellW + gap), y, cellW, 32, 4)
+        // Draw score box
+        roundRect(startX + i * (cellW + gap), y - 10, cellW, 28, 4)
         ctx.fill()
         ctx.fillStyle = colors.fg
-        ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 16)
+        ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 4)
       }
       // Out total
       ctx.fillStyle = '#1e293b'
-      roundRect(startX + 9 * (cellW + gap), y, cellW, 32, 4)
+      roundRect(startX + 9 * (cellW + gap), y - 10, cellW, 28, 4)
       ctx.fill()
       ctx.fillStyle = 'white'
-      ctx.fillText(String(round.front9), startX + 9 * (cellW + gap) + cellW/2, y + 16)
+      ctx.fillText(String(round.front9), startX + 9 * (cellW + gap) + cellW/2, y + 4)
       
-      y += 38
-      // Back 9 - Hole numbers
+      // --- BACK 9 ---
+      y += 42 // Gap between front and back 9 rows
+      
+      // Hole numbers
       ctx.font = '600 10px -apple-system, BlinkMacSystemFont, sans-serif'
-      ctx.fillStyle = '#475569'
-      for (let i = 0; i < 9; i++) {
-        ctx.fillText(String(i + 10), startX + i * (cellW + gap) + cellW/2, y + 9)
-      }
-      ctx.fillText('In', startX + 9 * (cellW + gap) + cellW/2, y + 9)
-      
-      y += 18
-      // Back 9 - Pars
-      ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
       ctx.fillStyle = '#64748b'
       for (let i = 0; i < 9; i++) {
-        ctx.fillText(String(pars[i + 9]), startX + i * (cellW + gap) + cellW/2, y + 9)
+        ctx.fillText(String(i + 10), startX + i * (cellW + gap) + cellW/2, y)
+      }
+      ctx.fillText('In', startX + 9 * (cellW + gap) + cellW/2, y)
+      
+      y += 14
+      
+      // Pars
+      ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.fillStyle = '#94a3b8'
+      for (let i = 0; i < 9; i++) {
+        ctx.fillText(String(pars[i + 9]), startX + i * (cellW + gap) + cellW/2, y)
       }
       const backPar = pars.slice(9, 18).reduce((a, b) => a + parseInt(b), 0)
-      ctx.fillText(String(backPar), startX + 9 * (cellW + gap) + cellW/2, y + 9)
+      ctx.fillText(String(backPar), startX + 9 * (cellW + gap) + cellW/2, y)
       
-      y += 18
-      // Back 9 - Scores
+      y += 20
+      
+      // Scores
       ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, sans-serif'
       for (let i = 0; i < 9; i++) {
         const score = round.holes[i + 9]
         const colors = getScoreColor(score, pars[i + 9])
         ctx.fillStyle = colors.bg
-        roundRect(startX + i * (cellW + gap), y, cellW, 32, 4)
+        roundRect(startX + i * (cellW + gap), y - 10, cellW, 28, 4)
         ctx.fill()
         ctx.fillStyle = colors.fg
-        ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 16)
+        ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 4)
       }
       // In total
       ctx.fillStyle = '#1e293b'
-      roundRect(startX + 9 * (cellW + gap), y, cellW, 32, 4)
+      roundRect(startX + 9 * (cellW + gap), y - 10, cellW, 28, 4)
       ctx.fill()
       ctx.fillStyle = 'white'
-      ctx.fillText(String(round.back9), startX + 9 * (cellW + gap) + cellW/2, y + 16)
+      ctx.fillText(String(round.back9), startX + 9 * (cellW + gap) + cellW/2, y + 4)
       
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
+      
     } else {
-      // Simple front/back display
+      // Fallback display (Front/Back/Total)
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       const centerY = photoH + scorecardH / 2
       
-      // Front 9 box
+      // Draw 2 simple boxes
+      // Front 9
       ctx.fillStyle = 'white'
       roundRect(80, centerY - 35, 80, 70, 12)
       ctx.fill()
       
-      // Back 9 box
+      // Back 9
       roundRect(200, centerY - 35, 80, 70, 12)
       ctx.fill()
       

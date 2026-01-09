@@ -74,6 +74,7 @@ function ShareModal({ round, username, onClose }) {
   const [linkCopied, setLinkCopied] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [imageDataUrl, setImageDataUrl] = useState(null)
+  const [debugStatus, setDebugStatus] = useState('Starting...')
   const cardRef = useRef(null)
   
   const shareUrl = `https://dogleg.io/rounds/${round.short_code || round.id}`
@@ -88,8 +89,10 @@ function ShareModal({ round, username, onClose }) {
       let loadedImageUrl = null
       
       if (photoUrl) {
+        setDebugStatus('Loading photo...')
         try {
           const response = await fetch(photoUrl)
+          setDebugStatus('Photo fetched, converting...')
           const blob = await response.blob()
           loadedImageUrl = await new Promise((resolve) => {
             const reader = new FileReader()
@@ -97,19 +100,31 @@ function ShareModal({ round, username, onClose }) {
             reader.onerror = () => resolve(null)
             reader.readAsDataURL(blob)
           })
+          setDebugStatus('Photo converted')
         } catch (e) {
+          setDebugStatus('Photo load failed, continuing...')
           console.log('Could not load photo, continuing without it')
         }
+      } else {
+        setDebugStatus('No photo to load')
       }
       
       if (!isMounted) return
       setImageDataUrl(loadedImageUrl)
       
       // Step 2: Wait for React to render the card with the image
+      setDebugStatus('Waiting for render...')
       await new Promise(r => setTimeout(r, 300))
       
       // Step 3: Generate preview
-      if (!isMounted || !cardRef.current) return
+      if (!isMounted) return
+      
+      if (!cardRef.current) {
+        setDebugStatus('ERROR: cardRef is null!')
+        return
+      }
+      
+      setDebugStatus('Generating preview...')
       
       try {
         const canvas = await html2canvas(cardRef.current, {
@@ -119,11 +134,13 @@ function ShareModal({ round, username, onClose }) {
           backgroundColor: '#e2e8f0',
         })
         if (isMounted) {
+          setDebugStatus('Done!')
           setPreviewUrl(canvas.toDataURL('image/png'))
         }
       } catch (e) {
         console.error('Preview generation failed:', e)
         if (isMounted) {
+          setDebugStatus('ERROR: ' + e.message)
           setPreviewUrl('error')
         }
       }
@@ -222,8 +239,9 @@ function ShareModal({ round, username, onClose }) {
                 <p className="text-gray-600 text-sm">Preview unavailable</p>
               </div>
             ) : (
-              <div className="bg-gray-200 aspect-[4/5] flex items-center justify-center">
+              <div className="bg-gray-200 aspect-[4/5] flex flex-col items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                <p className="text-xs text-gray-500 mt-2">{debugStatus}</p>
               </div>
             )}
           </div>

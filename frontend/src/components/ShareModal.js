@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import html2canvas from 'html2canvas'
 import ShareImageCard from './ShareImageCard'
 
@@ -11,10 +10,16 @@ const getDisplayName = (round) => {
   const toProperCase = (str) => {
     if (!str) return str
     if (str === str.toUpperCase() && str.length > 2) {
-      return str.toLowerCase().split(' ').map((word, index) => {
-        if (index > 0 && ['of', 'at', 'the'].includes(word)) return word
-        return word.charAt(0).toUpperCase() + word.slice(1)
-      }).join(' ')
+      return str
+        .toLowerCase()
+        .split(' ')
+        .map((word, index) => {
+          if (index > 0 && ['of', 'at', 'the'].includes(word)) {
+            return word
+          }
+          return word.charAt(0).toUpperCase() + word.slice(1)
+        })
+        .join(' ')
     }
     return str
   }
@@ -69,91 +74,65 @@ function ShareModal({ round, username, onClose }) {
   const [linkCopied, setLinkCopied] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)
   const [imageDataUrl, setImageDataUrl] = useState(null)
-  const [imageLoaded, setImageLoaded] = useState(false)
   const cardRef = useRef(null)
   
   const shareUrl = `https://dogleg.io/rounds/${round.short_code || round.id}`
   const photoUrl = round.photo || round.photo_url
-  
-  // Load image first if exists
+
+  // Load image and generate preview
   useEffect(() => {
-    const loadImage = async () => {
-      if (!photoUrl) {
-        setImageLoaded(true)
-        return
-      }
-      
-      // Set a timeout - if image doesn't load in 3 seconds, continue without it
-      const timeout = setTimeout(() => {
-        console.log('Image load timeout, continuing without photo')
-        setImageLoaded(true)
-      }, 3000)
-      
-      try {
-        const response = await fetch(photoUrl) // Standard fetch is usually fine with blob conversion
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        
-        const blob = await response.blob()
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          clearTimeout(timeout)
-          setImageDataUrl(reader.result)
-          setImageLoaded(true)
-        }
-        reader.onerror = () => {
-          clearTimeout(timeout)
-          setImageLoaded(true)
-        }
-        reader.readAsDataURL(blob)
-      } catch (error) {
-        clearTimeout(timeout)
-        console.error('Error loading image:', error)
-        setImageLoaded(true) // Continue without image
-      }
-    }
+    let isMounted = true
     
-    loadImage()
-  }, [photoUrl])
-  
-  // Generate preview once image is loaded
-  useEffect(() => {
-    if (imageLoaded) {
-      // Small delay to ensure React has rendered the card
-      const timer = setTimeout(() => {
-        generatePreview()
-      }, 300)
-      return () => clearTimeout(timer)
-    }
-  }, [imageLoaded, imageDataUrl])
-  
-  const generatePreview = async () => {
-    if (cardRef.current) {
+    const loadAndGenerate = async () => {
+      // Step 1: Load photo if exists
+      let loadedImageUrl = null
+      
+      if (photoUrl) {
+        try {
+          const response = await fetch(photoUrl)
+          const blob = await response.blob()
+          loadedImageUrl = await new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result)
+            reader.onerror = () => resolve(null)
+            reader.readAsDataURL(blob)
+          })
+        } catch (e) {
+          console.log('Could not load photo, continuing without it')
+        }
+      }
+      
+      if (!isMounted) return
+      setImageDataUrl(loadedImageUrl)
+      
+      // Step 2: Wait for React to render the card with the image
+      await new Promise(r => setTimeout(r, 300))
+      
+      // Step 3: Generate preview
+      if (!isMounted || !cardRef.current) return
+      
       try {
-        // CHANGED: Use scale 1 for preview (faster on mobile)
         const canvas = await html2canvas(cardRef.current, {
-          scale: 1, 
+          scale: 2,
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#e2e8f0',
-          logging: false,
         })
-        setPreviewUrl(canvas.toDataURL('image/png'))
-      } catch (error) {
-        console.error('Error generating preview:', error)
-        // Try one more time with super basic settings if first fails
-        try {
-          const canvas = await html2canvas(cardRef.current, {
-            scale: 0.8,
-            backgroundColor: '#e2e8f0',
-          })
+        if (isMounted) {
           setPreviewUrl(canvas.toDataURL('image/png'))
-        } catch (retryError) {
-          console.error('Retry failed:', retryError)
+        }
+      } catch (e) {
+        console.error('Preview generation failed:', e)
+        if (isMounted) {
           setPreviewUrl('error')
         }
       }
     }
-  }
+    
+    loadAndGenerate()
+    
+    return () => { isMounted = false }
+  }, [photoUrl])
   
   const handleCopyLink = async () => {
     try {
@@ -161,7 +140,6 @@ function ShareModal({ round, username, onClose }) {
       setLinkCopied(true)
       setTimeout(() => setLinkCopied(false), 2000)
     } catch (error) {
-      console.error('Failed to copy link:', error)
       const textArea = document.createElement('textarea')
       textArea.value = shareUrl
       document.body.appendChild(textArea)
@@ -177,17 +155,13 @@ function ShareModal({ round, username, onClose }) {
     setIsGenerating(true)
     
     try {
-      if (!cardRef.current) {
-        throw new Error('Card ref not available')
-      }
+      if (!cardRef.current) throw new Error('Card not ready')
       
-      // Keep high quality for the actual share
       const canvas = await html2canvas(cardRef.current, {
-        scale: 3, 
+        scale: 3,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#e2e8f0',
-        logging: false,
       })
       
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
@@ -207,7 +181,6 @@ function ShareModal({ round, username, onClose }) {
         }
       }
       
-      // Fallback: download
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -243,17 +216,10 @@ function ShareModal({ round, username, onClose }) {
         <div className="p-4">
           <div className="rounded-lg overflow-hidden shadow-lg mx-auto" style={{ maxWidth: '280px' }}>
             {previewUrl && previewUrl !== 'error' ? (
-              <img 
-                src={previewUrl} 
-                alt="Share preview" 
-                className="w-full h-auto"
-              />
+              <img src={previewUrl} alt="Share preview" className="w-full h-auto" />
             ) : previewUrl === 'error' ? (
               <div className="bg-gray-200 aspect-[4/5] flex items-center justify-center p-4 text-center">
-                <div>
-                  <p className="text-gray-600 text-sm">Preview unavailable</p>
-                  <p className="text-gray-500 text-xs mt-1">You can still share the image</p>
-                </div>
+                <p className="text-gray-600 text-sm">Preview unavailable</p>
               </div>
             ) : (
               <div className="bg-gray-200 aspect-[4/5] flex items-center justify-center">
@@ -265,7 +231,6 @@ function ShareModal({ round, username, onClose }) {
         
         {/* Share Options */}
         <div className="p-4 space-y-3">
-          {/* Copy Link */}
           <button
             onClick={handleCopyLink}
             className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
@@ -287,10 +252,9 @@ function ShareModal({ round, username, onClose }) {
             )}
           </button>
           
-          {/* Share/Download Image */}
           <button
             onClick={handleShareImage}
-            disabled={isGenerating || !imageLoaded}
+            disabled={isGenerating || !previewUrl || previewUrl === 'error'}
             className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:bg-gray-400"
           >
             {isGenerating ? (
@@ -314,16 +278,13 @@ function ShareModal({ round, username, onClose }) {
         </div>
       </div>
       
-      {/* Hidden card for html2canvas - rendered at body level */}
-      {createPortal(
-        <ShareImageCard 
-          ref={cardRef}
-          round={round}
-          username={username}
-          photoUrl={imageDataUrl}
-        />,
-        document.body
-      )}
+      {/* Hidden card for html2canvas */}
+      <ShareImageCard 
+        ref={cardRef}
+        round={round}
+        username={username}
+        photoUrl={imageDataUrl}
+      />
     </div>
   )
 }

@@ -49,7 +49,6 @@ function ShareModal({ round, username, onClose }) {
   const shareUrl = `https://dogleg.io/rounds/${round.short_code || round.id}`
   const photoUrl = round.photo || round.photo_url
 
-  // Step 1: Load and compress photo
   useEffect(() => {
     if (!photoUrl) {
       setPhotoLoaded(true)
@@ -75,7 +74,6 @@ function ShareModal({ round, username, onClose }) {
     img.src = photoUrl
   }, [photoUrl])
 
-  // Step 2: Generate preview after photo loads and card renders
   useEffect(() => {
     if (!photoLoaded || !cardRef.current) return
     
@@ -85,7 +83,7 @@ function ShareModal({ round, username, onClose }) {
           scale: 2,
           useCORS: true,
           allowTaint: true,
-          backgroundColor: '#9fb1c7',
+          backgroundColor: '#e2e8f0',
         })
         setPreviewUrl(canvas.toDataURL('image/png'))
       } catch (e) {
@@ -120,7 +118,7 @@ function ShareModal({ round, username, onClose }) {
         scale: 3,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#9fb1c7',
+        backgroundColor: '#e2e8f0',
       })
       
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))

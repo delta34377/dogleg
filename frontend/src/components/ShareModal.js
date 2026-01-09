@@ -85,7 +85,7 @@ function ShareModal({ round, username, onClose }) {
           scale: 2,
           useCORS: true,
           allowTaint: true,
-          backgroundColor: '#e2e8f0',
+          backgroundColor: null,
         })
         setPreviewUrl(canvas.toDataURL('image/png'))
       } catch (e) {
@@ -120,7 +120,7 @@ function ShareModal({ round, username, onClose }) {
         scale: 3,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#e2e8f0',
+        backgroundColor: null,
       })
       
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))

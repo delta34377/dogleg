@@ -6,14 +6,57 @@ function ShareModal({ round, username, onClose }) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [imageDataUrl, setImageDataUrl] = useState(null)
+  const [imageLoaded, setImageLoaded] = useState(false)
   const cardRef = useRef(null)
   
   const shareUrl = `https://dogleg.io/rounds/${round.short_code || round.id}`
+  const photoUrl = round.photo || round.photo_url
   
-  // Generate preview on mount
+  // Debug logging
+  console.log('ShareModal round:', round)
+  console.log('Photo URL:', photoUrl)
+  
+  // Load image first if exists
   useEffect(() => {
-    generatePreview()
-  }, [])
+    const loadImage = async () => {
+      if (!photoUrl) {
+        console.log('No photo URL found')
+        setImageLoaded(true)
+        return
+      }
+      
+      try {
+        console.log('Fetching photo from:', photoUrl)
+        const response = await fetch(photoUrl)
+        console.log('Fetch response:', response.status, response.ok)
+        const blob = await response.blob()
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          console.log('Image converted to data URL, length:', reader.result?.length)
+          setImageDataUrl(reader.result)
+          setImageLoaded(true)
+        }
+        reader.readAsDataURL(blob)
+      } catch (error) {
+        console.error('Error loading image:', error)
+        setImageLoaded(true) // Continue without image
+      }
+    }
+    
+    loadImage()
+  }, [photoUrl])
+  
+  // Generate preview once image is loaded
+  useEffect(() => {
+    if (imageLoaded) {
+      // Small delay to ensure React has rendered the card with the image
+      const timer = setTimeout(() => {
+        generatePreview()
+      }, 200)
+      return () => clearTimeout(timer)
+    }
+  }, [imageLoaded, imageDataUrl])
   
   const generatePreview = async () => {
     // Small delay to ensure the card is rendered
@@ -121,19 +164,33 @@ function ShareModal({ round, username, onClose }) {
         
         {/* Preview */}
         <div className="p-4">
-          <div className="rounded-lg overflow-hidden shadow-lg mx-auto" style={{ maxWidth: '280px' }}>
+          <div className="rounded-lg overflow-hidden shadow-lg mx-auto relative" style={{ maxWidth: '280px' }}>
             {previewUrl ? (
-              <img 
-                src={previewUrl} 
-                alt="Share preview" 
-                className="w-full h-auto"
-              />
+              <>
+                <img 
+                  src={previewUrl} 
+                  alt="Share preview" 
+                  className="w-full h-auto"
+                />
+                <button
+                  onClick={generatePreview}
+                  className="absolute top-2 right-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-1.5 shadow"
+                  title="Refresh preview"
+                >
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </>
             ) : (
               <div className="bg-gray-100 aspect-[4/5] flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
               </div>
             )}
           </div>
+          {(round.photo || round.photo_url) && !previewUrl && (
+            <p className="text-xs text-center text-gray-500 mt-2">Loading image...</p>
+          )}
         </div>
         
         {/* Share Options */}
@@ -192,7 +249,7 @@ function ShareModal({ round, username, onClose }) {
         ref={cardRef}
         round={round}
         username={username}
-        photoUrl={round.photo}
+        photoUrl={imageDataUrl}
       />
     </div>
   )

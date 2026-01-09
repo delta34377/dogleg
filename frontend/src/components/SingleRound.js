@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext'
 import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils'
 import { getInitials } from '../utils/avatarUtils'
+import ShareModal from './ShareModal'
 
 
 function SingleRound() {
@@ -14,6 +15,7 @@ function SingleRound() {
   const [isLoading, setIsLoading] = useState(true)
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [shareRound, setShareRound] = useState(null)
 
   // Your exact reaction system from MyRounds
   const reactionEmojis = {
@@ -676,37 +678,26 @@ function SingleRound() {
                 {/* Share button */}
                 <div className="flex gap-4 pb-0.5 pt-3 text-sm text-gray-600">
                   <button 
-                    onClick={async () => {
-const shareUrl = `${window.location.origin}/rounds/${round.short_code}`
-                      
-                      if (navigator.share) {
-                        try {
-                          await navigator.share({
-                            title: 'Check out this golf round on Dogleg',
-                            url: shareUrl
-                          })
-                        } catch (err) {
-                          if (err.name !== 'AbortError') {
-                            navigator.clipboard.writeText(shareUrl)
-                            alert('Link copied to clipboard!')
-                          }
-                        }
-                      } else {
-                        navigator.clipboard.writeText(shareUrl)
-                        alert('Link copied to clipboard!')
-                      }
-                    }}
-                    className="flex items-center gap-2 hover:text-gray-800"
-                  >
-                    <span>🔗</span>
-                    <span>Share</span>
-                  </button>
+  onClick={() => setShareRound(normalizedRound)}
+  className="flex items-center gap-2 hover:text-gray-800"
+>
+  <span>🔗</span>
+  <span>Share</span>
+</button>
                 </div>
 
                 {/* Comments with EXACT gray background */}
                 <CommentsSection round={round} roundId={round.id} />
               </div>
             </div>
+
+            {shareRound && (
+  <ShareModal
+    round={shareRound}
+    username={profile?.username || 'golfer'}
+    onClose={() => setShareRound(null)}
+  />
+)}
           </div>
     
   )

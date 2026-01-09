@@ -104,10 +104,16 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
         style={{
           position: 'relative',
           height: '50%',
-          backgroundImage: hasPhoto ? `url(${photoUrl})` : 'none',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          background: hasPhoto ? undefined : 'linear-gradient(135deg, #166534 0%, #15803d 40%, #14532d 100%)',
+          ...(hasPhoto 
+            ? {
+                backgroundImage: `url(${photoUrl})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
+            : {
+                background: 'linear-gradient(135deg, #166534 0%, #15803d 40%, #14532d 100%)',
+              }
+          ),
         }}
       >
         {/* Overlay */}

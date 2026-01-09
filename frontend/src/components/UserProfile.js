@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils' 
 import { getInitials } from '../utils/avatarUtils'
+import ShareModal from './ShareModal'
 
 
 
@@ -21,6 +22,7 @@ function UserProfile() {
   const [hasMore, setHasMore] = useState(true)
   const [offset, setOffset] = useState(0)
   const [isFollowing, setIsFollowing] = useState(false)
+  const [shareRound, setShareRound] = useState(null)
   
   // EXACT reaction system from MyRounds
   const reactionEmojis = {
@@ -956,10 +958,13 @@ function UserProfile() {
 
                         {/* Share button */}
                                             <div className="flex gap-4 pb-0.5 pt-3 text-sm text-gray-600">
-                      <button className="flex items-center gap-2 hover:text-gray-800">
-                            <span>🔗</span>
-                            <span>Share</span>
-                          </button>
+                      <button 
+  onClick={() => setShareRound(round)}
+  className="flex items-center gap-2 hover:text-gray-800"
+>
+  <span>🔗</span>
+  <span>Share</span>
+</button>
                         </div>
 
                         {/* Comments with EXACT gray background */}
@@ -1005,6 +1010,14 @@ function UserProfile() {
           onClose={() => setShowFollowing(false)}
         />
       )}
+
+      {shareRound && (
+  <ShareModal
+    round={shareRound}
+    username={profileUser?.username || 'golfer'}
+    onClose={() => setShareRound(null)}
+  />
+)}
     </div>
   )
 }

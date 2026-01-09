@@ -1,5 +1,72 @@
 import { forwardRef } from 'react'
 
+// Utility function to intelligently display course/club names
+const getDisplayName = (round) => {
+  let courseName = round.course_name
+  let clubName = round.club_name
+  
+  const toProperCase = (str) => {
+    if (!str) return str
+    if (str === str.toUpperCase() && str.length > 2) {
+      return str
+        .toLowerCase()
+        .split(' ')
+        .map((word, index) => {
+          if (index > 0 && ['of', 'at', 'the'].includes(word)) {
+            return word
+          }
+          return word.charAt(0).toUpperCase() + word.slice(1)
+        })
+        .join(' ')
+    }
+    return str
+  }
+  
+  courseName = toProperCase(courseName)
+  clubName = toProperCase(clubName)
+  
+  if (!courseName || courseName === 'Unknown Course' || courseName === 'Course Name N/A') {
+    return clubName || 'Unknown Course'
+  }
+  
+  if (!clubName) return courseName
+  
+  const singleWordsThatNeedCourse = [
+    'Old', 'New', 'North', 'South', 'East', 'West',
+    'Championship', 'Palmer', 'Club', 'Woodfield',
+    'Executive', 'Blue', 'Red', 'Gold', 'Silver'
+  ]
+  
+  if (singleWordsThatNeedCourse.includes(courseName)) {
+    courseName = courseName + ' Course'
+  }
+  
+  const cleanCourse = courseName.toLowerCase()
+    .replace(/golf|club|country|cc|course|resort|links/gi, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .trim()
+  
+  const cleanClub = clubName.toLowerCase()
+    .replace(/golf|club|country|cc|course|resort|links/gi, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .trim()
+  
+  const courseWords = cleanCourse.split(' ').filter(w => w.length > 2)
+  const clubWords = cleanClub.split(' ').filter(w => w.length > 2)
+  
+  if (courseWords.length > 0) {
+    const matchingWords = courseWords.filter(word => 
+      clubWords.some(clubWord => clubWord.includes(word) || word.includes(clubWord))
+    )
+    
+    if (matchingWords.length / courseWords.length >= 0.7) {
+      return clubName
+    }
+  }
+  
+  return `${courseName} @ ${clubName}`
+}
+
 const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
   // Calculate vs par
   const calculateVsPar = () => {
@@ -74,36 +141,28 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
     triple: { background: '#c62828', color: 'white' },
   }
 
-  // Get display name
-  const getDisplayName = () => {
-    if (round.course_name && round.club_name && round.course_name !== round.club_name) {
-      return `${round.club_name} - ${round.course_name}`
-    }
-    return round.course_name || round.club_name || 'Golf Course'
-  }
-
   return (
     <div 
       ref={ref}
       style={{
         width: '360px',
-        height: '480px',
+        height: '450px',
         borderRadius: '16px',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        background: '#f8fafc',
+        background: '#e2e8f0',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         position: 'absolute',
         left: '-9999px',
         top: '-9999px',
       }}
     >
-      {/* Photo section (top) */}
+      {/* Photo section (top) - 58% */}
       <div 
         style={{
           position: 'relative',
-          height: '50%',
+          height: '58%',
           ...(hasPhoto 
             ? {
                 backgroundImage: `url(${photoUrl})`,
@@ -167,14 +226,14 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
             </div>
             <div 
               style={{ 
-                fontSize: '26px', 
+                fontSize: '24px', 
                 fontWeight: 700, 
                 lineHeight: 1.15, 
                 marginBottom: '4px',
                 textShadow: '0 1px 3px rgba(0,0,0,0.8), 0 2px 8px rgba(0,0,0,0.5)',
               }}
             >
-              {getDisplayName()}
+              {getDisplayName(round)}
             </div>
             <div 
               style={{ 
@@ -219,8 +278,8 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
       <div 
         style={{
           flex: 1,
-          background: '#f8fafc',
-          padding: '10px 14px',
+          background: '#e2e8f0',
+          padding: '8px 10px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
@@ -229,11 +288,11 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
         {hasHoleByHole ? (
           <>
             {/* Front 9 */}
-            <div style={{ marginBottom: '4px' }}>
+            <div style={{ marginBottom: '2px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '2px' }}>
                 {[1,2,3,4,5,6,7,8,9,'Out'].map(h => (
                   <div key={`f-hole-${h}`} style={{ 
-                    height: '18px',
+                    height: '14px',
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
@@ -248,7 +307,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '2px' }}>
                 {pars.slice(0,9).map((p, i) => (
                   <div key={`f-par-${i}`} style={{ 
-                    height: '18px',
+                    height: '14px',
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
@@ -259,7 +318,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
                   </div>
                 ))}
                 <div style={{ 
-                  height: '18px',
+                  height: '14px',
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
@@ -275,7 +334,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
                   const colors = scoreColors[scoreClass] || scoreColors['par-score']
                   return (
                     <div key={`f-score-${i}`} style={{ 
-                      height: '28px',
+                      height: '26px',
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center',
@@ -291,7 +350,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
                   )
                 })}
                 <div style={{ 
-                  height: '28px',
+                  height: '26px',
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
@@ -307,11 +366,11 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
             </div>
             
             {/* Back 9 */}
-            <div style={{ marginTop: '6px' }}>
+            <div style={{ marginTop: '4px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '2px' }}>
                 {[10,11,12,13,14,15,16,17,18,'In'].map(h => (
                   <div key={`b-hole-${h}`} style={{ 
-                    height: '18px',
+                    height: '14px',
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
@@ -326,7 +385,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '2px' }}>
                 {pars.slice(9,18).map((p, i) => (
                   <div key={`b-par-${i}`} style={{ 
-                    height: '18px',
+                    height: '14px',
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'center',
@@ -337,7 +396,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
                   </div>
                 ))}
                 <div style={{ 
-                  height: '18px',
+                  height: '14px',
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',
@@ -353,7 +412,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
                   const colors = scoreColors[scoreClass] || scoreColors['par-score']
                   return (
                     <div key={`b-score-${i}`} style={{ 
-                      height: '28px',
+                      height: '26px',
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'center',
@@ -369,7 +428,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
                   )
                 })}
                 <div style={{ 
-                  height: '28px',
+                  height: '26px',
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'center',

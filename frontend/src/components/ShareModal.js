@@ -2,6 +2,73 @@ import { useState, useRef, useEffect } from 'react'
 import html2canvas from 'html2canvas'
 import ShareImageCard from './ShareImageCard'
 
+// Utility function to intelligently display course/club names
+const getDisplayName = (round) => {
+  let courseName = round.course_name
+  let clubName = round.club_name
+  
+  const toProperCase = (str) => {
+    if (!str) return str
+    if (str === str.toUpperCase() && str.length > 2) {
+      return str
+        .toLowerCase()
+        .split(' ')
+        .map((word, index) => {
+          if (index > 0 && ['of', 'at', 'the'].includes(word)) {
+            return word
+          }
+          return word.charAt(0).toUpperCase() + word.slice(1)
+        })
+        .join(' ')
+    }
+    return str
+  }
+  
+  courseName = toProperCase(courseName)
+  clubName = toProperCase(clubName)
+  
+  if (!courseName || courseName === 'Unknown Course' || courseName === 'Course Name N/A') {
+    return clubName || 'Unknown Course'
+  }
+  
+  if (!clubName) return courseName
+  
+  const singleWordsThatNeedCourse = [
+    'Old', 'New', 'North', 'South', 'East', 'West',
+    'Championship', 'Palmer', 'Club', 'Woodfield',
+    'Executive', 'Blue', 'Red', 'Gold', 'Silver'
+  ]
+  
+  if (singleWordsThatNeedCourse.includes(courseName)) {
+    courseName = courseName + ' Course'
+  }
+  
+  const cleanCourse = courseName.toLowerCase()
+    .replace(/golf|club|country|cc|course|resort|links/gi, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .trim()
+  
+  const cleanClub = clubName.toLowerCase()
+    .replace(/golf|club|country|cc|course|resort|links/gi, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .trim()
+  
+  const courseWords = cleanCourse.split(' ').filter(w => w.length > 2)
+  const clubWords = cleanClub.split(' ').filter(w => w.length > 2)
+  
+  if (courseWords.length > 0) {
+    const matchingWords = courseWords.filter(word => 
+      clubWords.some(clubWord => clubWord.includes(word) || word.includes(clubWord))
+    )
+    
+    if (matchingWords.length / courseWords.length >= 0.7) {
+      return clubName
+    }
+  }
+  
+  return `${courseName} @ ${clubName}`
+}
+
 function ShareModal({ round, username, onClose }) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
@@ -13,27 +80,19 @@ function ShareModal({ round, username, onClose }) {
   const shareUrl = `https://dogleg.io/rounds/${round.short_code || round.id}`
   const photoUrl = round.photo || round.photo_url
   
-  // Debug logging
-  console.log('ShareModal round:', round)
-  console.log('Photo URL:', photoUrl)
-  
   // Load image first if exists
   useEffect(() => {
     const loadImage = async () => {
       if (!photoUrl) {
-        console.log('No photo URL found')
         setImageLoaded(true)
         return
       }
       
       try {
-        console.log('Fetching photo from:', photoUrl)
         const response = await fetch(photoUrl)
-        console.log('Fetch response:', response.status, response.ok)
         const blob = await response.blob()
         const reader = new FileReader()
         reader.onloadend = () => {
-          console.log('Image converted to data URL, length:', reader.result?.length)
           setImageDataUrl(reader.result)
           setImageLoaded(true)
         }
@@ -122,7 +181,7 @@ function ShareModal({ round, username, onClose }) {
           await navigator.share({
             files: [file],
             title: 'My Golf Round',
-            text: `I shot ${round.total} at ${round.course_name || round.club_name}! Check it out on Dogleg.io`,
+            text: `I shot ${round.total} at ${getDisplayName(round)}! Check it out on Dogleg.io`,
           })
           setIsGenerating(false)
           onClose()
@@ -164,33 +223,19 @@ function ShareModal({ round, username, onClose }) {
         
         {/* Preview */}
         <div className="p-4">
-          <div className="rounded-lg overflow-hidden shadow-lg mx-auto relative" style={{ maxWidth: '280px' }}>
+          <div className="rounded-lg overflow-hidden shadow-lg mx-auto" style={{ maxWidth: '280px' }}>
             {previewUrl ? (
-              <>
-                <img 
-                  src={previewUrl} 
-                  alt="Share preview" 
-                  className="w-full h-auto"
-                />
-                <button
-                  onClick={generatePreview}
-                  className="absolute top-2 right-2 bg-white bg-opacity-80 hover:bg-opacity-100 rounded-full p-1.5 shadow"
-                  title="Refresh preview"
-                >
-                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </button>
-              </>
+              <img 
+                src={previewUrl} 
+                alt="Share preview" 
+                className="w-full h-auto"
+              />
             ) : (
-              <div className="bg-gray-100 aspect-[4/5] flex items-center justify-center">
+              <div className="bg-gray-200 aspect-[4/5] flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
               </div>
             )}
           </div>
-          {(round.photo || round.photo_url) && !previewUrl && (
-            <p className="text-xs text-center text-gray-500 mt-2">Loading image...</p>
-          )}
         </div>
         
         {/* Share Options */}

@@ -332,43 +332,43 @@ date: roundData.date + 'T00:00:00',
 
       <div className="p-6">
         {/* Date and Tees Row */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Date Played
-            </label>
-            <input
-              type="date"
-              value={roundData.date}
-              onChange={(e) => setRoundData(prev => ({ ...prev, date: e.target.value }))}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
-              max={new Date().toISOString().split('T')[0]}
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tees (optional)
-            </label>
-            <select
-              value={selectedTee?.tee_id || ''}
-              onChange={(e) => {
-                const tee = tees.find(t => t.tee_id === e.target.value)
-                setSelectedTee(tee)
-              }}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
-            >
-              <option value="">Select tees...</option>
-              {tees.map(tee => (
-                <option key={tee.tee_id} value={tee.tee_id}>
-                  {tee.tee_name || tee.tee_color}
-                  {tee.total_length && ` • ${tee.total_length}${tee.measure_unit || 'y'}`}
-                  {tee.slope && ` • ${tee.slope}/${tee.course_rating || ''}`}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+<div className="grid grid-cols-2 gap-4 mb-6">
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      Date Played
+    </label>
+    <input
+      type="date"
+      value={roundData.date}
+      onChange={(e) => setRoundData(prev => ({ ...prev, date: e.target.value }))}
+      className="w-full px-3 py-2 border rounded-lg text-sm h-[42px] appearance-none bg-white"
+      max={new Date().toISOString().split('T')[0]}
+    />
+  </div>
+  
+  <div>
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      Tees (optional)
+    </label>
+    <select
+      value={selectedTee?.tee_id || ''}
+      onChange={(e) => {
+        const tee = tees.find(t => t.tee_id === e.target.value)
+        setSelectedTee(tee)
+      }}
+      className="w-full px-3 py-2 border rounded-lg text-sm h-[42px] appearance-none bg-white"
+    >
+      <option value="">Select tees...</option>
+      {tees.map(tee => (
+        <option key={tee.tee_id} value={tee.tee_id}>
+          {tee.tee_name || tee.tee_color}
+          {tee.total_length && ` • ${tee.total_length}${tee.measure_unit || 'y'}`}
+          {tee.slope && ` • ${tee.slope}/${tee.course_rating || ''}`}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
 
         {/* Score Entry Mode Toggle */}
         <div className="mb-4">

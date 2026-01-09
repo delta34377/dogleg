@@ -151,6 +151,13 @@ function ShareModal({ round, username, onClose }) {
     ctx.fillStyle = 'white'
     ctx.textBaseline = 'top'
     
+    // --- ADDED: Drop Shadow for legibility on white photos ---
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)'
+    ctx.shadowBlur = 4
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 1
+    // --------------------------------------------------------
+    
     // -- Top Section --
     ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif'
     ctx.fillText('🏌️ DOGLEG.IO', 16, 16)
@@ -211,6 +218,14 @@ function ShareModal({ round, username, onClose }) {
     }
     
     // 3. SCORECARD SECTION
+    
+    // --- RESET SHADOWS (Important: Scorecard shouldn't have drop shadows) ---
+    ctx.shadowColor = 'transparent'
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetX = 0
+    ctx.shadowOffsetY = 0
+    // ------------------------------------------------------------------------
+
     const scGrad = ctx.createLinearGradient(0, photoH, 0, 450)
     scGrad.addColorStop(0, '#f1f5f9')
     scGrad.addColorStop(1, '#e2e8f0')
@@ -286,7 +301,7 @@ function ShareModal({ round, username, onClose }) {
         ctx.fillStyle = colors.fg
         ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 4)
       }
-      // Out total (FIXED: Added fallback to '-' to prevent "null")
+      // Out total
       ctx.fillStyle = '#1e293b'
       roundRect(startX + 9 * (cellW + gap), y - 10, cellW, 28, 4)
       ctx.fill()
@@ -325,7 +340,7 @@ function ShareModal({ round, username, onClose }) {
         ctx.fillStyle = colors.fg
         ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 4)
       }
-      // In total (FIXED: Added fallback to '-' to prevent "null")
+      // In total
       ctx.fillStyle = '#1e293b'
       roundRect(startX + 9 * (cellW + gap), y - 10, cellW, 28, 4)
       ctx.fill()

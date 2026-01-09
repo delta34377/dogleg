@@ -61,8 +61,7 @@ const getDisplayName = (round) => {
   return `${courseName} @ ${clubName}`
 }
 
-// Added 'style' prop to allow position overrides
-const ShareImageCard = forwardRef(({ round, username, photoUrl, style }, ref) => {
+const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
   // Calculate vs par
   const calculateVsPar = () => {
     if (!round.par && !round.coursePars) return null
@@ -136,14 +135,15 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl, style }, ref) =>
     triple: { background: '#c62828', color: 'white' },
   }
 
-  // CELL STYLE HELPER
+  // CELL STYLE: Increased width slightly and ensured centering
   const cellStyle = {
     width: '32px', 
-    height: '28px',
+    height: '24px', // INCREASED HEIGHT from 16px to 24px
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: '2px'
+    marginRight: '2px',
+    lineHeight: '24px' // Match height to force vertical centering
   }
 
   return (
@@ -151,19 +151,18 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl, style }, ref) =>
       ref={ref}
       style={{
         width: '360px',
-        height: '440px',
+        height: '450px', // INCREASED TOTAL HEIGHT slightly
         borderRadius: '16px',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: '#e2e8f0',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        position: 'relative',
-        ...style 
+        position: 'relative'
       }}
     >
       {/* Photo section */}
-      <div style={{ position: 'relative', height: '255px', width: '100%', overflow: 'hidden' }}>
+      <div style={{ position: 'relative', height: '260px', width: '100%', overflow: 'hidden' }}>
         {hasPhoto ? (
           <img 
             src={photoUrl} 
@@ -213,7 +212,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl, style }, ref) =>
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            padding: '12px 14px 14px 14px',
+            padding: '16px 16px 16px 16px', // Increased padding
             color: 'white',
           }}
         >
@@ -225,24 +224,65 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl, style }, ref) =>
           
           {/* Bottom Info Group */}
           <div>
-            <div style={{ fontSize: '13px', opacity: 0.95, marginBottom: '2px', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+            <div 
+              style={{ 
+                fontSize: '13px', 
+                opacity: 0.95, 
+                marginBottom: '4px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+              }}
+            >
               {username} posted a score
             </div>
             
-            <div style={{ fontSize: '24px', fontWeight: 700, lineHeight: 1.1, marginBottom: '4px', textShadow: '0 1px 4px rgba(0,0,0,0.8)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '330px' }}>
+            <div 
+              style={{ 
+                fontSize: '24px', 
+                fontWeight: 700, 
+                lineHeight: 1.2, // Increased line height to prevent overlap
+                marginBottom: '6px', // More space below title
+                textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '330px'
+              }}
+            >
               {getDisplayName(round)}
             </div>
             
-            <div style={{ fontSize: '12px', opacity: 0.9, textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+            <div 
+              style={{ 
+                fontSize: '12px', 
+                opacity: 0.9,
+                marginBottom: '4px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+              }}
+            >
               {formatDate(round.date)} • {round.city}, {round.state}
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '6px' }}>
-              <span style={{ fontSize: '72px', fontWeight: 800, lineHeight: 0.9, textShadow: '0 2px 8px rgba(0,0,0,0.6)' }}>
+            {/* Big score */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '8px' }}>
+              <span 
+                style={{ 
+                  fontSize: '72px', 
+                  fontWeight: 800, 
+                  lineHeight: 0.9,
+                  textShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                }}
+              >
                 {round.total}
               </span>
               {vsPar && (
-                <span style={{ fontSize: '28px', fontWeight: 700, color: vsPar.startsWith('-') ? '#4ade80' : vsPar.startsWith('+') ? '#fca5a5' : 'white', textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+                <span 
+                  style={{ 
+                    fontSize: '28px', 
+                    fontWeight: 700,
+                    color: vsPar.startsWith('-') ? '#4ade80' : vsPar.startsWith('+') ? '#fca5a5' : 'white',
+                    textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                  }}
+                >
                   ({vsPar})
                 </span>
               )}
@@ -251,12 +291,12 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl, style }, ref) =>
         </div>
       </div>
       
-      {/* Scorecard section (bottom) */}
+      {/* Scorecard section */}
       <div 
         style={{
           flex: 1,
           background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)',
-          padding: '8px 10px',
+          padding: '10px 10px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
@@ -265,72 +305,119 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl, style }, ref) =>
         {hasHoleByHole ? (
           <>
             {/* Front 9 Row */}
-            <div style={{ marginBottom: '6px' }}>
+            <div style={{ marginBottom: '8px' }}>
               {/* Header Row (Hole Numbers) */}
               <div style={{ display: 'flex', marginBottom: '2px' }}>
                 {[1,2,3,4,5,6,7,8,9,'Out'].map(h => (
-                  <div key={`f-h-${h}`} style={{ ...cellStyle, height: '16px', fontSize: '10px', fontWeight: 500, color: '#64748b' }}>{h}</div>
+                  <div key={`f-h-${h}`} style={{ ...cellStyle, fontSize: '10px', fontWeight: 500, color: '#64748b' }}>
+                    {h}
+                  </div>
                 ))}
               </div>
-              
-              {/* Par Row - ADDED BACK */}
+              {/* Pars Row */}
               <div style={{ display: 'flex', marginBottom: '2px' }}>
                 {pars.slice(0,9).map((p, i) => (
-                  <div key={`f-p-${i}`} style={{ ...cellStyle, height: '16px', fontSize: '10px', color: '#94a3b8' }}>{p}</div>
+                  <div key={`f-p-${i}`} style={{ ...cellStyle, fontSize: '10px', color: '#94a3b8' }}>
+                    {p}
+                  </div>
                 ))}
-                <div style={{ ...cellStyle, height: '16px', fontSize: '10px', color: '#94a3b8' }}>
+                <div style={{ ...cellStyle, fontSize: '10px', color: '#94a3b8' }}>
                   {pars.slice(0,9).reduce((a,b) => a + parseInt(b), 0)}
                 </div>
               </div>
-
               {/* Scores Row */}
               <div style={{ display: 'flex' }}>
                 {round.holes.slice(0,9).map((s, i) => {
                   const scoreClass = getScoreClass(s, pars[i])
                   const colors = scoreColors[scoreClass] || scoreColors['par-score']
                   return (
-                    <div key={`f-s-${i}`} style={{ ...cellStyle, fontSize: '13px', fontWeight: 600, borderRadius: '4px', background: colors.background, color: colors.color, border: colors.border || 'none' }}>{s || '-'}</div>
+                    <div key={`f-s-${i}`} style={{
+                      ...cellStyle,
+                      height: '28px', // Scores need to be taller
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      borderRadius: '4px',
+                      background: colors.background,
+                      color: colors.color,
+                      border: colors.border || 'none'
+                    }}>
+                      {s || '-'}
+                    </div>
                   )
                 })}
                 {/* Total Cell */}
-                <div style={{ ...cellStyle, fontSize: '13px', fontWeight: 700, borderRadius: '4px', background: '#1e293b', color: 'white' }}>{round.front9}</div>
+                <div style={{
+                  ...cellStyle,
+                  height: '28px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  borderRadius: '4px',
+                  background: '#1e293b',
+                  color: 'white'
+                }}>
+                  {round.front9}
+                </div>
               </div>
             </div>
             
             {/* Back 9 Row */}
             <div>
-              {/* Header Row */}
+              {/* Header Row (Hole Numbers) */}
               <div style={{ display: 'flex', marginBottom: '2px' }}>
                 {[10,11,12,13,14,15,16,17,18,'In'].map(h => (
-                  <div key={`b-h-${h}`} style={{ ...cellStyle, height: '16px', fontSize: '10px', fontWeight: 500, color: '#64748b' }}>{h}</div>
+                  <div key={`b-h-${h}`} style={{ ...cellStyle, fontSize: '10px', fontWeight: 500, color: '#64748b' }}>
+                    {h}
+                  </div>
                 ))}
               </div>
-
-              {/* Par Row - ADDED BACK */}
+              {/* Pars Row */}
               <div style={{ display: 'flex', marginBottom: '2px' }}>
                 {pars.slice(9,18).map((p, i) => (
-                  <div key={`b-p-${i}`} style={{ ...cellStyle, height: '16px', fontSize: '10px', color: '#94a3b8' }}>{p}</div>
+                  <div key={`b-p-${i}`} style={{ ...cellStyle, fontSize: '10px', color: '#94a3b8' }}>
+                    {p}
+                  </div>
                 ))}
-                <div style={{ ...cellStyle, height: '16px', fontSize: '10px', color: '#94a3b8' }}>
+                <div style={{ ...cellStyle, fontSize: '10px', color: '#94a3b8' }}>
                   {pars.slice(9,18).reduce((a,b) => a + parseInt(b), 0)}
                 </div>
               </div>
-
               {/* Scores Row */}
               <div style={{ display: 'flex' }}>
                 {round.holes.slice(9,18).map((s, i) => {
                   const scoreClass = getScoreClass(s, pars[i+9])
                   const colors = scoreColors[scoreClass] || scoreColors['par-score']
                   return (
-                    <div key={`b-s-${i}`} style={{ ...cellStyle, fontSize: '13px', fontWeight: 600, borderRadius: '4px', background: colors.background, color: colors.color, border: colors.border || 'none' }}>{s || '-'}</div>
+                    <div key={`b-s-${i}`} style={{
+                      ...cellStyle,
+                      height: '28px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      borderRadius: '4px',
+                      background: colors.background,
+                      color: colors.color,
+                      border: colors.border || 'none'
+                    }}>
+                      {s || '-'}
+                    </div>
                   )
                 })}
                 {/* Total Cell */}
-                <div style={{ ...cellStyle, fontSize: '13px', fontWeight: 700, borderRadius: '4px', background: '#1e293b', color: 'white' }}>{round.back9}</div>
+                <div style={{
+                  ...cellStyle,
+                  height: '28px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  borderRadius: '4px',
+                  background: '#1e293b',
+                  color: 'white'
+                }}>
+                  {round.back9}
+                </div>
               </div>
             </div>
           </>
         ) : round.front9 && round.back9 ? (
+          /* Front/Back Fallback */
           <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
             <div style={{ background: 'white', padding: '14px 24px', borderRadius: '12px', textAlign: 'center' }}>
               <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Front 9</div>
@@ -342,6 +429,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl, style }, ref) =>
             </div>
           </div>
         ) : (
+          /* Total Fallback */
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <div style={{ background: 'white', padding: '16px 40px', borderRadius: '12px', textAlign: 'center' }}>
               <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Par {round.par || 72}</div>

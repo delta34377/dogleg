@@ -75,34 +75,30 @@ function ShareModal({ round, username, onClose }) {
     let fontSize = initialFontSize
     ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`
     
-    // Shrink font until it fits
     while (ctx.measureText(text).width > maxWidth && fontSize > 10) {
       fontSize -= 1
       ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`
     }
     
     ctx.fillText(text, x, y)
-    // Reset font for next operations (optional, but good practice)
     return fontSize
   }
 
   const generateImage = useCallback(async (scale = 3) => {
     const W = 360 * scale
-    const H = 450 * scale // Standard 4:5 Instagram ratio
+    const H = 450 * scale 
     const canvas = document.createElement('canvas')
     canvas.width = W
     canvas.height = H
     const ctx = canvas.getContext('2d')
     
-    // Scale everything context-wise so we can use logical pixels (360x450)
     ctx.scale(scale, scale)
     
     // --- LAYOUT CONFIGURATION ---
-    // Increase photo height percentage to reduce gray space at bottom
-    const photoH = 450 * 0.65 // 65% photo, 35% scorecard
+    const photoH = 450 * 0.65 
     const scorecardH = 450 - photoH
     
-    // Load photo first if exists
+    // Load photo
     let photoImg = null
     if (photoUrl) {
       try {
@@ -120,7 +116,6 @@ function ShareModal({ round, username, onClose }) {
     
     // 1. DRAW PHOTO BACKGROUND
     if (photoImg) {
-      // Draw photo covering the area (object-fit: cover logic)
       const imgRatio = photoImg.width / photoImg.height
       const areaRatio = 360 / photoH
       let dw, dh, dx, dy
@@ -137,15 +132,13 @@ function ShareModal({ round, username, onClose }) {
       }
       ctx.drawImage(photoImg, dx, dy, dw, dh)
       
-      // Dark overlay for text legibility
       const overlay = ctx.createLinearGradient(0, 0, 0, photoH)
-      overlay.addColorStop(0, 'rgba(0,0,0,0.6)')   // Darker at top for branding
-      overlay.addColorStop(0.3, 'rgba(0,0,0,0.2)') // Middle clear
-      overlay.addColorStop(1, 'rgba(0,0,0,0.5)')   // Bottom fade
+      overlay.addColorStop(0, 'rgba(0,0,0,0.6)')   
+      overlay.addColorStop(0.3, 'rgba(0,0,0,0.2)') 
+      overlay.addColorStop(1, 'rgba(0,0,0,0.6)')   
       ctx.fillStyle = overlay
       ctx.fillRect(0, 0, 360, photoH)
     } else {
-      // Green gradient fallback
       const grad = ctx.createLinearGradient(0, 0, 360, photoH)
       grad.addColorStop(0, '#15803d')
       grad.addColorStop(0.5, '#166534')
@@ -158,12 +151,10 @@ function ShareModal({ round, username, onClose }) {
     ctx.fillStyle = 'white'
     ctx.textBaseline = 'top'
     
-    // -- Branding (Top Left) --
+    // -- Top Section (Branding & Course Info) --
     ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif'
     ctx.fillText('🏌️ DOGLEG.IO', 16, 16)
     
-    // -- User & Course Info (Moved UP) --
-    // We start positioning from top down now
     let currentY = 50 
     
     // Username
@@ -172,13 +163,13 @@ function ShareModal({ round, username, onClose }) {
     ctx.fillText(`${username} posted a score`, 16, currentY)
     ctx.globalAlpha = 1
     
-    currentY += 20 // Spacing
+    currentY += 20 
     
-    // Course Name (Auto-shrink fit)
+    // Course Name
     const courseName = getDisplayName(round)
-    drawTextToFit(ctx, courseName, 16, currentY, 320, 28) // Max width 320px, max font 28px
+    drawTextToFit(ctx, courseName, 16, currentY, 320, 28) 
     
-    currentY += 34 // Spacing based on max font size
+    currentY += 34 
     
     // Date & Location
     const formatDate = (d) => {
@@ -192,17 +183,17 @@ function ShareModal({ round, username, onClose }) {
     ctx.fillText(`${formatDate(round.date)} • ${round.city}, ${round.state}`, 16, currentY)
     ctx.globalAlpha = 1
     
-    currentY += 20 // Spacing before big score
+    // -- Bottom Section (Score) --
+    // Position this relative to the bottom of the photo area
+    const scoreY = photoH - 90 // Anchor score 90px from bottom of photo
     
-    // -- Big Score --
     ctx.font = 'bold 80px -apple-system, BlinkMacSystemFont, sans-serif'
     const scoreText = String(round.total)
-    ctx.fillText(scoreText, 14, currentY)
+    ctx.fillText(scoreText, 14, scoreY)
     
-    // Measure width of score so we can place VsPar next to it without overlap
     const scoreWidth = ctx.measureText(scoreText).width
     
-    // -- Vs Par --
+    // Vs Par
     const calcVsPar = () => {
       if (!round.par && !round.coursePars) return null
       let par = round.par || 72
@@ -217,16 +208,14 @@ function ShareModal({ round, username, onClose }) {
     if (vsPar) {
       ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif'
       ctx.fillStyle = vsPar.startsWith('-') ? '#4ade80' : vsPar.startsWith('+') ? '#fca5a5' : 'white'
-      
-      // Position: x = margin + scoreWidth + GAP
-      // y = align with the baseline of the big number roughly (top + offset)
-      ctx.fillText(`(${vsPar})`, 14 + scoreWidth + 15, currentY + 42) 
+      // Align vertically with the visual center of the big number
+      ctx.fillText(`(${vsPar})`, 14 + scoreWidth + 15, scoreY + 42) 
     }
     
     // 3. SCORECARD SECTION
     const scGrad = ctx.createLinearGradient(0, photoH, 0, 450)
-    scGrad.addColorStop(0, '#f1f5f9') // lighter gray
-    scGrad.addColorStop(1, '#e2e8f0') // darker gray
+    scGrad.addColorStop(0, '#f1f5f9')
+    scGrad.addColorStop(1, '#e2e8f0')
     ctx.fillStyle = scGrad
     ctx.fillRect(0, photoH, 360, scorecardH)
     
@@ -245,7 +234,6 @@ function ShareModal({ round, username, onClose }) {
       return { bg: '#c62828', fg: '#ffffff' }
     }
     
-    // Helper to draw rounded rectangles
     const roundRect = (x, y, w, h, r) => {
       ctx.beginPath()
       ctx.moveTo(x + r, y)
@@ -261,21 +249,17 @@ function ShareModal({ round, username, onClose }) {
     }
     
     if (hasHoles) {
-      // Compact scorecard drawing
       const cellW = 32
       const gap = 2
-      const startX = 10 // center horizontally
+      const startX = 10 
       
-      // Vertically center the scorecard in the available gray space
-      // Total scorecard height needed approx: 18 + 18 + 32 (front) + 10 (gap) + 18 + 18 + 32 (back) = ~150px
-      // Available space: scorecardH (~157px). It fits tightly.
-      let y = photoH + (scorecardH - 146) / 2 
+      // Start slightly below the photo line for padding
+      let y = photoH + 15 
       
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       
       // --- FRONT 9 ---
-      // Hole numbers
       ctx.font = '600 10px -apple-system, BlinkMacSystemFont, sans-serif'
       ctx.fillStyle = '#64748b'
       for (let i = 0; i < 9; i++) {
@@ -283,9 +267,8 @@ function ShareModal({ round, username, onClose }) {
       }
       ctx.fillText('Out', startX + 9 * (cellW + gap) + cellW/2, y)
       
-      y += 14 // spacing row
+      y += 14
       
-      // Pars
       ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
       ctx.fillStyle = '#94a3b8'
       for (let i = 0; i < 9; i++) {
@@ -294,21 +277,18 @@ function ShareModal({ round, username, onClose }) {
       const frontPar = pars.slice(0, 9).reduce((a, b) => a + parseInt(b), 0)
       ctx.fillText(String(frontPar), startX + 9 * (cellW + gap) + cellW/2, y)
       
-      y += 20 // spacing to score box
+      y += 20 
       
-      // Scores
       ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, sans-serif'
       for (let i = 0; i < 9; i++) {
         const score = round.holes[i]
         const colors = getScoreColor(score, pars[i])
         ctx.fillStyle = colors.bg
-        // Draw score box
         roundRect(startX + i * (cellW + gap), y - 10, cellW, 28, 4)
         ctx.fill()
         ctx.fillStyle = colors.fg
         ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 4)
       }
-      // Out total
       ctx.fillStyle = '#1e293b'
       roundRect(startX + 9 * (cellW + gap), y - 10, cellW, 28, 4)
       ctx.fill()
@@ -316,9 +296,8 @@ function ShareModal({ round, username, onClose }) {
       ctx.fillText(String(round.front9), startX + 9 * (cellW + gap) + cellW/2, y + 4)
       
       // --- BACK 9 ---
-      y += 42 // Gap between front and back 9 rows
+      y += 42 
       
-      // Hole numbers
       ctx.font = '600 10px -apple-system, BlinkMacSystemFont, sans-serif'
       ctx.fillStyle = '#64748b'
       for (let i = 0; i < 9; i++) {
@@ -328,7 +307,6 @@ function ShareModal({ round, username, onClose }) {
       
       y += 14
       
-      // Pars
       ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
       ctx.fillStyle = '#94a3b8'
       for (let i = 0; i < 9; i++) {
@@ -339,7 +317,6 @@ function ShareModal({ round, username, onClose }) {
       
       y += 20
       
-      // Scores
       ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, sans-serif'
       for (let i = 0; i < 9; i++) {
         const score = round.holes[i + 9]
@@ -350,7 +327,6 @@ function ShareModal({ round, username, onClose }) {
         ctx.fillStyle = colors.fg
         ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 4)
       }
-      // In total
       ctx.fillStyle = '#1e293b'
       roundRect(startX + 9 * (cellW + gap), y - 10, cellW, 28, 4)
       ctx.fill()
@@ -361,18 +337,15 @@ function ShareModal({ round, username, onClose }) {
       ctx.textBaseline = 'top'
       
     } else {
-      // Fallback display (Front/Back/Total)
+      // Fallback display
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       const centerY = photoH + scorecardH / 2
       
-      // Draw 2 simple boxes
-      // Front 9
       ctx.fillStyle = 'white'
       roundRect(80, centerY - 35, 80, 70, 12)
       ctx.fill()
       
-      // Back 9
       roundRect(200, centerY - 35, 80, 70, 12)
       ctx.fill()
       
@@ -397,10 +370,9 @@ function ShareModal({ round, username, onClose }) {
   useEffect(() => {
     const generate = async () => {
       try {
-        const canvas = await generateImage(2) // Lower scale for preview
+        const canvas = await generateImage(2)
         setPreviewUrl(canvas.toDataURL('image/png'))
         
-        // Also generate full-res blob for sharing
         const fullCanvas = await generateImage(3)
         const blob = await new Promise(resolve => fullCanvas.toBlob(resolve, 'image/png'))
         setGeneratedBlob(blob)
@@ -446,7 +418,6 @@ function ShareModal({ round, username, onClose }) {
         }
       }
       
-      // Fallback: download
       const url = URL.createObjectURL(generatedBlob)
       const link = document.createElement('a')
       link.href = url

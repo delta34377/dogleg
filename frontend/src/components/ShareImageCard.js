@@ -151,11 +151,11 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
-        background: '#e2e8f0',
+        background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         position: 'absolute',
-        left: '-9999px',
-        top: '-9999px',
+        left: '-500px',
+        top: '0',
       }}
     >
       {/* Photo section (top) - 58% */}

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import html2canvas from 'html2canvas'
 import ShareImageCard from './ShareImageCard'
 
@@ -88,16 +89,32 @@ function ShareModal({ round, username, onClose }) {
         return
       }
       
+      // Set a timeout - if image doesn't load in 5 seconds, continue without it
+      const timeout = setTimeout(() => {
+        console.log('Image load timeout, continuing without photo')
+        setImageLoaded(true)
+      }, 5000)
+      
       try {
-        const response = await fetch(photoUrl)
+        const response = await fetch(photoUrl, { mode: 'cors' })
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
+        }
         const blob = await response.blob()
         const reader = new FileReader()
         reader.onloadend = () => {
+          clearTimeout(timeout)
           setImageDataUrl(reader.result)
+          setImageLoaded(true)
+        }
+        reader.onerror = () => {
+          clearTimeout(timeout)
+          console.error('FileReader error')
           setImageLoaded(true)
         }
         reader.readAsDataURL(blob)
       } catch (error) {
+        clearTimeout(timeout)
         console.error('Error loading image:', error)
         setImageLoaded(true) // Continue without image
       }
@@ -112,26 +129,35 @@ function ShareModal({ round, username, onClose }) {
       // Small delay to ensure React has rendered the card with the image
       const timer = setTimeout(() => {
         generatePreview()
-      }, 200)
+      }, 300)
       return () => clearTimeout(timer)
     }
   }, [imageLoaded, imageDataUrl])
   
   const generatePreview = async () => {
-    // Small delay to ensure the card is rendered
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
     if (cardRef.current) {
       try {
         const canvas = await html2canvas(cardRef.current, {
           scale: 2,
           useCORS: true,
           allowTaint: true,
-          backgroundColor: null,
+          backgroundColor: '#e2e8f0',
+          logging: false,
         })
         setPreviewUrl(canvas.toDataURL('image/png'))
       } catch (error) {
         console.error('Error generating preview:', error)
+        // Try again with simpler settings
+        try {
+          const canvas = await html2canvas(cardRef.current, {
+            scale: 1,
+            backgroundColor: '#e2e8f0',
+          })
+          setPreviewUrl(canvas.toDataURL('image/png'))
+        } catch (retryError) {
+          console.error('Retry failed:', retryError)
+          setPreviewUrl('error')
+        }
       }
     }
   }
@@ -167,7 +193,8 @@ function ShareModal({ round, username, onClose }) {
         scale: 3, // High quality
         useCORS: true,
         allowTaint: true,
-        backgroundColor: null,
+        backgroundColor: '#e2e8f0',
+        logging: false,
       })
       
       // Convert to blob
@@ -224,12 +251,19 @@ function ShareModal({ round, username, onClose }) {
         {/* Preview */}
         <div className="p-4">
           <div className="rounded-lg overflow-hidden shadow-lg mx-auto" style={{ maxWidth: '280px' }}>
-            {previewUrl ? (
+            {previewUrl && previewUrl !== 'error' ? (
               <img 
                 src={previewUrl} 
                 alt="Share preview" 
                 className="w-full h-auto"
               />
+            ) : previewUrl === 'error' ? (
+              <div className="bg-gray-200 aspect-[4/5] flex items-center justify-center p-4 text-center">
+                <div>
+                  <p className="text-gray-600 text-sm">Preview unavailable</p>
+                  <p className="text-gray-500 text-xs mt-1">You can still share the image</p>
+                </div>
+              </div>
             ) : (
               <div className="bg-gray-200 aspect-[4/5] flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
@@ -265,7 +299,7 @@ function ShareModal({ round, username, onClose }) {
           {/* Share/Download Image */}
           <button
             onClick={handleShareImage}
-            disabled={isGenerating || !previewUrl}
+            disabled={isGenerating || !imageLoaded}
             className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:bg-gray-400"
           >
             {isGenerating ? (
@@ -289,13 +323,16 @@ function ShareModal({ round, username, onClose }) {
         </div>
       </div>
       
-      {/* Hidden card for html2canvas */}
-      <ShareImageCard 
-        ref={cardRef}
-        round={round}
-        username={username}
-        photoUrl={imageDataUrl}
-      />
+      {/* Hidden card for html2canvas - rendered at body level to avoid clipping */}
+      {createPortal(
+        <ShareImageCard 
+          ref={cardRef}
+          round={round}
+          username={username}
+          photoUrl={imageDataUrl}
+        />,
+        document.body
+      )}
     </div>
   )
 }

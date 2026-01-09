@@ -7,6 +7,8 @@ import { supabase } from '../services/supabase'
 import { getDisplayName } from '../utils/courseNameUtils' 
 import { getInitials } from '../utils/avatarUtils'
 import AvatarUpload from '../components/AvatarUpload'
+import ShareModal from './ShareModal'
+
 
 const MyRounds = forwardRef((props, ref) => {
   const { user, profile } = useAuth() 
@@ -42,6 +44,7 @@ const MyRounds = forwardRef((props, ref) => {
   const [showFollowing, setShowFollowing] = useState(false)
   const [followersList, setFollowersList] = useState([])
   const [followingList, setFollowingList] = useState([])
+  const [shareRound, setShareRound] = useState(null)
   
   // Close menu when clicking outside
   useEffect(() => {
@@ -944,12 +947,15 @@ useImperativeHandle(ref, () => ({
                         </div>
 
                         {/* Share button */}
-                                            <div className="flex gap-4 pb-0.5 pt-3 text-sm text-gray-600">
-                      <button className="flex items-center gap-2 hover:text-gray-800">
-                            <span>🔗</span>
-                            <span>Share</span>
-                          </button>
-                        </div>
+<div className="flex gap-4 pb-0.5 pt-3 text-sm text-gray-600">
+  <button 
+    onClick={() => setShareRound(round)}
+    className="flex items-center gap-2 hover:text-gray-800"
+  >
+    <span>🔗</span>
+    <span>Share</span>
+  </button>
+</div>
 
                         {/* Comments with EXACT gray background */}
                         <CommentsSection round={round} roundId={round.id} />
@@ -994,6 +1000,17 @@ useImperativeHandle(ref, () => ({
           onClose={() => setShowFollowing(false)}
         />
       )}
+
+{/* Share Modal */}
+{shareRound && (
+  <ShareModal
+    round={shareRound}
+    username={profile?.username || 'golfer'}
+    onClose={() => setShareRound(null)}
+  />
+)}
+
+
     </div>
   )
 }

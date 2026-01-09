@@ -1,23 +1,19 @@
 import { forwardRef } from 'react'
 
-// Utility function to intelligently display course/club names
+// ... Keep your existing getDisplayName function at the top ...
+// (I will omit the function body here to save space, keep the one you have)
 const getDisplayName = (round) => {
-  let courseName = round.course_name
+    // ... copy your existing getDisplayName logic here ...
+      let courseName = round.course_name
   let clubName = round.club_name
   
   const toProperCase = (str) => {
     if (!str) return str
     if (str === str.toUpperCase() && str.length > 2) {
-      return str
-        .toLowerCase()
-        .split(' ')
-        .map((word, index) => {
-          if (index > 0 && ['of', 'at', 'the'].includes(word)) {
-            return word
-          }
-          return word.charAt(0).toUpperCase() + word.slice(1)
-        })
-        .join(' ')
+      return str.toLowerCase().split(' ').map((word, index) => {
+        if (index > 0 && ['of', 'at', 'the'].includes(word)) return word
+        return word.charAt(0).toUpperCase() + word.slice(1)
+      }).join(' ')
     }
     return str
   }
@@ -67,7 +63,9 @@ const getDisplayName = (round) => {
   return `${courseName} @ ${clubName}`
 }
 
-const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
+const ShareImageCard = forwardRef(({ round, username, photoUrl, isLive }, ref) => {
+  // ... Keep all your existing par/score logic ...
+  // Calculate vs par
   const calculateVsPar = () => {
     if (!round.par && !round.coursePars) return null
     
@@ -111,12 +109,14 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
   const hasHoleByHole = round.holes && round.holes.some(h => h !== '' && h !== null)
   const pars = round.coursePars || Array(18).fill(4)
   
+  // Format date
   const formatDate = (dateString) => {
     if (!dateString) return ''
     const [year, month, day] = dateString.split('T')[0].split('-')
     return `${parseInt(month)}/${parseInt(day)}/${year}`
   }
 
+  // Get score class for coloring
   const getScoreClass = (score, par) => {
     if (!score) return ''
     const diff = parseInt(score) - parseInt(par)
@@ -128,6 +128,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
     return 'triple'
   }
 
+  // Score cell colors
   const scoreColors = {
     eagle: { background: '#0d7d0d', color: 'white' },
     birdie: { background: '#4caf50', color: 'white' },
@@ -140,6 +141,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
   return (
     <div 
       ref={ref}
+      className="share-card-node" // Useful for debug
       style={{
         width: '360px',
         height: '440px',
@@ -149,46 +151,57 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
         flexDirection: 'column',
         background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        position: 'fixed',
-        top: '0',
-        left: '0',
-        visibility: 'hidden',
-        zIndex: -9999,
+        // CHANGED: No fixed position needed anymore, it's relative to the modal
+        position: 'relative', 
+        backgroundColor: '#e2e8f0', // Fallback color
       }}
     >
+      {/* ... The rest of the JSX stays EXACTLY the same as before ... */}
       {/* Photo section (top) - 58% */}
-      <div 
-        style={{
-          position: 'relative',
-          height: '58%',
-          ...(hasPhoto 
-            ? {
-                backgroundImage: `url(${photoUrl})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-              }
-            : {
-                background: 'linear-gradient(135deg, #166534 0%, #15803d 40%, #14532d 100%)',
-              }
-          ),
-        }}
-      >
+      <div style={{ position: 'relative', height: '58%', width: '100%', overflow: 'hidden' }}>
+        {hasPhoto ? (
+          <img 
+            src={photoUrl} 
+            alt="Course"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              zIndex: 0
+            }}
+          />
+        ) : (
+          <div 
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(135deg, #166534 0%, #15803d 40%, #14532d 100%)',
+              zIndex: 0
+            }}
+          />
+        )}
         {/* Overlay */}
         <div 
           style={{
             position: 'absolute',
             inset: 0,
+            zIndex: 1,
             background: hasPhoto 
               ? 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.5) 100%)'
               : 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.2) 100%)',
           }}
         />
-        
         {/* Content */}
         <div 
           style={{
             position: 'relative',
-            zIndex: 1,
+            zIndex: 2,
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
@@ -210,7 +223,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
             <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Dogleg.io</span>
           </div>
           
-          {/* Course info */}
+          {/* Course info - pushed to bottom with marginTop auto */}
           <div style={{ marginTop: 'auto' }}>
             <div 
               style={{ 
@@ -283,6 +296,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
           justifyContent: 'center',
         }}
       >
+        {/* ... Keep the hole rendering logic exactly as it was ... */}
         {hasHoleByHole ? (
           <>
             {/* Front 9 */}
@@ -367,7 +381,6 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
                 </div>
               </div>
             </div>
-            
             {/* Back 9 */}
             <div style={{ marginTop: '4px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '2px' }}>
@@ -452,6 +465,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
             </div>
           </>
         ) : round.front9 && round.back9 ? (
+          /* Front/Back only */
           <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
             <div style={{
               background: 'white',
@@ -475,6 +489,7 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
             </div>
           </div>
         ) : (
+          /* Total only */
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <div style={{
               background: 'white',

@@ -75,6 +75,7 @@ function ShareModal({ round, username, onClose }) {
     let fontSize = initialFontSize
     ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`
     
+    // Shrink font until it fits
     while (ctx.measureText(text).width > maxWidth && fontSize > 10) {
       fontSize -= 1
       ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`
@@ -151,7 +152,7 @@ function ShareModal({ round, username, onClose }) {
     ctx.fillStyle = 'white'
     ctx.textBaseline = 'top'
     
-    // -- Top Section (Branding & Course Info) --
+    // -- Top Section --
     ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif'
     ctx.fillText('🏌️ DOGLEG.IO', 16, 16)
     
@@ -184,8 +185,7 @@ function ShareModal({ round, username, onClose }) {
     ctx.globalAlpha = 1
     
     // -- Bottom Section (Score) --
-    // Position this relative to the bottom of the photo area
-    const scoreY = photoH - 90 // Anchor score 90px from bottom of photo
+    const scoreY = photoH - 90 
     
     ctx.font = 'bold 80px -apple-system, BlinkMacSystemFont, sans-serif'
     const scoreText = String(round.total)
@@ -208,7 +208,6 @@ function ShareModal({ round, username, onClose }) {
     if (vsPar) {
       ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif'
       ctx.fillStyle = vsPar.startsWith('-') ? '#4ade80' : vsPar.startsWith('+') ? '#fca5a5' : 'white'
-      // Align vertically with the visual center of the big number
       ctx.fillText(`(${vsPar})`, 14 + scoreWidth + 15, scoreY + 42) 
     }
     
@@ -219,7 +218,7 @@ function ShareModal({ round, username, onClose }) {
     ctx.fillStyle = scGrad
     ctx.fillRect(0, photoH, 360, scorecardH)
     
-    // Scorecard content logic
+    // Scorecard logic
     const hasHoles = round.holes && round.holes.some(h => h !== '' && h !== null)
     const pars = round.coursePars || Array(18).fill(4)
     
@@ -253,8 +252,7 @@ function ShareModal({ round, username, onClose }) {
       const gap = 2
       const startX = 10 
       
-      // Start slightly below the photo line for padding
-      let y = photoH + 15 
+      let y = photoH + (scorecardH - 146) / 2 
       
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -289,11 +287,12 @@ function ShareModal({ round, username, onClose }) {
         ctx.fillStyle = colors.fg
         ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 4)
       }
+      // Out total (FIXED: Added fallback to '-' to prevent "null")
       ctx.fillStyle = '#1e293b'
       roundRect(startX + 9 * (cellW + gap), y - 10, cellW, 28, 4)
       ctx.fill()
       ctx.fillStyle = 'white'
-      ctx.fillText(String(round.front9), startX + 9 * (cellW + gap) + cellW/2, y + 4)
+      ctx.fillText(String(round.front9 || '-'), startX + 9 * (cellW + gap) + cellW/2, y + 4)
       
       // --- BACK 9 ---
       y += 42 
@@ -327,11 +326,12 @@ function ShareModal({ round, username, onClose }) {
         ctx.fillStyle = colors.fg
         ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 4)
       }
+      // In total (FIXED: Added fallback to '-' to prevent "null")
       ctx.fillStyle = '#1e293b'
       roundRect(startX + 9 * (cellW + gap), y - 10, cellW, 28, 4)
       ctx.fill()
       ctx.fillStyle = 'white'
-      ctx.fillText(String(round.back9), startX + 9 * (cellW + gap) + cellW/2, y + 4)
+      ctx.fillText(String(round.back9 || '-'), startX + 9 * (cellW + gap) + cellW/2, y + 4)
       
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'

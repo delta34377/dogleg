@@ -92,13 +92,19 @@ function ShareModal({ round, username, onClose }) {
           useCORS: true,
           allowTaint: true,
           backgroundColor: '#e2e8f0',
+          onclone: (clonedDoc, element) => {
+            element.style.position = 'static'
+            element.style.opacity = '1'
+            element.style.left = '0'
+            element.style.top = '0'
+          }
         })
         setPreviewUrl(canvas.toDataURL('image/png'))
       } catch (e) {
         console.error('Preview generation failed:', e)
         setPreviewUrl('error')
       }
-    }, 300)
+    }, 500)
     
     return () => clearTimeout(timer)
   }, [photoLoaded, imageDataUrl])
@@ -129,6 +135,12 @@ function ShareModal({ round, username, onClose }) {
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#e2e8f0',
+        onclone: (clonedDoc, element) => {
+          element.style.position = 'static'
+          element.style.opacity = '1'
+          element.style.left = '0'
+          element.style.top = '0'
+        }
       })
       
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))

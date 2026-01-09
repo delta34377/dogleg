@@ -98,7 +98,10 @@ const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         position: 'fixed',
         top: '0px',
-        left: '-400px',
+        left: '0px',
+        opacity: '0.01',
+        pointerEvents: 'none',
+        zIndex: 40,
         background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)',
       }}
     >

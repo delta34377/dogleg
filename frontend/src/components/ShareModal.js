@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
-import html2canvas from 'html2canvas'
-import ShareImageCard from './ShareImageCard'
+import { forwardRef } from 'react'
 
+// Utility function to intelligently display course/club names
 const getDisplayName = (round) => {
   let courseName = round.course_name
   let clubName = round.club_name
@@ -23,193 +22,426 @@ const getDisplayName = (round) => {
   if (!courseName || courseName === 'Unknown Course' || courseName === 'Course Name N/A') {
     return clubName || 'Unknown Course'
   }
+  
   if (!clubName) return courseName
   
-  const cleanCourse = courseName.toLowerCase().replace(/golf|club|country|cc|course|resort|links/gi, '').replace(/[^a-z0-9]/g, ' ').trim()
-  const cleanClub = clubName.toLowerCase().replace(/golf|club|country|cc|course|resort|links/gi, '').replace(/[^a-z0-9]/g, ' ').trim()
+  const singleWordsThatNeedCourse = [
+    'Old', 'New', 'North', 'South', 'East', 'West',
+    'Championship', 'Palmer', 'Club', 'Woodfield',
+    'Executive', 'Blue', 'Red', 'Gold', 'Silver'
+  ]
+  
+  if (singleWordsThatNeedCourse.includes(courseName)) {
+    courseName = courseName + ' Course'
+  }
+  
+  const cleanCourse = courseName.toLowerCase()
+    .replace(/golf|club|country|cc|course|resort|links/gi, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .trim()
+  
+  const cleanClub = clubName.toLowerCase()
+    .replace(/golf|club|country|cc|course|resort|links/gi, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .trim()
+  
   const courseWords = cleanCourse.split(' ').filter(w => w.length > 2)
   const clubWords = cleanClub.split(' ').filter(w => w.length > 2)
   
   if (courseWords.length > 0) {
-    const matchingWords = courseWords.filter(word => clubWords.some(clubWord => clubWord.includes(word) || word.includes(clubWord)))
-    if (matchingWords.length / courseWords.length >= 0.7) return clubName
+    const matchingWords = courseWords.filter(word => 
+      clubWords.some(clubWord => clubWord.includes(word) || word.includes(clubWord))
+    )
+    
+    if (matchingWords.length / courseWords.length >= 0.7) {
+      return clubName
+    }
   }
   
   return `${courseName} @ ${clubName}`
 }
 
-function ShareModal({ round, username, onClose }) {
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [linkCopied, setLinkCopied] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState(null)
-  const [imageDataUrl, setImageDataUrl] = useState(null)
-  const [photoLoaded, setPhotoLoaded] = useState(false)
-  const cardRef = useRef(null)
-  
-  const shareUrl = `https://dogleg.io/rounds/${round.short_code || round.id}`
-  const photoUrl = round.photo || round.photo_url
-
-  useEffect(() => {
-    if (!photoUrl) {
-      setPhotoLoaded(true)
-      return
-    }
+const ShareImageCard = forwardRef(({ round, username, photoUrl }, ref) => {
+  // Calculate vs par
+  const calculateVsPar = () => {
+    if (!round.par && !round.coursePars) return null
     
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    img.onload = () => {
-      const maxWidth = 400
-      const scale = Math.min(1, maxWidth / img.width)
-      const canvas = document.createElement('canvas')
-      canvas.width = img.width * scale
-      canvas.height = img.height * scale
-      const ctx = canvas.getContext('2d')
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      setImageDataUrl(canvas.toDataURL('image/jpeg', 0.8))
-      setPhotoLoaded(true)
-    }
-    img.onerror = () => {
-      setPhotoLoaded(true)
-    }
-    img.src = photoUrl
-  }, [photoUrl])
-
-  useEffect(() => {
-    if (!photoLoaded || !cardRef.current) return
+    let parForHolesPlayed = round.par || 72
     
-    const timer = setTimeout(async () => {
-      try {
-        const canvas = await html2canvas(cardRef.current, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#e2e8f0',
-        })
-        setPreviewUrl(canvas.toDataURL('image/png'))
-      } catch (e) {
-        console.error('Preview generation failed:', e)
-        setPreviewUrl('error')
-      }
-    }, 300)
-    
-    return () => clearTimeout(timer)
-  }, [photoLoaded, imageDataUrl])
-
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-    } catch {
-      const textArea = document.createElement('textarea')
-      textArea.value = shareUrl
-      document.body.appendChild(textArea)
-      textArea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textArea)
-    }
-    setLinkCopied(true)
-    setTimeout(() => setLinkCopied(false), 2000)
-  }
-
-  const handleShareImage = async () => {
-    setIsGenerating(true)
-    
-    try {
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 3,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#e2e8f0',
+    if (round.holes && round.holes.some(h => h)) {
+      const playedHoleIndices = []
+      round.holes.forEach((score, index) => {
+        if (score !== null && score !== '' && score !== undefined) {
+          playedHoleIndices.push(index)
+        }
       })
       
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'))
-      
-      if (navigator.share && navigator.canShare) {
-        const file = new File([blob], `dogleg-round-${round.short_code || round.id}.png`, { type: 'image/png' })
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'My Golf Round',
-            text: `I shot ${round.total} at ${getDisplayName(round)}!`,
-          })
-          onClose()
-          return
-        }
+      if (round.coursePars && playedHoleIndices.length > 0) {
+        parForHolesPlayed = playedHoleIndices.reduce((sum, holeIndex) => {
+          return sum + parseInt(round.coursePars[holeIndex] || 4)
+        }, 0)
       }
-      
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `dogleg-round-${round.short_code || round.id}.png`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Share error:', error)
-      alert('Failed to generate image. Please try again.')
+    } else if (round.front9 && !round.back9) {
+      if (round.coursePars) {
+        parForHolesPlayed = round.coursePars.slice(0, 9).reduce((sum, p) => sum + parseInt(p), 0)
+      } else {
+        parForHolesPlayed = Math.round((round.par || 72) / 2)
+      }
+    } else if (!round.front9 && round.back9) {
+      if (round.coursePars) {
+        parForHolesPlayed = round.coursePars.slice(9, 18).reduce((sum, p) => sum + parseInt(p), 0)
+      } else {
+        parForHolesPlayed = Math.round((round.par || 72) / 2)
+      }
     }
     
-    setIsGenerating(false)
+    const diff = round.total - parForHolesPlayed
+    if (diff === 0) return 'E'
+    if (diff > 0) return `+${diff}`
+    return `${diff}`
+  }
+
+  const vsPar = calculateVsPar()
+  const hasPhoto = !!photoUrl
+  const hasHoleByHole = round.holes && round.holes.some(h => h !== '' && h !== null)
+  const pars = round.coursePars || Array(18).fill(4)
+  
+  // Format date
+  const formatDate = (dateString) => {
+    if (!dateString) return ''
+    const [year, month, day] = dateString.split('T')[0].split('-')
+    return `${parseInt(month)}/${parseInt(day)}/${year}`
+  }
+
+  // Get score class for coloring
+  const getScoreClass = (score, par) => {
+    if (!score) return ''
+    const diff = parseInt(score) - parseInt(par)
+    if (diff <= -2) return 'eagle'
+    if (diff === -1) return 'birdie'
+    if (diff === 0) return 'par-score'
+    if (diff === 1) return 'bogey'
+    if (diff === 2) return 'double'
+    return 'triple'
+  }
+
+  // Score cell colors
+  const scoreColors = {
+    eagle: { background: '#0d7d0d', color: 'white' },
+    birdie: { background: '#4caf50', color: 'white' },
+    'par-score': { background: 'white', color: '#334155', border: '1px solid #e2e8f0' },
+    bogey: { background: '#ffcdd2', color: '#333' },
+    double: { background: '#ef5350', color: 'white' },
+    triple: { background: '#c62828', color: 'white' },
+  }
+
+  // CELL STYLE: Increased width slightly and ensured centering
+  const cellStyle = {
+    width: '32px', 
+    height: '24px', // Taller height to prevent clipping
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: '2px',
+    lineHeight: '24px' // Match height to force vertical centering
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-sm w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-bold">Share Round</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl leading-none">×</button>
-        </div>
+    <div 
+      ref={ref}
+      style={{
+        width: '360px',
+        height: '450px', // Taller total height
+        borderRadius: '16px',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        backgroundColor: '#e2e8f0',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        position: 'relative' // Must be relative for the Modal's Portal logic
+      }}
+    >
+      {/* Photo section */}
+      <div style={{ position: 'relative', height: '260px', width: '100%', overflow: 'hidden' }}>
+        {hasPhoto ? (
+          <img 
+            src={photoUrl} 
+            alt="Course"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              zIndex: 0
+            }}
+          />
+        ) : (
+          <div 
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(135deg, #166534 0%, #15803d 40%, #14532d 100%)',
+              zIndex: 0
+            }}
+          />
+        )}
+
+        {/* Overlay */}
+        <div 
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 1,
+            background: hasPhoto 
+              ? 'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.5) 100%)'
+              : 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0) 50%, rgba(0,0,0,0.2) 100%)',
+          }}
+        />
         
-        <div className="p-4">
-          <div className="rounded-lg overflow-hidden shadow-lg mx-auto" style={{ maxWidth: '280px' }}>
-            {previewUrl && previewUrl !== 'error' ? (
-              <img src={previewUrl} alt="Preview" className="w-full h-auto" />
-            ) : previewUrl === 'error' ? (
-              <div className="bg-gray-200 aspect-[4/5] flex items-center justify-center p-4 text-center">
-                <p className="text-gray-600 text-sm">Preview unavailable</p>
-              </div>
-            ) : (
-              <div className="bg-gray-200 aspect-[4/5] flex flex-col items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                <p className="text-xs text-gray-500 mt-2">Generating preview...</p>
-              </div>
-            )}
+        {/* Content */}
+        <div 
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            padding: '16px 16px 16px 16px',
+            color: 'white',
+          }}
+        >
+          {/* Top Branding */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '18px', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }}>🏌️</span>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>Dogleg.io</span>
           </div>
-        </div>
-        
-        <div className="p-4 space-y-3">
-          <button
-            onClick={handleCopyLink}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
-          >
-            {linkCopied ? (
-              <><svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg><span className="text-green-600">Link Copied!</span></>
-            ) : (
-              <><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg><span>Copy Link</span></>
-            )}
-          </button>
           
-          <button
-            onClick={handleShareImage}
-            disabled={isGenerating || !previewUrl || previewUrl === 'error'}
-            className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors disabled:bg-gray-400"
-          >
-            {isGenerating ? (
-              <><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div><span>Generating...</span></>
-            ) : (
-              <><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg><span>Share Image</span></>
-            )}
-          </button>
-          
-          <p className="text-xs text-center text-gray-500">
-            {navigator.share ? 'Share directly to Instagram, Messages, and more' : 'Download image to share'}
-          </p>
+          {/* Bottom Info Group */}
+          <div>
+            <div 
+              style={{ 
+                fontSize: '13px', 
+                opacity: 0.95, 
+                marginBottom: '4px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+              }}
+            >
+              {username} posted a score
+            </div>
+            
+            <div 
+              style={{ 
+                fontSize: '24px', 
+                fontWeight: 700, 
+                lineHeight: 1.2, 
+                marginBottom: '6px',
+                textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: '330px'
+              }}
+            >
+              {getDisplayName(round)}
+            </div>
+            
+            <div 
+              style={{ 
+                fontSize: '12px', 
+                opacity: 0.9,
+                marginBottom: '4px',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+              }}
+            >
+              {formatDate(round.date)} • {round.city}, {round.state}
+            </div>
+            
+            {/* Big score */}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '8px' }}>
+              <span 
+                style={{ 
+                  fontSize: '72px', 
+                  fontWeight: 800, 
+                  lineHeight: 0.9,
+                  textShadow: '0 2px 8px rgba(0,0,0,0.6)',
+                }}
+              >
+                {round.total}
+              </span>
+              {vsPar && (
+                <span 
+                  style={{ 
+                    fontSize: '28px', 
+                    fontWeight: 700,
+                    color: vsPar.startsWith('-') ? '#4ade80' : vsPar.startsWith('+') ? '#fca5a5' : 'white',
+                    textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                  }}
+                >
+                  ({vsPar})
+                </span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       
-      <ShareImageCard ref={cardRef} round={round} username={username} photoUrl={imageDataUrl} />
+      {/* Scorecard section */}
+      <div 
+        style={{
+          flex: 1,
+          background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)',
+          padding: '10px 10px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+        }}
+      >
+        {hasHoleByHole ? (
+          <>
+            {/* Front 9 Row */}
+            <div style={{ marginBottom: '8px' }}>
+              {/* Header Row (Hole Numbers) */}
+              <div style={{ display: 'flex', marginBottom: '2px' }}>
+                {[1,2,3,4,5,6,7,8,9,'Out'].map(h => (
+                  <div key={`f-h-${h}`} style={{ ...cellStyle, fontSize: '10px', fontWeight: 500, color: '#64748b' }}>
+                    {h}
+                  </div>
+                ))}
+              </div>
+              {/* Pars Row */}
+              <div style={{ display: 'flex', marginBottom: '2px' }}>
+                {pars.slice(0,9).map((p, i) => (
+                  <div key={`f-p-${i}`} style={{ ...cellStyle, fontSize: '10px', color: '#94a3b8' }}>
+                    {p}
+                  </div>
+                ))}
+                <div style={{ ...cellStyle, fontSize: '10px', color: '#94a3b8' }}>
+                  {pars.slice(0,9).reduce((a,b) => a + parseInt(b), 0)}
+                </div>
+              </div>
+              {/* Scores Row */}
+              <div style={{ display: 'flex' }}>
+                {round.holes.slice(0,9).map((s, i) => {
+                  const scoreClass = getScoreClass(s, pars[i])
+                  const colors = scoreColors[scoreClass] || scoreColors['par-score']
+                  return (
+                    <div key={`f-s-${i}`} style={{
+                      ...cellStyle,
+                      height: '28px', // Scores need to be taller
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      borderRadius: '4px',
+                      background: colors.background,
+                      color: colors.color,
+                      border: colors.border || 'none'
+                    }}>
+                      {s || '-'}
+                    </div>
+                  )
+                })}
+                {/* Total Cell */}
+                <div style={{
+                  ...cellStyle,
+                  height: '28px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  borderRadius: '4px',
+                  background: '#1e293b',
+                  color: 'white'
+                }}>
+                  {round.front9}
+                </div>
+              </div>
+            </div>
+            
+            {/* Back 9 Row */}
+            <div>
+              {/* Header Row (Hole Numbers) */}
+              <div style={{ display: 'flex', marginBottom: '2px' }}>
+                {[10,11,12,13,14,15,16,17,18,'In'].map(h => (
+                  <div key={`b-h-${h}`} style={{ ...cellStyle, fontSize: '10px', fontWeight: 500, color: '#64748b' }}>
+                    {h}
+                  </div>
+                ))}
+              </div>
+              {/* Pars Row */}
+              <div style={{ display: 'flex', marginBottom: '2px' }}>
+                {pars.slice(9,18).map((p, i) => (
+                  <div key={`b-p-${i}`} style={{ ...cellStyle, fontSize: '10px', color: '#94a3b8' }}>
+                    {p}
+                  </div>
+                ))}
+                <div style={{ ...cellStyle, fontSize: '10px', color: '#94a3b8' }}>
+                  {pars.slice(9,18).reduce((a,b) => a + parseInt(b), 0)}
+                </div>
+              </div>
+              {/* Scores Row */}
+              <div style={{ display: 'flex' }}>
+                {round.holes.slice(9,18).map((s, i) => {
+                  const scoreClass = getScoreClass(s, pars[i+9])
+                  const colors = scoreColors[scoreClass] || scoreColors['par-score']
+                  return (
+                    <div key={`b-s-${i}`} style={{
+                      ...cellStyle,
+                      height: '28px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      borderRadius: '4px',
+                      background: colors.background,
+                      color: colors.color,
+                      border: colors.border || 'none'
+                    }}>
+                      {s || '-'}
+                    </div>
+                  )
+                })}
+                {/* Total Cell */}
+                <div style={{
+                  ...cellStyle,
+                  height: '28px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  borderRadius: '4px',
+                  background: '#1e293b',
+                  color: 'white'
+                }}>
+                  {round.back9}
+                </div>
+              </div>
+            </div>
+          </>
+        ) : round.front9 && round.back9 ? (
+          /* Front/Back Fallback */
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
+            <div style={{ background: 'white', padding: '14px 24px', borderRadius: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Front 9</div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: '#1e293b' }}>{round.front9}</div>
+            </div>
+            <div style={{ background: 'white', padding: '14px 24px', borderRadius: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Back 9</div>
+              <div style={{ fontSize: '28px', fontWeight: 700, color: '#1e293b' }}>{round.back9}</div>
+            </div>
+          </div>
+        ) : (
+          /* Total Fallback */
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{ background: 'white', padding: '16px 40px', borderRadius: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '11px', color: '#64748b', marginBottom: '4px' }}>Par {round.par || 72}</div>
+              <div style={{ fontSize: '36px', fontWeight: 700, color: '#1e293b' }}>Total: {round.total}</div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
-}
+})
 
-export default ShareModal
+ShareImageCard.displayName = 'ShareImageCard'
+
+export default ShareImageCard

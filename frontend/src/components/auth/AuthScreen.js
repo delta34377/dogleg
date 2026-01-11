@@ -282,6 +282,32 @@ useEffect(() => {
           </div>
         )}
 
+        {/* Google Sign In - FIRST for signin/signup */}
+        {(authMode === 'signin' || authMode === 'signup') && (
+          <>
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                className="w-full flex items-center justify-center gap-3 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
+                disabled={loading}
+              >
+                <FcGoogle className="text-xl" />
+                <span>Continue with Google</span>
+              </button>
+            </div>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Or continue with email</span>
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Sign In Form */}
         {authMode === 'signin' && (
           <form onSubmit={handleEmailSignIn} className="space-y-4">
@@ -346,17 +372,17 @@ useEffect(() => {
                 Username
               </label>
               <input
-  type="text"
-  value={username}
-  onChange={(e) => setUsername(e.target.value)}  // Let them type whatever
-  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-  placeholder="johndoe"
-  autoComplete="username"
-  required
-  disabled={loading}
-  pattern="[a-zA-Z0-9_]{3,20}"  // Accept uppercase in pattern
-  title="3-20 characters (letters, numbers, underscores)"
-/>
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                placeholder="johndoe"
+                autoComplete="username"
+                required
+                disabled={loading}
+                pattern="[a-zA-Z0-9_]{3,20}"
+                title="3-20 characters (letters, numbers, underscores)"
+              />
             </div>
 
             <div>
@@ -425,7 +451,7 @@ useEffect(() => {
               />
             </div>
 
-<div className="flex items-start gap-2">
+            <div className="flex items-start gap-2">
               <input
                 type="checkbox"
                 id="terms-checkbox"
@@ -447,7 +473,7 @@ useEffect(() => {
               </label>
             </div>
 
-<div className="flex items-start gap-2">
+            <div className="flex items-start gap-2">
               <input
                 type="checkbox"
                 id="newsletter-checkbox"
@@ -580,32 +606,6 @@ useEffect(() => {
               Back to Sign In
             </button>
           </form>
-        )}
-
-        {/* Divider and Social Login Options */}
-        {(authMode === 'signin' || authMode === 'signup') && (
-          <>
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or continue with</span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={handleGoogleSignIn}
-                className="w-full flex items-center justify-center gap-3 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50"
-                disabled={loading}
-              >
-                <FcGoogle className="text-xl" />
-                <span className="font-medium">Google</span>
-              </button>
-            </div>
-          </>
         )}
 
         {/* Toggle between Sign In and Sign Up */}

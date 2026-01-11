@@ -241,9 +241,9 @@ useEffect(() => {
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-3">
-            <span className="text-2xl">🏌️</span>
-          </div>
+          <div className="inline-flex items-center justify-center w-16 h-16 mb-3">
+  <img src="/logo-auth.png" alt="Dogleg" className="w-16 h-16 object-contain" />
+</div>
           <h1 className="text-2xl font-bold text-gray-900">Dogleg.io</h1>
           
           {/* Marketing content for signin/signup */}

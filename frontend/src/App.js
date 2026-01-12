@@ -124,7 +124,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
                   }}
                   className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                 >
-                  <img src="/icon-192.png" alt="Dogleg" className="w-8 h-8 object-contain" />
+                  <img src="/icon-512.png" alt="Dogleg" className="w-8 h-8 object-contain" />
 <span className="font-bold text-xl text-green-700">Dogleg.io</span>
                 </button>
               </div>
@@ -308,7 +308,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
               onClick={handleFeedClick}
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
-              <img src="/icon-192.png" alt="Dogleg" className="w-8 h-8 object-contain" />
+              <img src="/icon-512.png" alt="Dogleg" className="w-8 h-8 object-contain" />
 <span className="font-bold text-xl text-green-700">Dogleg.io</span>
             </button>
             

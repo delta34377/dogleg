@@ -159,8 +159,22 @@ function ShareModal({ round, username, onClose }) {
     // --------------------------------------------------------
     
     // -- Top Section --
-    ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif'
-    ctx.fillText('🏌️ DOGLEG.IO', 16, 16)
+    // Load and draw logo
+try {
+  const logoImg = await new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject()
+    img.src = '/icon-192.png'
+  })
+  ctx.drawImage(logoImg, 12, 10, 24, 24)
+  ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, sans-serif'
+  ctx.fillText('DOGLEG.IO', 42, 26)
+} catch (e) {
+  // Fallback to text if logo fails
+  ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif'
+  ctx.fillText('🏌️ DOGLEG.IO', 16, 16)
+}
     
     let currentY = 50 
     

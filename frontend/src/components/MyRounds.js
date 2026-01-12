@@ -913,7 +913,7 @@ useImperativeHandle(ref, () => ({
 
                       {/* Notes with comment emoji - EXACT AMBER STYLING */}
                       {round.comment && (
-  <div className={`px-2 sm:px-4 ${(round.holes && round.holes.some(h => h !== '')) || round.photo ? 'mt-2 sm:mt-4' : ''} pb-2 sm:pb-3`}>
+  <div className="px-2 sm:px-4 pt-2 sm:pt-3 pb-2 sm:pb-3">
                           <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded">
                             <p className="text-sm">💬 {round.comment}</p>
                           </div>

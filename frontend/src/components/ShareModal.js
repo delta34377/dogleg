@@ -169,7 +169,7 @@ try {
   })
   ctx.drawImage(logoImg, 10, 8, 28, 28)
   ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, sans-serif'
-  ctx.fillText('dogleg.io', 42, 16)
+  ctx.fillText('dogleg.io', 38, 16)
 } catch (e) {
   // Fallback if logo fails
   ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif'

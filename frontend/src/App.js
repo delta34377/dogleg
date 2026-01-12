@@ -22,6 +22,8 @@ import AdminDashboard from './components/admin/AdminDashboard'
 import ModerationDashboard from './components/admin/ModerationDashboard'
 import NotificationDropdown from './components/NotificationDropdown'
 import IOSInstallPrompt from './components/IOSInstallPrompt';
+import { Analytics } from '@vercel/analytics/react'
+
 
 
 // Main authenticated app with navigation
@@ -554,6 +556,7 @@ function App() {
             }
           />
         </Routes>
+          <Analytics />
       </AuthProvider>
     </Router>
   )

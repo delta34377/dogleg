@@ -165,13 +165,13 @@ try {
     const img = new Image()
     img.onload = () => resolve(img)
     img.onerror = () => reject()
-    img.src = '/icon-192.png'
+    img.src = '/logo-share.png'
   })
-  ctx.drawImage(logoImg, 12, 10, 24, 24)
+  ctx.drawImage(logoImg, 10, 8, 28, 28)
   ctx.font = 'bold 12px -apple-system, BlinkMacSystemFont, sans-serif'
   ctx.fillText('DOGLEG.IO', 42, 26)
 } catch (e) {
-  // Fallback to text if logo fails
+  // Fallback if logo fails
   ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, sans-serif'
   ctx.fillText('🏌️ DOGLEG.IO', 16, 16)
 }

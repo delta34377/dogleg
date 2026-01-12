@@ -34,9 +34,14 @@ function SingleRound() {
   }, [roundId])
 
   const loadSingleRound = async () => {
-    setIsLoading(true)
-        
-    const { data: roundData, error: roundError } = await roundsService.getRoundByShortCode(roundId)
+  setIsLoading(true)
+  
+  // Check if roundId is a UUID or short_code
+  const isUUID = roundId.length === 36 && roundId.includes('-')
+  
+  const { data: roundData, error: roundError } = isUUID 
+    ? await roundsService.getRound(roundId)
+    : await roundsService.getRoundByShortCode(roundId)
     
     
     if (!roundData || roundError) {

@@ -239,19 +239,18 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
-        {/* Logo and Title */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-32 h-32 mb-3">
-  <img src="/logo-auth.png" alt="Dogleg" className="w-24 h-24 object-contain" />
-</div>
-          <h1 className="text-2xl font-bold text-gray-900">Dogleg.io</h1>
-          
-          {/* Marketing content for signin/signup */}
-          {(authMode === 'signin' || authMode === 'signup') && (
-            <div className="mt-4">
-              <p className="text-lg font-semibold text-green-700 mb-3">
-                Your Golf Life, Socialized.
-              </p>
+        {/* Logo */}
+<div className="text-center mb-8">
+  <div className="flex justify-center mb-4">
+    <img src="/logo-full.png" alt="Dogleg.io" className="h-16 sm:h-20 object-contain" />
+  </div>
+  
+  {/* Marketing content - remove old h1 "Dogleg.io" since it's in the image now */}
+  {(authMode === 'signin' || authMode === 'signup') && (
+    <div className="mt-4">
+      <p className="text-lg font-semibold text-green-700 mb-3">
+        Your Golf Life, Socialized.
+      </p>
               <div className="flex flex-col gap-1 text-sm text-gray-600">
                 <p>⛳ Log your rounds in seconds</p>
                 <p>👥 Follow friends and see their scores</p>

@@ -36,10 +36,7 @@ function AuthenticatedApp() {
   const location = useLocation()
   const navigate = useNavigate()
 
-  // Check if user needs to set up username (Google OAuth users)
-  if (profile && !profile.username) {
-    return <UsernameSetup />
-  }
+  
   
   // Handle redirect after OAuth login
 useEffect(() => {
@@ -53,6 +50,11 @@ useEffect(() => {
     navigate(redirectPath, { replace: true })
   }
 }, [navigate])
+
+// Check if user needs to set up username (Google OAuth users)
+  if (profile && !profile.username) {
+    return <UsernameSetup />
+  }
   
   // Handle Feed tab click - refresh if already on feed
 const handleFeedClick = () => {

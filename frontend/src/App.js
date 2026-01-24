@@ -23,6 +23,7 @@ import ModerationDashboard from './components/admin/ModerationDashboard'
 import NotificationDropdown from './components/NotificationDropdown'
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import { Analytics } from '@vercel/analytics/react'
+import UsernameSetup from './components/UsernameSetup'
 
 
 
@@ -34,6 +35,12 @@ function AuthenticatedApp() {
   const { user, profile, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+
+  // Check if user needs to set up username (Google OAuth users)
+  if (profile && !profile.username) {
+    return <UsernameSetup />
+  }
+  
   // Handle redirect after OAuth login
 useEffect(() => {
   const redirectPath = sessionStorage.getItem('redirectAfterLogin')

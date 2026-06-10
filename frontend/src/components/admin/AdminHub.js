@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { isAdmin } from '../../utils/admin';
 import { BarChart3, Sliders, Home, TrendingUp, Users, FileText, Shield } from 'lucide-react';
 
 const AdminHub = () => {
@@ -9,9 +10,9 @@ const AdminHub = () => {
   const location = useLocation();
   const { user } = useAuth();
 
-  // Check if user is admin
+  // Defense-in-depth admin check (route is already gated by <AdminGate>).
   useEffect(() => {
-    if (user?.email !== 'markgreenfield1@gmail.com') {
+    if (!isAdmin(user)) {
       navigate('/');
     }
   }, [user, navigate]);

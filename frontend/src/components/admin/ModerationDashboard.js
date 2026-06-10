@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { ADMIN_EMAIL } from '../../utils/admin';
 import { useNavigate } from 'react-router-dom';
 import { 
   Trash2, Search, Users, MessageSquare, Flag, AlertTriangle, 
@@ -14,7 +15,6 @@ const ModerationDashboard = () => {
     // Admin guard
   const { user } = useAuth();
   const navigate = useNavigate();
-  const ADMIN_EMAIL = 'markgreenfield1@gmail.com';
 const [activeTab, setActiveTab] = useState(() => {
   return localStorage.getItem('moderationActiveTab') || 'users';
 });  const [loading, setLoading] = useState(false);

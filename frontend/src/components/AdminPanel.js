@@ -2,13 +2,12 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { getFeedSettings, saveFeedSettings } from '../services/feedSettingsService'
+import { ADMIN_EMAIL } from '../utils/admin'
 
 function AdminPanel() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  
-  const ADMIN_EMAIL = 'markgreenfield1@gmail.com'
-  
+
   // Default settings - used if no global settings exist
   const defaultSettings = {
     mode: 'following',

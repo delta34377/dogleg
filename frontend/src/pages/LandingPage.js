@@ -256,17 +256,17 @@ function LandingPage() {
   const features = [
     {
       step: '01',
-      title: "Follow your friends' rounds",
+      title: 'Post your rounds',
       description:
-        "When your buddies post a round, it lands in your feed — drop an emoji reaction and pile into the comments.",
-      mock: <MockComments />,
+        'Pick from 22,000+ courses, enter your scores hole-by-hole, and add a photo and a caption. Done in under 30 seconds.',
+      mock: <MockRoundCard />,
     },
     {
       step: '02',
-      title: 'Post yours in under 30 seconds',
+      title: "React and comment on friends' rounds",
       description:
-        'Pick from 22,000+ courses, enter your scores hole-by-hole, and add a photo and a caption.',
-      mock: <MockRoundCard />,
+        'Follow your friends and never miss a round — drop an emoji reaction and join the conversation in the comments.',
+      mock: <MockComments />,
     },
     {
       step: '03',

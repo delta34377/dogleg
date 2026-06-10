@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { isAdmin } from '../../utils/admin';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -36,9 +37,9 @@ const [useCustomDate, setUseCustomDate] = useState(false);
 const [selectedTab, setSelectedTab] = useState('overview');
   
 
-  // Check if user is admin
+  // Defense-in-depth admin check (route is already gated by <AdminGate>).
   useEffect(() => {
-    if (user?.email !== 'markgreenfield1@gmail.com') {
+    if (!isAdmin(user)) {
       navigate('/');
     }
   }, [user, navigate]);

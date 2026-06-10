@@ -17,6 +17,8 @@ import PrivacyPolicy from './pages/PrivacyPolicy'
 import LandingPage from './pages/LandingPage'
 import { getInitials } from './utils/avatarUtils'
 import AdminPanel from './components/AdminPanel'
+import AdminGate from './components/AdminGate'
+import { isAdmin } from './utils/admin'
 import AdminHub from './components/admin/AdminHub'
 import AdminOverview from './components/admin/AdminOverview'
 import AdminDashboard from './components/admin/AdminDashboard'
@@ -159,7 +161,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
 
 
                 {/* Secret Admin Button - only shows for admin email */}
-                {user?.email === 'markgreenfield1@gmail.com' && (
+                {isAdmin(user) && (
                   <button
                     onClick={() => navigate('/admin')}
                     className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -341,7 +343,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
 <NotificationDropdown />
 
               {/* Secret Admin Button */}
-              {user?.email === 'markgreenfield1@gmail.com' && (
+              {isAdmin(user) && (
                 <button
                   onClick={() => navigate('/admin')}
                   className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -540,11 +542,13 @@ function App() {
           />
           
           {/* Admin routes with sub-routes */}
-          <Route 
-            path="/admin" 
+          <Route
+            path="/admin"
             element={
               <ProtectedRoute>
-                <AdminHub />
+                <AdminGate>
+                  <AdminHub />
+                </AdminGate>
               </ProtectedRoute>
             }
           >

@@ -6,9 +6,9 @@ import { reactionEmojis } from '../utils/constants'
 const demoPars = [4, 5, 4, 3, 4, 4, 5, 3, 4, 4, 4, 5, 3, 4, 4, 3, 5, 4]
 const demoScores = [4, 5, 3, 4, 4, 5, 5, 2, 5, 4, 5, 6, 2, 4, 5, 4, 7, 5]
 
-// Photos: Unsplash (free commercial use), IDs preserved in filenames
-const ROUND_PHOTO = '/landing/courtney-cook-SsIIw_MET0E-unsplash.jpg'
-const SHARE_PHOTO = '/landing/edwin-compton-Z8XlmAj65iM-unsplash.jpg'
+// Course photo used in the round-card and share-image mocks
+const ROUND_PHOTO = '/landing/course-photo.jpg'
+const SHARE_PHOTO = '/landing/course-photo.jpg'
 
 // Same score coloring as the real Scorecard in Feed/MyRounds
 const getScoreStyle = (score, par) => {
@@ -88,8 +88,8 @@ function MockRoundCard() {
       </div>
 
       <div className="px-2 pt-1.5">
-        <div className="h-[88px] rounded-lg overflow-hidden">
-          <img src={ROUND_PHOTO} alt="Golfer teeing off" className="w-full h-full object-cover" />
+        <div className="h-24 rounded-lg overflow-hidden">
+          <img src={ROUND_PHOTO} alt="Golf green with red flag" className="w-full h-full object-cover object-[50%_58%]" />
         </div>
       </div>
 
@@ -203,7 +203,7 @@ function MockShareCard() {
     <div className="w-full max-w-[300px] mx-auto">
       <div className="w-[250px] mx-auto rounded-xl overflow-hidden shadow-xl ring-1 ring-black/10">
         <div className="relative h-[175px] text-white">
-          <img src={SHARE_PHOTO} alt="Golf green at sunset" className="absolute inset-0 w-full h-full object-cover" />
+          <img src={SHARE_PHOTO} alt="Golf green with red flag" className="absolute inset-0 w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-black/60"></div>
           <div className="relative p-2.5">
             <div className="flex items-center gap-1">

@@ -1,162 +1,111 @@
 -- ============================================================================
--- Dogleg — Admin security audit & hardening
+-- Dogleg — Admin security audit
 -- ============================================================================
--- WHY THIS FILE EXISTS
--- The app only hides the admin UI in the browser (an email check in React).
--- That stops nothing: any logged-in user can open the browser console and call
--- your admin RPCs directly with their own session, e.g.
+-- Audited: 2026-06-10
 --
---     await supabase.rpc('get_all_users_admin', { ... })   // every user's email
---     await supabase.rpc('delete_round_admin', { p_round_id: '<any id>' })
+-- CONCLUSION: No exploitable server-side admin hole was found.
+--   * Every *_admin function is SECURITY DEFINER and rejects non-admins with
+--     `IF NOT is_admin() THEN RAISE EXCEPTION 'Unauthorized: Admin access
+--     required'; END IF;` as its first statement. Verified for:
+--       ban_user_admin, toggle_user_ban_admin,
+--       delete_round_admin, delete_comment_admin, delete_user_content_admin,
+--       get_all_users_admin, get_all_rounds_admin, get_all_comments_admin,
+--       count_all_users_admin, count_all_rounds_admin, count_all_comments_admin
+--     (get_all_users_admin also builds dynamic SQL, but the sort column/order
+--     are whitelisted via CASE and the search term is a bound parameter — safe.)
+--   * app_settings has RLS ENABLED with: public SELECT, and INSERT/UPDATE
+--     restricted to admins (is_admin(auth.uid())). A normal user cannot change
+--     the global feed algorithm.
 --
--- The ONLY thing that actually stops that is server-side enforcement:
---   (a) RLS policies on the tables, and/or
---   (b) an admin check INSIDE each SECURITY DEFINER function.
+-- The browser-side gating (frontend/src/utils/admin.js + <AdminGate>) is
+-- therefore defense-in-depth only, which is correct.
 --
--- Run PART 1 first to see what you currently have. Then use PART 2 to fix any
--- gaps. PART 1 is read-only and safe. PART 2 changes permissions — read each
--- block before running it.
---
--- How to run: Supabase Dashboard -> SQL Editor -> paste a section -> Run.
+-- ----------------------------------------------------------------------------
+-- OPEN ITEM — two different definitions of "admin" (reconcile to avoid a
+-- latent footgun):
+--   * is_admin()        -> auth.jwt() ->> 'email' = 'markgreenfield1@gmail.com'
+--                          (used by all the *_admin RPCs)
+--   * is_admin(uid)     -> profiles.is_admin column for that uid
+--                          (used by the app_settings RLS policies)
+-- These can disagree. For the admin account BOTH must be true: the RPCs work
+-- off the JWT email, but saving feed settings works off the profiles.is_admin
+-- column. Confirm the column is set (PART 2), and ideally standardize on one
+-- definition.
 -- ============================================================================
 
 
 -- ============================================================================
--- PART 1 — VERIFY (read-only; safe to run anytime)
+-- PART 1 — Re-verify anytime (read-only; safe)
 -- ============================================================================
 
--- 1a. Is Row Level Security actually ENABLED on the sensitive tables?
---     relrowsecurity = true  means RLS is on. If false, the table is wide open
---     to any authenticated user regardless of any policies below.
-SELECT c.relname                AS table_name,
-       c.relrowsecurity         AS rls_enabled,
-       c.relforcerowsecurity    AS rls_forced
+-- 1a. Is RLS enabled on the sensitive tables? (relrowsecurity = true)
+SELECT c.relname AS table_name,
+       c.relrowsecurity AS rls_enabled,
+       c.relforcerowsecurity AS rls_forced
 FROM pg_class c
 JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE n.nspname = 'public'
-  AND c.relname IN (
-    'rounds', 'comments', 'profiles', 'app_settings',
-    'follows', 'reactions', 'moderation_log'
-  )
+  AND c.relname IN ('rounds','comments','profiles','app_settings',
+                    'follows','reactions','moderation_log')
 ORDER BY c.relname;
 
-
 -- 1b. What RLS policies exist, and what do they require?
---     Look especially at app_settings (feed algorithm) and any write policies
---     (cmd = INSERT/UPDATE/DELETE) — they should require an admin check, not
---     just "authenticated".
-SELECT tablename,
-       policyname,
-       cmd,                 -- SELECT / INSERT / UPDATE / DELETE / ALL
-       roles,
-       qual        AS using_expression,      -- row visibility (read/update/delete)
-       with_check  AS with_check_expression  -- allowed new rows (insert/update)
+SELECT tablename, policyname, cmd, roles,
+       qual AS using_expression, with_check AS with_check_expression
 FROM pg_policies
 WHERE schemaname = 'public'
 ORDER BY tablename, cmd, policyname;
 
-
--- 1c. Show the full definition of every admin function, and whether it runs as
---     SECURITY DEFINER (runs with the owner's rights, bypassing RLS — these
---     MUST contain their own admin check). Read each `definition` and confirm
---     it rejects non-admins (look for something like
---     `auth.jwt() ->> 'email'` or `is_admin()` near the top).
-SELECT p.proname                                        AS function_name,
-       pg_get_function_identity_arguments(p.oid)        AS arguments,
-       p.prosecdef                                      AS security_definer,
-       pg_get_functiondef(p.oid)                        AS definition
+-- 1c. Full definition of every admin function + whether it is SECURITY DEFINER.
+SELECT p.proname AS function_name,
+       pg_get_function_identity_arguments(p.oid) AS arguments,
+       p.prosecdef AS security_definer,
+       pg_get_functiondef(p.oid) AS definition
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE n.nspname = 'public'
-  AND p.proname LIKE '%admin%'
+WHERE n.nspname = 'public' AND p.proname LIKE '%admin%'
 ORDER BY p.proname;
 
--- If a function you expect is missing from 1c, broaden the filter, e.g.
--- replace the LIKE line with:  AND p.proname IN
---   ('get_all_users_admin','get_all_rounds_admin','get_all_comments_admin',
---    'delete_round_admin','delete_comment_admin','delete_user_content_admin',
---    'toggle_user_ban_admin','get_dashboard_overview')
-
 
 -- ============================================================================
--- PART 2 — HARDEN (review each block, then run)
+-- PART 2 — Reconcile the two is_admin definitions
 -- ============================================================================
--- These are templates. The is_admin() helper and the app_settings policies are
--- safe to apply as-is. The RPC guard (2c) is a PATTERN you must paste into your
--- existing function bodies — this file does not have those bodies, so it can't
--- rewrite them for you.
 
--- ----------------------------------------------------------------------------
--- 2a. One reusable admin check, driven by the signed-in user's JWT email.
---     Keep this email in sync with frontend/src/utils/admin.js.
--- ----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean
-LANGUAGE sql
-STABLE
-AS $$
-  SELECT COALESCE(auth.jwt() ->> 'email', '') = 'markgreenfield1@gmail.com';
-$$;
+-- 2a. Confirm the admin account's profiles.is_admin column is set. The
+--     app_settings write policies depend on it; if it is not TRUE for the admin,
+--     saving feed settings fails with "Error saving settings: ...".
+SELECT p.id, au.email, p.is_admin
+FROM profiles p
+JOIN auth.users au ON au.id = p.id
+WHERE au.email = 'markgreenfield1@gmail.com' OR p.is_admin = TRUE;
 
+-- 2b. If the admin row shows is_admin = false / null, set it:
+--     UPDATE profiles SET is_admin = TRUE WHERE id = '<admin uuid from 2a>';
 
--- ----------------------------------------------------------------------------
--- 2b. Lock down app_settings (the global feed-algorithm row).
---     Everyone signed in may READ it (the feed needs it); only admins may WRITE.
---     Without this, any user can change the feed algorithm for the whole app.
--- ----------------------------------------------------------------------------
-ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS app_settings_select ON public.app_settings;
-CREATE POLICY app_settings_select
-  ON public.app_settings
-  FOR SELECT
-  TO authenticated
-  USING (true);
-
-DROP POLICY IF EXISTS app_settings_admin_write ON public.app_settings;
-CREATE POLICY app_settings_admin_write
-  ON public.app_settings
-  FOR ALL                       -- INSERT / UPDATE / DELETE
-  TO authenticated
-  USING (public.is_admin())     -- which rows an admin may update/delete
-  WITH CHECK (public.is_admin());  -- rows an admin may insert/update
-
-
--- ----------------------------------------------------------------------------
--- 2c. PATTERN — add an admin check to each admin SECURITY DEFINER function.
---     Copy your existing CREATE OR REPLACE FUNCTION for each admin RPC from the
---     PART 1c output, then insert the guard as the FIRST statement in the body.
---     Repeat for: get_all_users_admin, get_all_rounds_admin,
---     get_all_comments_admin, delete_round_admin, delete_comment_admin,
---     delete_user_content_admin, toggle_user_ban_admin, get_dashboard_overview.
+-- 2c. OPTIONAL consolidation — standardize on the profiles.is_admin column so
+--     "admin" has a single source of truth and you can add admins without
+--     hardcoding an email. ORDER MATTERS: make sure 2a/2b show is_admin = TRUE
+--     for yourself FIRST, or this will lock you out of every admin RPC.
 --
---     Example shape (replace the signature/body with your real one):
---
---     CREATE OR REPLACE FUNCTION public.delete_round_admin(p_round_id uuid)
---     RETURNS void
---     LANGUAGE plpgsql
+--     CREATE OR REPLACE FUNCTION public.is_admin()
+--     RETURNS boolean
+--     LANGUAGE sql
+--     STABLE
 --     SECURITY DEFINER
---     SET search_path = public
+--     SET search_path = public, pg_temp
 --     AS $$
---     BEGIN
---       IF NOT public.is_admin() THEN
---         RAISE EXCEPTION 'Not authorized' USING ERRCODE = '42501';
---       END IF;
---
---       -- ... your existing function body ...
---     END;
+--       SELECT COALESCE((SELECT is_admin FROM public.profiles WHERE id = auth.uid()), FALSE);
 --     $$;
--- ----------------------------------------------------------------------------
+--
+--     (After this, both the RPCs and the app_settings policies use the column,
+--     and you can drop the hardcoded email. The frontend email check in
+--     utils/admin.js remains a UI hint only — not a security boundary.)
 
 
--- ----------------------------------------------------------------------------
--- 2d. After hardening, confirm a NON-admin is blocked.
---     Easiest check: log into the app as a normal (non-admin) account, open the
---     browser console on the site, and run:
---
---       await supabase.rpc('get_all_users_admin')        // expect an error / no rows
---       await supabase.from('app_settings')
---             .update({ value: {} }).eq('key', 'feed')    // expect an error / 0 rows
---
---     Both should now fail. As the admin account, both should still work.
--- ----------------------------------------------------------------------------
+-- ============================================================================
+-- PART 3 — Lower-priority hardening (optional)
+-- ============================================================================
+-- Supabase's linter flags SECURITY DEFINER functions without a pinned
+-- search_path ("Function Search Path Mutable"). Low risk here since they call
+-- schema-qualified auth.jwt(), but adding `SET search_path = public, pg_temp`
+-- to each SECURITY DEFINER admin function is good hygiene.

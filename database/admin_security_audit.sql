@@ -21,8 +21,10 @@
 -- therefore defense-in-depth only, which is correct.
 --
 -- ----------------------------------------------------------------------------
--- OPEN ITEM — two different definitions of "admin" (reconcile to avoid a
--- latent footgun):
+-- OPEN ITEM (verified 2026-06-10: profiles.is_admin = TRUE for the admin
+-- account, so both definitions currently agree — no action required) —
+-- two different definitions of "admin" exist (reconcile to avoid a latent
+-- footgun if either side ever changes):
 --   * is_admin()        -> auth.jwt() ->> 'email' = 'markgreenfield1@gmail.com'
 --                          (used by all the *_admin RPCs)
 --   * is_admin(uid)     -> profiles.is_admin column for that uid

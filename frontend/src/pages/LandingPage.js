@@ -256,17 +256,17 @@ function LandingPage() {
   const features = [
     {
       step: '01',
-      title: 'Post your rounds',
+      title: "Follow your friends' rounds",
       description:
-        'Pick from 22,000+ courses, enter your scores hole-by-hole, and add a photo and a caption. Done in under 30 seconds.',
-      mock: <MockRoundCard />,
+        "When your buddies post a round, it lands in your feed — drop an emoji reaction and pile into the comments.",
+      mock: <MockComments />,
     },
     {
       step: '02',
-      title: "React and comment on friends' rounds",
+      title: 'Post yours in under 30 seconds',
       description:
-        'Follow your friends and never miss a round — drop an emoji reaction and join the conversation in the comments.',
-      mock: <MockComments />,
+        'Pick from 22,000+ courses, enter your scores hole-by-hole, and add a photo and a caption.',
+      mock: <MockRoundCard />,
     },
     {
       step: '03',
@@ -328,8 +328,8 @@ function LandingPage() {
             Your golf life, <span className="text-green-600">socialized.</span>
           </h1>
           <p className="mt-4 max-w-xl mx-auto text-base sm:text-lg text-gray-600">
-            Post your rounds, follow your buddies, and keep the trash talk going long after the
-            19th hole. Think Strava, for golf.
+            Follow your buddies' rounds, jump into the comments, and keep the trash talk
+            going long after the 19th hole.
           </p>
           <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button

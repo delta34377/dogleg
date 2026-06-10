@@ -1,7 +1,9 @@
 # 🤖 AI Context Document - Dogleg Project
 
 ## Quick Project Summary
-I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Strava/Instagram for golf" where users post rounds, follow friends, and react/comment on each other's scores. Mobile-first PWA.
+I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Instagram for golf" where users follow friends, react/comment on each other's rounds, and post their own scores. Mobile-first PWA.
+
+**Positioning (June 2026):** Lead with the social side (follow/react/comment on friends' rounds). De-emphasize the stat-tracking/"Strava" angle in user-facing copy and ads — see `/docs/google_ads.md` and `/docs/feature_ideas.md`.
 
 ## Current Status
 - ✅ Database schema ready (Supabase)

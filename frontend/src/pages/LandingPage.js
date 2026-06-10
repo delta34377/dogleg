@@ -2,9 +2,13 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { reactionEmojis } from '../utils/constants'
 
-// Mock round data for the feature showcase
-const demoPars = [4, 5, 4, 3, 4, 4, 5, 3, 4]
-const demoScores = [4, 5, 3, 4, 4, 5, 5, 2, 5]
+// Mock round data for the feature showcase (front 9 + back 9)
+const demoPars = [4, 5, 4, 3, 4, 4, 5, 3, 4, 4, 4, 5, 3, 4, 4, 3, 5, 4]
+const demoScores = [4, 5, 3, 4, 4, 5, 5, 2, 5, 4, 5, 6, 2, 4, 5, 4, 7, 5]
+
+// Photos: Unsplash (free commercial use), IDs preserved in filenames
+const ROUND_PHOTO = '/landing/courtney-cook-SsIIw_MET0E-unsplash.jpg'
+const SHARE_PHOTO = '/landing/edwin-compton-Z8XlmAj65iM-unsplash.jpg'
 
 // Same score coloring as the real Scorecard in Feed/MyRounds
 const getScoreStyle = (score, par) => {
@@ -17,11 +21,37 @@ const getScoreStyle = (score, par) => {
   return { backgroundColor: '#c62828', color: '#fff' }
 }
 
+// One nine of the feed-card scorecard: hole numbers, pars, colored scores
+function MockNine({ start, totalLabel, total }) {
+  const pars = demoPars.slice(start, start + 9)
+  const scores = demoScores.slice(start, start + 9)
+  return (
+    <div className="grid grid-cols-10 gap-0.5 text-center text-[8px]">
+      {pars.map((_, i) => (
+        <div key={`h-${i}`} className="text-gray-600 font-medium">{start + i + 1}</div>
+      ))}
+      <div className="text-gray-600 font-bold">{totalLabel}</div>
+      {pars.map((par, i) => (
+        <div key={`p-${i}`} className="text-gray-500 bg-gray-50 rounded">P{par}</div>
+      ))}
+      <div className="text-gray-500 bg-gray-50 rounded font-bold">
+        {pars.reduce((s, p) => s + p, 0)}
+      </div>
+      {scores.map((score, i) => (
+        <div key={`s-${i}`} className="py-0.5 rounded font-medium text-[9px]" style={getScoreStyle(score, pars[i])}>
+          {score}
+        </div>
+      ))}
+      <div className="py-0.5 bg-gray-900 text-white font-bold rounded text-[9px]">{total}</div>
+    </div>
+  )
+}
+
 // Mini app chrome so each mock reads as a screen from the app
 function MockAppFrame({ children }) {
   return (
     <div className="w-full max-w-[300px] mx-auto bg-white rounded-2xl shadow-xl ring-1 ring-black/5 overflow-hidden">
-      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-gray-100 bg-white">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-gray-100 bg-white">
         <img src="/icon-192.png" alt="" className="w-6 h-6 object-contain" />
         <span className="font-bold text-sm text-green-700">Dogleg.io</span>
       </div>
@@ -30,25 +60,25 @@ function MockAppFrame({ children }) {
   )
 }
 
-// Slide 1: a feed-style round card — score, photo, scorecard, caption
+// Slide 1: a feed-style round card — score, photo, full scorecard, caption
 function MockRoundCard() {
   return (
     <MockAppFrame>
-      <div className="px-3 pt-2 pb-1.5">
+      <div className="px-3 pt-1.5 pb-1">
         <div className="flex items-center gap-1.5">
           <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-            <span className="text-green-700 font-semibold text-[9px]">MG</span>
+            <span className="text-green-700 font-semibold text-[9px]">AF</span>
           </div>
-          <span className="text-xs text-gray-600">mark_g posted a round</span>
+          <span className="text-xs text-gray-600">alex_fairway posted a round</span>
         </div>
       </div>
 
-      <div className="px-3 pb-2 border-b">
+      <div className="px-3 pb-1.5 border-b">
         <div className="flex justify-between items-start">
           <div>
             <h3 className="font-bold text-sm">Pebble Creek Golf Club</h3>
             <p className="text-gray-600 text-[11px]">Phoenix, AZ</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">6/7/2026 • Blue tees • 6,612y</p>
+            <p className="text-[10px] text-gray-500">6/7/2026 • Blue tees • 6,612y</p>
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold leading-none">79</div>
@@ -57,49 +87,25 @@ function MockRoundCard() {
         </div>
       </div>
 
-      {/* Illustrated "round photo" */}
-      <div className="px-2 pt-2">
-        <div className="relative h-24 rounded-lg overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-sky-300 via-sky-200 to-emerald-300"></div>
-          <div className="absolute top-2 right-4 w-6 h-6 bg-amber-200 rounded-full opacity-90"></div>
-          <div className="absolute -bottom-8 -left-6 w-40 h-20 bg-emerald-500 rounded-[100%]"></div>
-          <div className="absolute -bottom-10 right-0 w-48 h-20 bg-emerald-600 rounded-[100%]"></div>
-          <div className="absolute bottom-3 right-12 w-8 h-3 bg-amber-100 rounded-[100%]"></div>
-          <div className="absolute bottom-5 left-16">
-            <div className="w-0 h-0 border-y-[4px] border-y-transparent border-l-[9px] border-l-red-500 ml-[2px]"></div>
-            <div className="w-[2px] h-7 bg-gray-50"></div>
-          </div>
+      <div className="px-2 pt-1.5">
+        <div className="h-[88px] rounded-lg overflow-hidden">
+          <img src={ROUND_PHOTO} alt="Golfer teeing off" className="w-full h-full object-cover" />
         </div>
       </div>
 
-      {/* Front-9 scorecard, real colors */}
-      <div className="px-2 pt-2">
-        <div className="bg-gray-100 px-2 py-1 rounded-t-lg">
-          <span className="text-[10px] font-bold text-gray-700">SCORECARD</span>
+      <div className="px-2 pt-1.5">
+        <div className="bg-gray-100 px-2 py-0.5 rounded-t-lg">
+          <span className="text-[9px] font-bold text-gray-700">SCORECARD</span>
         </div>
-        <div className="bg-white border border-gray-200 rounded-b-lg p-2">
-          <div className="grid grid-cols-10 gap-0.5 text-center text-[9px]">
-            {demoPars.map((_, i) => (
-              <div key={`h-${i}`} className="text-gray-600 font-medium">{i + 1}</div>
-            ))}
-            <div className="text-gray-600 font-bold">OUT</div>
-            {demoPars.map((par, i) => (
-              <div key={`p-${i}`} className="text-gray-500 bg-gray-50 py-0.5 rounded">P{par}</div>
-            ))}
-            <div className="text-gray-500 bg-gray-50 py-0.5 rounded font-bold">36</div>
-            {demoScores.map((score, i) => (
-              <div key={`s-${i}`} className="py-1 rounded font-medium" style={getScoreStyle(score, demoPars[i])}>
-                {score}
-              </div>
-            ))}
-            <div className="py-1 bg-gray-900 text-white font-bold rounded">37</div>
-          </div>
+        <div className="bg-white border border-gray-200 rounded-b-lg p-1.5 space-y-1">
+          <MockNine start={0} totalLabel="OUT" total={37} />
+          <MockNine start={9} totalLabel="IN" total={42} />
         </div>
       </div>
 
       {/* Caption, exact amber styling from the feed */}
-      <div className="px-2 pt-2 pb-3">
-        <div className="bg-amber-50 border-l-4 border-amber-400 p-2 rounded">
+      <div className="px-2 pt-1.5 pb-2.5">
+        <div className="bg-amber-50 border-l-4 border-amber-400 px-2 py-1.5 rounded">
           <p className="text-[11px]">💬 Broke 80 for the first time!! 🍻⛳</p>
         </div>
       </div>
@@ -114,7 +120,7 @@ function MockComments() {
   const comments = [
     { author: 'sarah.golfs', text: 'Back 9 was a movie 🍿' },
     { author: 'chip_n_sip', text: 'no way that putt on 17 dropped 💀' },
-    { author: 'mark_g', text: 'running it back saturday?' },
+    { author: 'alex_fairway', text: 'running it back saturday?' },
   ]
 
   return (
@@ -165,33 +171,57 @@ function MockComments() {
   )
 }
 
+// One nine of the share-image scorecard: hole numbers + colored score cells
+function MockShareNine({ start, totalLabel, total }) {
+  const pars = demoPars.slice(start, start + 9)
+  const scores = demoScores.slice(start, start + 9)
+  return (
+    <div className="grid grid-cols-10 gap-[2px]">
+      {pars.map((_, i) => (
+        <div key={`h-${i}`} className="text-center text-[7px] text-slate-500 font-semibold">{start + i + 1}</div>
+      ))}
+      <div className="text-center text-[7px] text-slate-500 font-semibold">{totalLabel}</div>
+      {scores.map((score, i) => (
+        <div
+          key={`s-${i}`}
+          className="h-[17px] rounded-[3px] flex items-center justify-center text-[9px] font-bold"
+          style={getScoreStyle(score, pars[i])}
+        >
+          {score}
+        </div>
+      ))}
+      <div className="h-[17px] rounded-[3px] bg-slate-800 text-white flex items-center justify-center text-[9px] font-bold">
+        {total}
+      </div>
+    </div>
+  )
+}
+
 // Slide 3: the generated share image + share actions
 function MockShareCard() {
   return (
     <div className="w-full max-w-[300px] mx-auto">
-      <div className="w-[220px] mx-auto rounded-xl overflow-hidden shadow-xl ring-1 ring-black/10">
-        <div className="relative h-[180px] bg-gradient-to-br from-green-700 via-green-800 to-green-950 p-2.5 text-white">
-          <div className="flex items-center gap-1">
-            <span className="text-[10px]">⛳</span>
-            <span className="text-[10px] font-bold">dogleg.io</span>
+      <div className="w-[250px] mx-auto rounded-xl overflow-hidden shadow-xl ring-1 ring-black/10">
+        <div className="relative h-[175px] text-white">
+          <img src={SHARE_PHOTO} alt="Golf green at sunset" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-black/60"></div>
+          <div className="relative p-2.5">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px]">⛳</span>
+              <span className="text-[10px] font-bold">dogleg.io</span>
+            </div>
+            <p className="text-[9px] opacity-90 mt-1.5">alex_fairway posted a score</p>
+            <h4 className="text-sm font-bold leading-tight">Pebble Creek Golf Club</h4>
+            <p className="text-[8px] opacity-80 mt-0.5">6/7/2026 • Phoenix, AZ</p>
           </div>
-          <p className="text-[9px] opacity-90 mt-2">mark_g posted a score</p>
-          <h4 className="text-sm font-bold leading-tight">Pebble Creek Golf Club</h4>
-          <p className="text-[8px] opacity-80 mt-0.5">6/7/2026 • Phoenix, AZ</p>
           <div className="absolute bottom-1.5 left-2.5 flex items-end gap-1.5">
-            <span className="text-5xl font-bold leading-none">79</span>
-            <span className="text-lg font-bold text-red-300">(+7)</span>
+            <span className="text-5xl font-bold leading-none drop-shadow">79</span>
+            <span className="text-lg font-bold text-red-300 drop-shadow">(+7)</span>
           </div>
         </div>
-        <div className="h-[95px] bg-gradient-to-b from-slate-100 to-slate-200 flex items-center justify-center gap-3">
-          <div className="bg-white rounded-lg shadow-sm px-4 py-1.5 text-center">
-            <div className="text-[9px] text-slate-500">Front 9</div>
-            <div className="text-lg font-bold text-slate-800">37</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-sm px-4 py-1.5 text-center">
-            <div className="text-[9px] text-slate-500">Back 9</div>
-            <div className="text-lg font-bold text-slate-800">42</div>
-          </div>
+        <div className="bg-gradient-to-b from-slate-100 to-slate-200 px-2 py-2 space-y-1.5">
+          <MockShareNine start={0} totalLabel="Out" total={37} />
+          <MockShareNine start={9} totalLabel="In" total={42} />
         </div>
       </div>
 
@@ -228,14 +258,14 @@ function LandingPage() {
       step: '01',
       title: 'Post your rounds',
       description:
-        'Pick from 22,000+ courses, punch in your scores hole-by-hole, and add a photo and a caption. Done in under 30 seconds.',
+        'Pick from 22,000+ courses, enter your scores hole-by-hole, and add a photo and a caption. Done in under 30 seconds.',
       mock: <MockRoundCard />,
     },
     {
       step: '02',
-      title: "Pile on your friends' rounds",
+      title: "React and comment on friends' rounds",
       description:
-        'Follow your crew and see every round they post. React with a 🔥 (or a 🤡) and keep the trash talk going in the comments.',
+        'Follow your friends and never miss a round — drop an emoji reaction and join the conversation in the comments.',
       mock: <MockComments />,
     },
     {
@@ -356,7 +386,7 @@ function LandingPage() {
                 className="w-[82%] flex-shrink-0 snap-center md:w-auto"
                 aria-label={`${i + 1} of ${features.length}`}
               >
-                <div className="h-[440px] rounded-3xl bg-gradient-to-br from-green-100 via-green-50 to-emerald-50 p-4 flex items-center justify-center overflow-hidden">
+                <div className="h-[470px] rounded-3xl bg-gradient-to-br from-green-100 via-green-50 to-emerald-50 p-4 flex items-center justify-center overflow-hidden">
                   {feature.mock}
                 </div>
                 <div className="mt-4 px-1 text-left">

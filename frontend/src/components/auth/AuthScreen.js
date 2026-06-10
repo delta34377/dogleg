@@ -7,8 +7,13 @@ import { useNavigate, useLocation } from 'react-router-dom'
 function AuthScreen({ onSuccess }) {
   // Add mounted ref to prevent state updates after unmount
   const mountedRef = useRef(true)
-  
-  const [authMode, setAuthMode] = useState('signin')
+
+  const navigate = useNavigate()
+  const location = useLocation()
+  const from = location.state?.from || '/'  // where to go after login
+
+  // Landing page CTAs can open this screen directly in signup mode
+  const [authMode, setAuthMode] = useState(location.state?.mode === 'signup' ? 'signup' : 'signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -23,11 +28,7 @@ function AuthScreen({ onSuccess }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const navigate = useNavigate()
-  const location = useLocation()  // ADD THIS
-const from = location.state?.from || '/'  // ADD THIS - where to go after login
-
-  const { 
+  const {
     signUp, 
     signIn, 
     signInWithPhone, 

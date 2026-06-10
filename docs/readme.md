@@ -2,7 +2,9 @@
 
 ## Project Overview
 
-**Dogleg** is a mobile-first social golf platform - think "Instagram meets Strava for golf". Users can quickly log scores after rounds, follow friends, react to rounds, and track their golf journey.
+**Dogleg** is a mobile-first social golf platform - think "Instagram for golf". Users follow friends, react and comment on each other's rounds, and quickly log their own scores after a round.
+
+> **Positioning note (June 2026):** We lead with the social side — following and commenting on friends' rounds — and de-emphasize the stat-tracking/"Strava" angle in all user-facing copy and ads. See `/docs/google_ads.md` for ad copy and `/docs/feature_ideas.md` for the parked stats roadmap.
 
 **Domain:** dogleg.io  
 **Status:** In Development  
@@ -530,7 +532,7 @@ If starting a new chat, share:
 3. Current progress status
 4. Specific file you're working on
 
-Key context: "I'm building Dogleg, a social golf app like Strava/Instagram for golf. I have 22k courses in Supabase, need help with [specific feature]. Here's my README and current code..."
+Key context: "I'm building Dogleg, a social golf app — an Instagram-style feed where users follow friends and react/comment on their rounds. I have 22k courses in Supabase, need help with [specific feature]. Here's my README and current code..."
 
 ## 🔗 Resources
 

@@ -17,8 +17,8 @@ export const APP_CONFIG = {
     // SEO & Meta
     seo: {
         title: 'Dogleg - Social Golf Scorecard',
-        description: 'Track rounds, follow friends, and share your golf journey.',
-        keywords: 'golf, scorecard, social, rounds, handicap, courses',
+        description: "Follow your friends' golf rounds, react and comment, and share your own scorecards.",
+        keywords: 'golf, scorecard, social golf app, golf with friends, follow friends, golf rounds, courses',
         ogImage: '/images/og-image.jpg',
     },
     

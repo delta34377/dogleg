@@ -328,8 +328,8 @@ function LandingPage() {
             Your golf life, <span className="text-green-600">socialized.</span>
           </h1>
           <p className="mt-4 max-w-xl mx-auto text-base sm:text-lg text-gray-600">
-            Post your rounds, follow your buddies, and keep the trash talk going long after the
-            19th hole. Think Strava, for golf.
+            Follow your buddies' rounds, jump into the comments, and keep the trash talk
+            going long after the 19th hole.
           </p>
           <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button

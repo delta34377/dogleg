@@ -6,8 +6,9 @@ import { reactionEmojis } from '../utils/constants'
 const demoPars = [4, 5, 4, 3, 4, 4, 5, 3, 4, 4, 4, 5, 3, 4, 4, 3, 5, 4]
 const demoScores = [4, 5, 3, 4, 4, 5, 5, 2, 5, 4, 5, 6, 2, 4, 5, 4, 7, 5]
 
-// Course photo used in the round-card mock
+// Course photo used in the round-card and share-image mocks
 const ROUND_PHOTO = '/landing/course-photo.jpg'
+const SHARE_PHOTO = '/landing/course-photo.jpg'
 
 // Same score coloring as the real Scorecard in Feed/MyRounds
 const getScoreStyle = (score, par) => {
@@ -234,6 +235,79 @@ function MockComments() {
   )
 }
 
+// One nine of the share-image scorecard: hole numbers + colored score cells
+function MockShareNine({ start, totalLabel, total }) {
+  const pars = demoPars.slice(start, start + 9)
+  const scores = demoScores.slice(start, start + 9)
+  return (
+    <div className="grid grid-cols-10 gap-[2px]">
+      {pars.map((_, i) => (
+        <div key={`h-${i}`} className="text-center text-[7px] text-slate-500 font-semibold">{start + i + 1}</div>
+      ))}
+      <div className="text-center text-[7px] text-slate-500 font-semibold">{totalLabel}</div>
+      {scores.map((score, i) => (
+        <div
+          key={`s-${i}`}
+          className="h-[17px] rounded-[3px] flex items-center justify-center text-[9px] font-bold"
+          style={getScoreStyle(score, pars[i])}
+        >
+          {score}
+        </div>
+      ))}
+      <div className="h-[17px] rounded-[3px] bg-slate-800 text-white flex items-center justify-center text-[9px] font-bold">
+        {total}
+      </div>
+    </div>
+  )
+}
+
+// Slide 3: the generated share image + share actions
+function MockShareCard() {
+  return (
+    <div className="w-full max-w-[300px] mx-auto">
+      <div className="w-[250px] mx-auto rounded-xl overflow-hidden shadow-xl ring-1 ring-black/10">
+        <div className="relative h-[175px] text-white">
+          <img src={SHARE_PHOTO} alt="Golf green with red flag" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-black/60"></div>
+          <div className="relative p-2.5">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px]">⛳</span>
+              <span className="text-[10px] font-bold">dogleg.io</span>
+            </div>
+            <p className="text-[9px] opacity-90 mt-1.5">alex_fairway posted a score</p>
+            <h4 className="text-sm font-bold leading-tight">Pebble Creek Golf Club</h4>
+            <p className="text-[8px] opacity-80 mt-0.5">6/7/2026 • Phoenix, AZ</p>
+          </div>
+          <div className="absolute bottom-1.5 left-2.5 flex items-end gap-1.5">
+            <span className="text-5xl font-bold leading-none drop-shadow">79</span>
+            <span className="text-lg font-bold text-red-300 drop-shadow">(+7)</span>
+          </div>
+        </div>
+        <div className="bg-gradient-to-b from-slate-100 to-slate-200 px-2 py-2 space-y-1.5">
+          <MockShareNine start={0} totalLabel="Out" total={37} />
+          <MockShareNine start={9} totalLabel="In" total={42} />
+        </div>
+      </div>
+
+      <div className="flex gap-2 mt-3 max-w-[260px] mx-auto">
+        <div className="flex-1 flex items-center justify-center gap-1 py-2 bg-gray-100 rounded-lg text-xs font-medium text-gray-700">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          Copy Link
+        </div>
+        <div className="flex-1 flex items-center justify-center gap-1 py-2 bg-green-600 text-white rounded-lg text-xs font-medium">
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          Share Image
+        </div>
+      </div>
+      <p className="text-[10px] text-center text-gray-500 mt-2">Shares directly to Instagram, Messages, and more</p>
+    </div>
+  )
+}
+
 function LandingPage() {
   const navigate = useNavigate()
   const trackRef = useRef(null)
@@ -263,6 +337,13 @@ function LandingPage() {
       description:
         'Follow your friends, drop reactions, and keep the trash talk going long after the 19th hole. Stats are better with an audience.',
       mock: <MockComments />,
+    },
+    {
+      step: '04',
+      title: 'Share it anywhere',
+      description:
+        'Every round becomes a clean scorecard graphic — one tap to text the group chat or post it to Instagram.',
+      mock: <MockShareCard />,
     },
   ]
 
@@ -348,7 +429,7 @@ function LandingPage() {
           <div
             ref={trackRef}
             onScroll={handleTrackScroll}
-            className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-3 md:gap-6 md:overflow-visible md:px-4"
+            className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-6 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:grid md:grid-cols-2 md:gap-6 md:overflow-visible md:px-4"
           >
             {features.map((feature, i) => (
               <div

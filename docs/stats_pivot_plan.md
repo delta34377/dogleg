@@ -101,12 +101,40 @@ good you are* — Strava's Relative Effort, for golf. Everyone gets days worth p
 ```
 differential = (gross − course rating) × 113 / slope
 baseline     = median differential of your last 20 rounds
-DoglegScore  = clamp( 50 + 5 × (baseline − differential), 0, 100 )
+DoglegScore  = clamp( 6.0 + 0.4 × (baseline − differential), 0.0, 10.0 )   # one decimal
 ```
 
-- Typical day ≈ **50**. Playing to your handicap index ≈ **65**. Career day
-  (≈7 strokes better than index — WHS's "exceptional score" threshold) ≈ **100**.
+- Typical day ≈ **6.0**. Playing to your handicap index ≈ **7.2**. Career day
+  (≈7 strokes better than index — WHS's "exceptional score" threshold) = **10.0**.
 - Identical scale for every skill level — that's the point.
+
+**Scale rationale (July 2026 revision — was 0–100, changed):**
+- **Why not 0–100:** collides head-on with gross scores (most golf scores land
+  70–110, most decent Dogleg Scores would land 50–100) — *with inverted polarity*
+  (low golf score = good, low Dogleg Score = bad). Two same-range numbers pointing
+  opposite directions on one feed card fails the glance test.
+- **Why 0.0–10.0 with a decimal:** a "7.8" cannot be a golf score — gross scores
+  are integers, so the decimal itself disambiguates. "X/10" is a universal rating
+  idiom (polarity self-evident). One decimal = 101 distinct values — same
+  granularity as 0–100 for trends and leaderboards, and a 9.8 brags well.
+- **Why typical = 6.0, not the 5.0 midpoint:** ratings culture reads 5/10 as
+  "meh" (nobody rates a perfectly fine movie 5). 6.0 matches how people
+  intuitively rate a normal-fine experience. The asymmetric headroom also matches
+  golf reality: blowup rounds have a longer tail (−15 vs typical → 0.0) than
+  career days (+10 vs typical → 10.0).
+- **Why not letter grades:** too coarse (~12 buckets → leaderboard ties, flat
+  trend charts), school-shame connotations (a public "D+" stings in a way a 4.2
+  doesn't), US-centric. Word labels at the top tiers do the brag job better —
+  e.g. **9.0+ = "Career Day"**, 8.0+ = "Heater" — as companions to the number,
+  not replacements.
+- **Handicap-index collision (minor):** handicap is also a one-decimal number,
+  but it's 0–54, always labeled (HCP 12.4), and not on the feed card. Mitigate in
+  presentation, below.
+- **Presentation rules:** never render as a bare number — always a branded
+  chip/pill with tier coloring (color does polarity work at a glance). Pair with
+  a golf-native subtitle that teaches the metric: **"+3.1 strokes vs your
+  usual"** — the number is for glanceability, the strokes delta is for
+  golfer-brain interpretability.
 
 **⚠️ Calibration trap:** anchor the baseline to your *typical* round (median of last
 20 differentials), **NOT** your handicap index. The index is best-8-of-20 — your
@@ -131,7 +159,7 @@ social loop instead of competing with it.
   leaderboard (fair cross-skill competition — the net-leaderboard currency),
   milestone triggers ("Top-3 Dogleg Score this year").
 - **Tone / anti-gaming:** display neutrally, celebrate only above thresholds (like
-  Strava shows Relative Effort neutrally but celebrates PRs). Cap 0–100. Self-relative
+  Strava shows Relative Effort neutrally but celebrates PRs). Cap 0.0–10.0. Self-relative
   scoring makes sandbagging mostly pointless outside leaderboards.
 - **Later:** conditions adjustment (PCC-like), weather tag from round enrichment
   (feature #14).

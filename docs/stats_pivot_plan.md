@@ -177,14 +177,15 @@ DoglegScore  = clamp( 6.0 + 0.4 × (baseline − differential), 0.0, 10.0 )   # 
   doesn't), US-centric. Word labels at the top tiers do the brag job better —
   e.g. **9.0+ = "Career Day"**, 8.0+ = "Heater" — as companions to the number,
   not replacements.
-- **Handicap-index collision (minor):** handicap is also a one-decimal number,
-  but it's 0–54, always labeled (HCP 12.4), and not on the feed card. Mitigate in
-  presentation, below.
+- **Handicap-index collision (confirmed in live use, July 2026):** handicap is
+  golf's other one-decimal number, and a bare "7.2" in a pill read as a handicap.
+  Fix: the chip **always renders the denominator — "7.2/10"** (a handicap is
+  never "out of ten") — with a 🐶 dog emoji (on-brand) instead of ⛳.
 - **Presentation rules:** never render as a bare number — always a branded
-  chip/pill with tier coloring (color does polarity work at a glance). Pair with
-  a golf-native subtitle that teaches the metric: **"+3.1 strokes vs your
-  usual"** — the number is for glanceability, the strokes delta is for
-  golfer-brain interpretability.
+  chip/pill with tier coloring (color does polarity work at a glance), the
+  **/10 denominator**, and the 🐶 mark. Pair with a golf-native subtitle that
+  teaches the metric: **"+3.1 strokes vs your usual"** — the number is for
+  glanceability, the strokes delta is for golfer-brain interpretability.
 
 **⚠️ Calibration trap:** anchor the baseline to your *typical* round (median of last
 20 differentials), **NOT** your handicap index. The index is best-8-of-20 — your

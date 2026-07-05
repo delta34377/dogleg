@@ -47,8 +47,13 @@ function DoglegScoreChip({ score, strokesVsUsual, isOwn = true, size = 'md', sho
         className={`inline-flex items-center gap-1 rounded-full font-bold ${sizeClasses} ${tier.chip}`}
         title={subtitle ? `Dogleg Score — ${subtitle}` : 'Dogleg Score — how good this round was relative to this golfer'}
       >
-        <span aria-hidden="true">⛳</span>
-        <span>{value}</span>
+        <span aria-hidden="true">🐶</span>
+        {/* The "/10" denominator is load-bearing: it stops the number reading
+            as a handicap (golf's other one-decimal number) */}
+        <span>
+          {value}
+          <span className="font-semibold opacity-60 text-[0.8em]">/10</span>
+        </span>
         {tier.label && <span className="font-semibold">· {tier.label}</span>}
       </span>
       {showSubtitle && subtitle && (

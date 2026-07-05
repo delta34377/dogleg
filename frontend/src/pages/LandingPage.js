@@ -391,17 +391,18 @@ function LandingPage() {
       {/* Hero + showcase: everything on the opening screen */}
       <section className="bg-gradient-to-b from-green-50 to-white">
         <div className="max-w-5xl mx-auto px-4 pt-8 pb-4 sm:pt-12 sm:pb-6 text-center">
-          <span className="inline-block px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full mb-3">
-            🐶 The Strava for golf
-          </span>
           <h1 className="text-3xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">
-            Track every round.{' '}
-            <span className="text-green-600">Watch your handicap drop.</span>
+            The Strava for golf.
+            <span className="block mt-1 text-green-600">
+              Track every round. Watch your handicap drop.
+            </span>
           </h1>
-          <p className="mt-3 max-w-2xl mx-auto text-sm sm:text-lg text-gray-600">
-            Post a round in 30 seconds. Get a real handicap that updates itself,
-            personal records, and trends that show your game improving — and a
-            feed of your crew doing the same.
+          <p className="mt-4 max-w-2xl mx-auto text-sm sm:text-lg text-gray-600">
+            Post a round in <span className="font-semibold text-gray-900">30 seconds</span>.
+            Get a <span className="font-semibold text-gray-900">real handicap</span> that
+            updates itself, <span className="font-semibold text-gray-900">personal records</span>,
+            and <span className="font-semibold text-gray-900">trends that show your game improving</span> —
+            and a feed of your crew doing the same.
           </p>
           <div className="mt-5 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button

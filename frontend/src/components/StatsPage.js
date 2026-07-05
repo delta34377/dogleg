@@ -67,22 +67,33 @@ function SectionCard({ title, subtitle, children }) {
   )
 }
 
+// Survives component remounts (tab refocus auth events, view switches):
+// render the cached stats instantly and refresh silently in the background.
+let statsCache = { userId: null, data: null }
+
 function StatsPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [stats, setStats] = useState(null)
+  const cached = statsCache.userId && statsCache.userId === user?.id ? statsCache.data : null
+  const [stats, setStats] = useState(cached)
   const [error, setError] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!cached)
 
   useEffect(() => {
     let cancelled = false
     const load = async () => {
       if (!user) return
-      setLoading(true)
+      // Only show the skeleton when there's nothing to render yet —
+      // refreshes behind cached data are invisible
+      if (!statsCache.data || statsCache.userId !== user.id) setLoading(true)
       const { data, error } = await statsService.getUserStats(user.id)
       if (cancelled) return
-      if (error) setError(error)
-      else setStats(data)
+      if (error) {
+        setError(error)
+      } else {
+        statsCache = { userId: user.id, data }
+        setStats(data)
+      }
       setLoading(false)
     }
     load()

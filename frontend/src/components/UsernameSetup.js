@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../services/supabase'
+import { trackGA } from '../services/ga'
 
 function UsernameSetup() {
   const { user, profile, updateProfile, loadProfile } = useAuth()
@@ -60,7 +61,11 @@ function UsernameSetup() {
 
       // Reload the profile to get the updated data
       await loadProfile(user.id)
-      
+
+      // Signup conversion for GA4/Google Ads — every new account (email or
+      // OAuth) passes through this screen exactly once
+      trackGA('sign_up', { method: user?.app_metadata?.provider || 'email' })
+
       // The parent component will automatically re-render since profile now has username
 
     } catch (err) {

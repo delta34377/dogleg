@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { trackGA } from './ga'
 
 export const roundsService = {
   // Save a new round with user association
@@ -61,7 +62,12 @@ export const roundsService = {
         .insert([dbRound])
         .select()
         .single()
-      
+
+      if (!error && data) {
+        // Activation event for GA4/Google Ads (secondary conversion)
+        trackGA('post_round', { entry_mode: dbRound.scores_by_hole ? 'holes' : 'total' })
+      }
+
       return { data, error }
     } catch (error) {
       return { data: null, error }

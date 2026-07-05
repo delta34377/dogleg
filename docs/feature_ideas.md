@@ -10,11 +10,12 @@ user-facing copy and ads de-emphasize the stat-tracking / "Strava" angle for now
 The single-player stats ideas below are deliberately **parked**, not dead: they're the
 retention layer to build once the social loop is bringing people in.
 
-> **Update (July 2026):** a stats-first re-lead ("Strava for Golf") is under
-> consideration — not decided yet. If it happens, the parked section below gets
-> unparked and built first. Full plan, build order, and the new **Dogleg Score**
-> concept (a Relative-Effort-style "how good was this round *for you*" metric):
-> see `stats_pivot_plan.md`.
+> **Update (July 5, 2026): the stats-first pivot HAPPENED.** The parked
+> "Strava half" below is built and live (auto handicap, Dogleg Score, Stats
+> tab, course leaderboards, putts tracking), and the brand flipped to
+> "The Strava for golf" on all product surfaces. The social-growth items above
+> remain the growth loop — social wasn't removed, just re-led. Full record:
+> `stats_pivot_plan.md`.
 
 ---
 

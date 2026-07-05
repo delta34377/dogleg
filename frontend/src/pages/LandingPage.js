@@ -6,9 +6,8 @@ import { reactionEmojis } from '../utils/constants'
 const demoPars = [4, 5, 4, 3, 4, 4, 5, 3, 4, 4, 4, 5, 3, 4, 4, 3, 5, 4]
 const demoScores = [4, 5, 3, 4, 4, 5, 5, 2, 5, 4, 5, 6, 2, 4, 5, 4, 7, 5]
 
-// Course photo used in the round-card and share-image mocks
+// Course photo used in the round-card mock
 const ROUND_PHOTO = '/landing/course-photo.jpg'
-const SHARE_PHOTO = '/landing/course-photo.jpg'
 
 // Same score coloring as the real Scorecard in Feed/MyRounds
 const getScoreStyle = (score, par) => {
@@ -60,7 +59,60 @@ function MockAppFrame({ children }) {
   )
 }
 
-// Slide 1: a feed-style round card — score, photo, full scorecard, caption
+// Slide 1: the Stats tab — auto handicap, trend, averages
+function MockStatsScreen() {
+  return (
+    <MockAppFrame>
+      <div className="px-3 pt-2 pb-3">
+        <p className="text-[11px] font-bold text-gray-700">📈 My Stats</p>
+
+        <div className="mt-1.5 rounded-lg border border-gray-200 p-2.5">
+          <p className="text-[10px] text-gray-500">Handicap index</p>
+          <div className="flex items-end justify-between">
+            <span className="text-3xl font-semibold text-gray-900 leading-none">12.4</span>
+            <span className="text-[10px] font-semibold text-green-600">▼ 2.1 this season</span>
+          </div>
+          <p className="text-[9px] text-gray-400 mt-1">Best 8 of your last 20 — updates every round</p>
+
+          {/* Handicap trend sparkline */}
+          <svg viewBox="0 0 240 56" className="w-full h-12 mt-1.5">
+            <polyline
+              points="4,14 34,20 64,16 94,26 124,24 154,34 184,32 214,42 236,44"
+              fill="none" stroke="#16a34a" strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round"
+            />
+            <circle cx="236" cy="44" r="4" fill="#16a34a" stroke="#fff" strokeWidth="2" />
+          </svg>
+        </div>
+
+        <div className="grid grid-cols-2 gap-1.5 mt-1.5">
+          <div className="bg-gray-50 rounded-lg p-2">
+            <p className="text-[9px] text-gray-500">Scoring average</p>
+            <p className="text-base font-semibold text-gray-900">89.9</p>
+            <p className="text-[9px] text-gray-400">87.2 last 10</p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-2">
+            <p className="text-[9px] text-gray-500">Best round</p>
+            <p className="text-base font-semibold text-gray-900">79</p>
+            <p className="text-[9px] text-gray-400">Pebble Creek</p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-2">
+            <p className="text-[9px] text-gray-500">Putts per round</p>
+            <p className="text-base font-semibold text-gray-900">31.7</p>
+            <p className="text-[9px] text-gray-400">trending down</p>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-2">
+            <p className="text-[9px] text-gray-500">Birdies</p>
+            <p className="text-base font-semibold text-gray-900">19</p>
+            <p className="text-[9px] text-gray-400">this season</p>
+          </div>
+        </div>
+      </div>
+    </MockAppFrame>
+  )
+}
+
+// Slide 2: a feed-style round card with its Dogleg Score and achievement
 function MockRoundCard() {
   return (
     <MockAppFrame>
@@ -83,12 +135,20 @@ function MockRoundCard() {
           <div className="text-right">
             <div className="text-2xl font-bold leading-none">79</div>
             <div className="text-base font-bold text-orange-600">+7</div>
+            <span className="inline-flex items-center gap-0.5 rounded-full font-bold whitespace-nowrap text-[9px] px-1.5 py-0.5 bg-amber-400 text-amber-950 mt-0.5">
+              🐶 9.1<span className="opacity-60 text-[8px]">/10</span>
+            </span>
           </div>
+        </div>
+        <div className="mt-1">
+          <span className="inline-flex items-center text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+            💯 First time breaking 80
+          </span>
         </div>
       </div>
 
       <div className="px-2 pt-1.5">
-        <div className="h-24 rounded-lg overflow-hidden">
+        <div className="h-16 rounded-lg overflow-hidden">
           <img src={ROUND_PHOTO} alt="Golf green with red flag" className="w-full h-full object-cover object-[50%_58%]" />
         </div>
       </div>
@@ -113,7 +173,7 @@ function MockRoundCard() {
   )
 }
 
-// Slide 2: reactions + comment thread on a friend's round
+// Slide 3: reactions + comment thread on a friend's round
 function MockComments() {
   const counts = { fire: 12, clap: 8, dart: 0, goat: 5, vomit: 1, clown: 3, skull: 2, laugh: 6 }
   const mine = ['fire', 'goat']
@@ -132,6 +192,9 @@ function MockComments() {
           </div>
           <span className="text-xs text-gray-600">
             tommy_3putt shot <span className="font-bold text-gray-800">91</span> at Torrey Pines
+          </span>
+          <span className="ml-auto inline-flex items-center gap-0.5 rounded-full font-bold whitespace-nowrap text-[9px] px-1.5 py-0.5 bg-emerald-700 text-white">
+            🐶 8.3<span className="opacity-60 text-[8px]">/10</span>
           </span>
         </div>
       </div>
@@ -171,82 +234,8 @@ function MockComments() {
   )
 }
 
-// One nine of the share-image scorecard: hole numbers + colored score cells
-function MockShareNine({ start, totalLabel, total }) {
-  const pars = demoPars.slice(start, start + 9)
-  const scores = demoScores.slice(start, start + 9)
-  return (
-    <div className="grid grid-cols-10 gap-[2px]">
-      {pars.map((_, i) => (
-        <div key={`h-${i}`} className="text-center text-[7px] text-slate-500 font-semibold">{start + i + 1}</div>
-      ))}
-      <div className="text-center text-[7px] text-slate-500 font-semibold">{totalLabel}</div>
-      {scores.map((score, i) => (
-        <div
-          key={`s-${i}`}
-          className="h-[17px] rounded-[3px] flex items-center justify-center text-[9px] font-bold"
-          style={getScoreStyle(score, pars[i])}
-        >
-          {score}
-        </div>
-      ))}
-      <div className="h-[17px] rounded-[3px] bg-slate-800 text-white flex items-center justify-center text-[9px] font-bold">
-        {total}
-      </div>
-    </div>
-  )
-}
-
-// Slide 3: the generated share image + share actions
-function MockShareCard() {
-  return (
-    <div className="w-full max-w-[300px] mx-auto">
-      <div className="w-[250px] mx-auto rounded-xl overflow-hidden shadow-xl ring-1 ring-black/10">
-        <div className="relative h-[175px] text-white">
-          <img src={SHARE_PHOTO} alt="Golf green with red flag" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-black/60"></div>
-          <div className="relative p-2.5">
-            <div className="flex items-center gap-1">
-              <span className="text-[10px]">⛳</span>
-              <span className="text-[10px] font-bold">dogleg.io</span>
-            </div>
-            <p className="text-[9px] opacity-90 mt-1.5">alex_fairway posted a score</p>
-            <h4 className="text-sm font-bold leading-tight">Pebble Creek Golf Club</h4>
-            <p className="text-[8px] opacity-80 mt-0.5">6/7/2026 • Phoenix, AZ</p>
-          </div>
-          <div className="absolute bottom-1.5 left-2.5 flex items-end gap-1.5">
-            <span className="text-5xl font-bold leading-none drop-shadow">79</span>
-            <span className="text-lg font-bold text-red-300 drop-shadow">(+7)</span>
-          </div>
-        </div>
-        <div className="bg-gradient-to-b from-slate-100 to-slate-200 px-2 py-2 space-y-1.5">
-          <MockShareNine start={0} totalLabel="Out" total={37} />
-          <MockShareNine start={9} totalLabel="In" total={42} />
-        </div>
-      </div>
-
-      <div className="flex gap-2 mt-3 max-w-[260px] mx-auto">
-        <div className="flex-1 flex items-center justify-center gap-1 py-2 bg-gray-100 rounded-lg text-xs font-medium text-gray-700">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-          </svg>
-          Copy Link
-        </div>
-        <div className="flex-1 flex items-center justify-center gap-1 py-2 bg-green-600 text-white rounded-lg text-xs font-medium">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          Share Image
-        </div>
-      </div>
-      <p className="text-[10px] text-center text-gray-500 mt-2">Shares directly to Instagram, Messages, and more</p>
-    </div>
-  )
-}
-
 function LandingPage() {
   const navigate = useNavigate()
-  const featuresRef = useRef(null)
   const trackRef = useRef(null)
   const [activeSlide, setActiveSlide] = useState(0)
 
@@ -256,24 +245,24 @@ function LandingPage() {
   const features = [
     {
       step: '01',
-      title: 'Post your rounds',
+      title: 'A real handicap, automatically',
       description:
-        'Pick from 22,000+ courses, enter your scores hole-by-hole, and add a photo and a caption. Done in under 30 seconds.',
-      mock: <MockRoundCard />,
+        'Every round you post earns a WHS-style differential from the course’s slope and rating. Your index updates itself — no math, no fees.',
+      mock: <MockStatsScreen />,
     },
     {
       step: '02',
-      title: "React and comment on friends' rounds",
+      title: 'Every round gets a Dogleg Score',
       description:
-        'Follow your friends and never miss a round — drop an emoji reaction and join the conversation in the comments.',
-      mock: <MockComments />,
+        'A 0–10 rating of your round relative to YOUR game — a 25-handicap and a scratch golfer can both post a 9. Post in 30 seconds from 22,000+ courses.',
+      mock: <MockRoundCard />,
     },
     {
       step: '03',
-      title: 'Share it anywhere',
+      title: 'Your crew sees every round',
       description:
-        'Every round becomes a clean scorecard graphic, ready for Instagram, iMessage, or the group chat.',
-      mock: <MockShareCard />,
+        'Follow your friends, drop reactions, and keep the trash talk going long after the 19th hole. Stats are better with an audience.',
+      mock: <MockComments />,
     },
   ]
 
@@ -318,59 +307,39 @@ function LandingPage() {
         </div>
       </header>
 
-      {/* Hero */}
+      {/* Hero + showcase: everything on the opening screen */}
       <section className="bg-gradient-to-b from-green-50 to-white">
-        <div className="max-w-5xl mx-auto px-4 pt-14 pb-12 sm:pt-20 sm:pb-16 text-center">
-          <span className="inline-block px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full mb-4">
-            ⛳ The social scorecard
+        <div className="max-w-5xl mx-auto px-4 pt-8 pb-4 sm:pt-12 sm:pb-6 text-center">
+          <span className="inline-block px-3 py-1 bg-green-100 text-green-800 text-xs font-semibold rounded-full mb-3">
+            🐶 The Strava for golf
           </span>
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">
-            Your golf life, <span className="text-green-600">socialized.</span>
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">
+            Track every round.{' '}
+            <span className="text-green-600">Watch your handicap drop.</span>
           </h1>
-          <p className="mt-4 max-w-xl mx-auto text-base sm:text-lg text-gray-600">
-            Follow your buddies' rounds, jump into the comments, and keep the trash talk
-            going long after the 19th hole.
+          <p className="mt-3 max-w-2xl mx-auto text-sm sm:text-lg text-gray-600">
+            An automatic handicap, a 0–10 Dogleg Score for every round, and a feed of
+            your crew's golf. Post in 30 seconds — the stats do themselves.
           </p>
-          <div className="mt-7 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <div className="mt-5 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={goToSignUp}
               className="w-full sm:w-auto px-8 py-3 bg-green-600 text-white rounded-lg font-semibold text-base hover:bg-green-700 shadow-sm"
             >
               Create Free Account
             </button>
-            <button
-              onClick={() => featuresRef.current?.scrollIntoView({ behavior: 'smooth' })}
-              className="w-full sm:w-auto px-8 py-3 bg-white text-gray-700 border-2 border-gray-300 rounded-lg font-semibold text-base hover:bg-gray-50"
-            >
-              See how it works ↓
-            </button>
           </div>
-          <p className="mt-4 text-sm text-gray-500">
+          <p className="mt-3 text-sm text-gray-500">
             Already on Dogleg?{' '}
             <button onClick={goToSignIn} className="font-semibold text-green-600 hover:text-green-700">
               Sign in
             </button>
           </p>
-
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-sm text-gray-600">
-            <span>⛳ 22,000+ courses built in</span>
-            <span>⏱️ Post a round in under 30 seconds</span>
-            <span>💯 Free to play</span>
-          </div>
-        </div>
-      </section>
-
-      {/* Feature showcase */}
-      <section ref={featuresRef} className="py-12 sm:py-16 scroll-mt-14">
-        <div className="max-w-5xl mx-auto px-4 text-center">
-          <p className="text-xs font-bold tracking-widest text-green-600 uppercase">How it works</p>
-          <h2 className="mt-2 text-2xl sm:text-3xl font-bold text-gray-900">
-            Golf is better when your friends are watching
-          </h2>
         </div>
 
+        {/* Feature showcase — right on the opening screen, no scrolling to find it */}
         <div
-          className="mt-8 max-w-5xl mx-auto"
+          className="max-w-5xl mx-auto pb-10 sm:pb-14"
           role="region"
           aria-roledescription="carousel"
           aria-label="What you can do on Dogleg"
@@ -386,12 +355,12 @@ function LandingPage() {
                 className="w-[82%] flex-shrink-0 snap-center md:w-auto"
                 aria-label={`${i + 1} of ${features.length}`}
               >
-                <div className="h-[470px] rounded-3xl bg-gradient-to-br from-green-100 via-green-50 to-emerald-50 p-4 flex items-center justify-center overflow-hidden">
+                <div className="h-[440px] rounded-3xl bg-gradient-to-br from-green-100 via-green-50 to-emerald-50 p-4 flex items-center justify-center overflow-hidden">
                   {feature.mock}
                 </div>
-                <div className="mt-4 px-1 text-left">
+                <div className="mt-3 px-1 text-left">
                   <p className="text-sm font-bold text-green-600">{feature.step}</p>
-                  <h3 className="mt-1 text-lg font-bold text-gray-900">{feature.title}</h3>
+                  <h3 className="mt-0.5 text-lg font-bold text-gray-900">{feature.title}</h3>
                   <p className="mt-1 text-sm text-gray-600">{feature.description}</p>
                 </div>
               </div>
@@ -399,7 +368,7 @@ function LandingPage() {
           </div>
 
           {/* Dots (mobile only) */}
-          <div className="flex justify-center gap-2 mt-4 md:hidden">
+          <div className="flex justify-center gap-2 mt-3 md:hidden">
             {features.map((feature, i) => (
               <button
                 key={feature.step}
@@ -412,16 +381,25 @@ function LandingPage() {
               />
             ))}
           </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-sm text-gray-600 px-4">
+            <span>📈 Automatic handicap index</span>
+            <span>⛳ 22,000+ courses built in</span>
+            <span>⏱️ Post a round in under 30 seconds</span>
+            <span>💯 Free to play</span>
+          </div>
         </div>
       </section>
 
       {/* Bottom CTA */}
-      <section className="px-4 pb-12 sm:pb-16">
+      <section className="px-4 pb-12 sm:pb-16 pt-4">
         <div className="max-w-5xl mx-auto bg-green-700 rounded-3xl px-6 py-12 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-white">
-            Your next round deserves an audience.
+            Your handicap is waiting.
           </h2>
-          <p className="mt-2 text-green-100">Free to join. Your buddies are one follow away.</p>
+          <p className="mt-2 text-green-100">
+            Post your first round and the stats start compounding — free, forever.
+          </p>
           <button
             onClick={goToSignUp}
             className="mt-6 px-8 py-3 bg-white text-green-700 rounded-lg font-semibold hover:bg-green-50"

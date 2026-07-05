@@ -1,5 +1,25 @@
 # 📣 Dogleg — Google Ads Copy & Keywords
 
+> ## ⚠️ POSITIONING FLIPPED (July 5, 2026) — account restructure needed
+> The product and landing page are now stats-first: **"The Strava for golf"**
+> (auto handicap, Dogleg Score, stats + the social feed). The social-first
+> campaign below is SUPERSEDED for Google Search. To-do in the ads account:
+> 1. **Remove the `handicap` account-level negative keyword** (the feature
+>    exists now — that traffic is exactly who we want).
+> 2. Add a stat-intent ad group: `"golf handicap tracker"`,
+>    `"golf handicap app"`, `"free golf handicap calculator"`,
+>    `"golf stat tracker"`, `"golf stats app"`, `[strava for golf]`.
+> 3. New RSA headlines (≤30 chars): `Your Handicap, Automatic` (24) ·
+>    `The Strava For Golf` (19) · `Every Round Gets A Score` (24) ·
+>    `Track Rounds In 30 Seconds` (26) · `Free Golf Handicap Tracker` (26) ·
+>    `Watch Your Handicap Drop` (24).
+> 4. New description (≤90): `Post a round in 30 seconds. Get an automatic
+>    handicap, a 0-10 score for every round, and more.` (89)
+> 5. Keep the friends-angle creative for Meta/Instagram — social is still the
+>    growth loop; Search now sells stats.
+
+*(Original social-first campaign below, kept for the Meta channel and history.)*
+
 Source of truth for the Google Ads account (updated June 2026).
 **Positioning: social-first.** We sell "follow, react to, and comment on your friends'
 rounds" — NOT stat tracking. Avoid "track your stats," "improve your game," "handicap,"

@@ -1,7 +1,7 @@
 {
   "short_name": "Dogleg",
-  "name": "Dogleg - Social Golf",
-  "description": "Follow your friends' golf rounds, react and comment, and share your own scorecards",
+  "name": "Dogleg - The Strava for Golf",
+  "description": "Automatic handicap, a 0-10 score for every round, and a feed of your friends's golf",
   "icons": [
     {
       "src": "favicon.png",

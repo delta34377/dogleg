@@ -8,7 +8,7 @@ export const APP_CONFIG = {
     // ============================================
     app: {
         name: 'Dogleg',
-        tagline: 'Your Social Golf Scorecard',
+        tagline: 'The Strava for Golf',
         domain: 'dogleg.io',
         email: 'hello@dogleg.io',
         copyright: '© 2024 Dogleg. All rights reserved.',
@@ -16,9 +16,9 @@ export const APP_CONFIG = {
     
     // SEO & Meta
     seo: {
-        title: 'Dogleg - Social Golf Scorecard',
-        description: "Follow your friends' golf rounds, react and comment, and share your own scorecards.",
-        keywords: 'golf, scorecard, social golf app, golf with friends, follow friends, golf rounds, courses',
+        title: 'Dogleg - The Strava for Golf',
+        description: "The Strava for golf: automatic handicap, a 0-10 Dogleg Score for every round, and a feed of your friends's golf.",
+        keywords: 'golf handicap tracker, golf stat tracker, golf scorecard app, strava for golf, golf handicap calculator, golf with friends, golf rounds',
         ogImage: '/images/og-image.jpg',
     },
     

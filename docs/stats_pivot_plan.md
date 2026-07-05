@@ -1,9 +1,14 @@
 # 📈 Dogleg — "Strava for Golf" Pivot Plan
 
-**Status (July 2026): stat layer BUILT (steps 1–6 below), brand flip NOT done.**
-The live positioning is still social-first (June 2026 — see `feature_ideas.md` and
-`google_ads.md`). The landing page and ads are untouched — flipping them is step 7,
-a separate, deliberate decision.
+**Status (July 5, 2026): PIVOT EXECUTED.** Steps 1–6 (stat layer) live in
+production; step 7 (brand flip) executed for all product surfaces the same day:
+landing page rebuilt stats-first ("Track every round. Watch your handicap
+drop." under a "The Strava for golf" badge, carousel on the opening screen —
+auto handicap, Dogleg Score, social feed), title/meta/manifest/app-config
+updated, keywords now stat-intent. Remaining: the Google Ads account
+restructure (see `google_ads.md` — remove the `handicap` negative keyword,
+add stat-intent keywords/copy). Social features unchanged — the pivot re-led
+the message, it didn't remove the feed.
 
 ## ✅ What's implemented (branch: claude/golf-stats-positioning-qkes3j)
 

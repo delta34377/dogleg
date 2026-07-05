@@ -392,7 +392,7 @@ function LandingPage() {
       <section className="bg-gradient-to-b from-green-50 to-white">
         <div className="max-w-5xl mx-auto px-4 pt-8 pb-4 sm:pt-12 sm:pb-6 text-center">
           <h1 className="text-3xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">
-            The Strava for golf.
+            Strava for golf.
             <span className="block mt-1 text-green-600">
               Track every round. Watch your handicap drop.
             </span>

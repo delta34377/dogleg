@@ -126,8 +126,11 @@
 
 ## 🟡 Built, awaiting rollout (branch claude/golf-stats-positioning-qkes3j)
 - **Stats layer ("Strava for Golf" foundation)** — see `docs/stats_pivot_plan.md`
-  - ⚠️ To enable: run `database/stats_layer.sql` in the Supabase SQL editor
-    (one time, before or right after merging — SQL-first recommended)
+  - ✅ Database migration APPLIED to production 7/5/2026 (stats_layer +
+    stats_layer_hardening in Supabase migrations; idempotent, safe to re-run)
+  - ✅ 9-hole rounds earn differentials via the WHS 2024 expected-differential
+    method (45 of the first 72 production rounds were 9-hole)
+  - ⚠️ Remaining step: merge this branch to master → Vercel deploys the UI
   - Auto handicap index (WHS), per-round differentials, backfilled for all rounds
   - Dogleg Score (0.0–10.0) chips on every round card
   - Achievements/PR badges stamped at post time

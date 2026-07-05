@@ -27,10 +27,15 @@
 --     computation in an exception handler and simply leaves the new columns
 --     NULL if anything unexpected happens.
 --   * Soft-deleted rounds (is_deleted = true) are excluded everywhere.
---   * v1 scope: differentials/handicap/Dogleg Score for 18-hole rounds only.
---     9-hole rounds still show in all counting stats; proper WHS 9-hole
---     handling (expected-differential method) is deferred to v2 rather than
---     doing it wrong.
+--   * 9-hole rounds (WHS 2024 method): the 9-hole differential is combined
+--     with an expected differential for the unplayed nine (0.52 x index + 1.2,
+--     which reproduces the USGA's published example exactly). Requires the
+--     tee's front/back-9 ratings and an index (or the manually entered
+--     handicap as a cold-start stand-in) — otherwise the round stays pending
+--     (NULL), matching how WHS holds 9-hole scores until an index exists.
+--     Plain doubling was rejected: it doubles the variance of the entry, and
+--     best-8-of-20 selection then systematically favors those entries,
+--     biasing the index low for players who post many nines.
 --   * Adjusted gross ("net double bogey") applies to hole-by-hole rounds:
 --     with an index we cap each hole at par + 2 + strokes received (using the
 --     course's stroke-index allocation); without one we use the WHS par + 5
@@ -46,7 +51,9 @@
 -- ============================================================================
 
 ALTER TABLE public.rounds
-  ADD COLUMN IF NOT EXISTS holes_played     smallint,
+  -- holes_played already exists in production (integer, default 18); the
+  -- backfill below recomputes it honestly for every round
+  ADD COLUMN IF NOT EXISTS holes_played     integer,
   ADD COLUMN IF NOT EXISTS differential     numeric(5,1),
   ADD COLUMN IF NOT EXISTS dogleg_score     numeric(3,1),
   ADD COLUMN IF NOT EXISTS strokes_vs_usual numeric(4,1),
@@ -73,6 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_rounds_course_score
 CREATE OR REPLACE FUNCTION public.dogleg_to_num(t text)
 RETURNS numeric
 LANGUAGE plpgsql IMMUTABLE
+SET search_path = public
 AS $$
 BEGIN
   RETURN nullif(trim(t), '')::numeric;
@@ -86,6 +94,7 @@ $$;
 CREATE OR REPLACE FUNCTION public.dogleg_nums(j jsonb)
 RETURNS numeric[]
 LANGUAGE sql IMMUTABLE
+SET search_path = public
 AS $$
   SELECT CASE
     WHEN j IS NULL OR jsonb_typeof(j) <> 'array' THEN NULL
@@ -100,8 +109,9 @@ $$;
 -- Uses hole-by-hole data when present, else the front9/back9/total fields.
 CREATE OR REPLACE FUNCTION public.dogleg_holes_played(
   p_scores jsonb, p_front9 numeric, p_back9 numeric, p_total numeric
-) RETURNS smallint
+) RETURNS integer
 LANGUAGE plpgsql IMMUTABLE
+SET search_path = public
 AS $$
 DECLARE
   scores numeric[];
@@ -146,6 +156,7 @@ CREATE OR REPLACE FUNCTION public.dogleg_adjusted_gross(
   p_par           numeric    -- course par
 ) RETURNS numeric
 LANGUAGE plpgsql IMMUTABLE
+SET search_path = public
 AS $$
 DECLARE
   scores  numeric[];
@@ -199,41 +210,103 @@ BEGIN
 END;
 $$;
 
--- WHS score differential for one round row. NULL when not computable
--- (no tee selected, not 18 holes, or an implausible total).
+-- WHS score differential for one round row, always as an 18-hole equivalent.
+--   18-hole rounds: (adjusted gross - rating) x 113 / slope.
+--   9-hole rounds (WHS 2024): 9-hole differential + expected differential for
+--   the unplayed nine (0.52 x Handicap Index + 1.2 — reproduces the USGA's
+--   published example: index 14.0, 9-hole differential 7.2 -> 15.7). The
+--   manual profile handicap stands in for a missing index; with neither, the
+--   round stays pending (NULL), matching WHS treatment of 9-hole scores.
+-- NULL when not computable (no tee, missing ratings, implausible total).
 CREATE OR REPLACE FUNCTION public.dogleg_round_differential(r public.rounds)
 RETURNS numeric
 LANGUAGE plpgsql STABLE
+SET search_path = public
 AS $$
 DECLARE
   tee     jsonb;
   slope   numeric;
   rating  numeric;
-  holes   smallint;
+  holes   integer;
   sidx    jsonb;
   idx     numeric;
   adjusted numeric;
+  scores  numeric[];
+  filled_front int;
+  filled_back int;
+  nine    text;
+  score9  numeric;
+  d9      numeric;
 BEGIN
   IF r.total_score IS NULL THEN RETURN NULL; END IF;
 
   holes := public.dogleg_holes_played(to_jsonb(r.scores_by_hole), r.front9, r.back9, r.total_score);
-  IF holes IS DISTINCT FROM 18 THEN RETURN NULL; END IF;          -- v1: 18-hole only
-  IF r.total_score NOT BETWEEN 45 AND 160 THEN RETURN NULL; END IF;
 
   tee := to_jsonb(r.tee_data);
   IF tee IS NULL OR jsonb_typeof(tee) <> 'object' THEN RETURN NULL; END IF;
-  slope  := public.dogleg_to_num(tee ->> 'slope');
-  rating := public.dogleg_to_num(tee ->> 'course_rating');
+
+  IF holes = 18 THEN
+    IF r.total_score NOT BETWEEN 45 AND 160 THEN RETURN NULL; END IF;
+    slope  := public.dogleg_to_num(tee ->> 'slope');
+    rating := public.dogleg_to_num(tee ->> 'course_rating');
+    IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN RETURN NULL; END IF;
+
+    SELECT to_jsonb(c.handicaps) INTO sidx FROM public.courses c WHERE c.course_id = r.course_id;
+    SELECT p.handicap_index INTO idx FROM public.profiles p WHERE p.id = r.user_id;
+
+    adjusted := public.dogleg_adjusted_gross(
+      to_jsonb(r.scores_by_hole), to_jsonb(r.course_pars), sidx,
+      r.total_score, idx, slope, rating, r.par);
+
+    RETURN round(((adjusted - rating) * 113.0 / slope)::numeric, 1);
+  END IF;
+
+  IF holes IS DISTINCT FROM 9 THEN RETURN NULL; END IF;
+
+  -- ---- 9-hole round: which nine was played, and what did it score? ----
+  scores := public.dogleg_nums(to_jsonb(r.scores_by_hole));
+  IF scores IS NOT NULL AND array_length(scores, 1) = 18 THEN
+    SELECT count(*) FILTER (WHERE i <= 9 AND scores[i] IS NOT NULL),
+           count(*) FILTER (WHERE i > 9  AND scores[i] IS NOT NULL)
+    INTO filled_front, filled_back
+    FROM generate_series(1, 18) i;
+    IF filled_front = 9 AND filled_back = 0 THEN
+      nine := 'front';
+      SELECT sum(scores[i]) INTO score9 FROM generate_series(1, 9) i;
+    ELSIF filled_back = 9 AND filled_front = 0 THEN
+      nine := 'back';
+      SELECT sum(scores[i]) INTO score9 FROM generate_series(10, 18) i;
+    ELSE
+      RETURN NULL;  -- nine scattered holes isn't a rated nine
+    END IF;
+  ELSIF r.front9 IS NOT NULL AND r.back9 IS NULL THEN
+    nine := 'front'; score9 := r.front9;
+  ELSIF r.back9 IS NOT NULL AND r.front9 IS NULL THEN
+    nine := 'back'; score9 := r.back9;
+  ELSE
+    RETURN NULL;
+  END IF;
+
+  IF score9 IS NULL OR score9 NOT BETWEEN 25 AND 90 THEN RETURN NULL; END IF;
+
+  -- The played nine's own slope and rating (84% of imported tees have them)
+  IF nine = 'front' THEN
+    slope  := public.dogleg_to_num(tee ->> 'slope_front9');
+    rating := public.dogleg_to_num(tee ->> 'cr_front9');
+  ELSE
+    slope  := public.dogleg_to_num(tee ->> 'slope_back9');
+    rating := public.dogleg_to_num(tee ->> 'cr_back9');
+  END IF;
   IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN RETURN NULL; END IF;
 
-  SELECT to_jsonb(c.handicaps) INTO sidx FROM public.courses c WHERE c.course_id = r.course_id;
-  SELECT p.handicap_index INTO idx FROM public.profiles p WHERE p.id = r.user_id;
+  -- Expected differential for the unplayed nine needs an index; the manual
+  -- handicap stands in during cold start. Neither -> pending, like WHS.
+  SELECT coalesce(p.handicap_index, p.handicap) INTO idx
+  FROM public.profiles p WHERE p.id = r.user_id;
+  IF idx IS NULL THEN RETURN NULL; END IF;
 
-  adjusted := public.dogleg_adjusted_gross(
-    to_jsonb(r.scores_by_hole), to_jsonb(r.course_pars), sidx,
-    r.total_score, idx, slope, rating, r.par);
-
-  RETURN round(((adjusted - rating) * 113.0 / slope)::numeric, 1);
+  d9 := (score9 - rating) * 113.0 / slope;
+  RETURN round((d9 + 0.52 * idx + 1.2)::numeric, 1);
 END;
 $$;
 
@@ -343,7 +416,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.dogleg_detect_achievements(
   p_user_id uuid, p_round_id uuid, p_before timestamptz, p_created timestamptz,
-  p_total numeric, p_par numeric, p_course_id text, p_holes smallint,
+  p_total numeric, p_par numeric, p_course_id text, p_holes integer,
   p_scores jsonb, p_course_pars jsonb
 ) RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER
@@ -569,6 +642,8 @@ BEGIN
     FROM public.rounds
     WHERE user_id = p_user_id
       AND (is_deleted IS NULL OR is_deleted = false)
+      -- private rounds only count when you're looking at your own stats
+      AND (user_id = auth.uid() OR NOT coalesce(is_private, false))
   ),
   eighteen AS (
     SELECT * FROM my_rounds WHERE holes_played = 18 AND total_score IS NOT NULL
@@ -690,6 +765,9 @@ BEGIN
     WHERE r.course_id = p_course_id
       AND (r.is_deleted IS NULL OR r.is_deleted = false)
       AND r.total_score IS NOT NULL
+      -- course pages are a public surface: no private rounds, no banned users
+      AND NOT coalesce(r.is_private, false)
+      AND NOT coalesce(p.is_banned, false)
   ),
   eighteen AS (SELECT * FROM course_rounds WHERE holes_played = 18),
   leaderboard AS (
@@ -809,3 +887,18 @@ $$;
 -- Note on the backfill: the soft-deleted rounds also get holes_played /
 -- differential values, but every reader (handicap, baseline, stats, course
 -- pages) filters is_deleted, so they never count.
+
+
+-- ============================================================================
+-- PART 10 — Hardening (from Supabase security advisors)
+-- Internal machinery is not directly callable by app roles; only the two
+-- app-facing RPCs stay callable, and only by authenticated users.
+-- ============================================================================
+
+REVOKE EXECUTE ON FUNCTION public.dogleg_baseline(uuid, timestamptz, uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.dogleg_detect_achievements(uuid, uuid, timestamptz, timestamptz, numeric, numeric, text, integer, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.dogleg_recompute_handicap(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.dogleg_round_before_insert() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.dogleg_round_after_change() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.get_user_stats(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.get_course_page(text) FROM PUBLIC, anon;

@@ -7,10 +7,12 @@ a separate, deliberate decision.
 
 ## ✅ What's implemented (branch: claude/golf-stats-positioning-qkes3j)
 
-**One manual step to switch it on: open Supabase → SQL Editor, paste
-`database/stats_layer.sql`, Run.** Do this BEFORE merging the frontend (either
-order is safe — the app degrades gracefully — but SQL-first means everything
-lights up immediately, including backfilled stats for every existing round).
+**✅ Migration APPLIED to production (July 5, 2026)** via the Supabase MCP
+connection — recorded as migrations `stats_layer` + `stats_layer_hardening`.
+All 72 existing rounds backfilled (49 earned differentials, 47 Dogleg Scores,
+18 achievement badges); auto handicap indexes live (Mark's computed index:
+12.0 — matching his manually entered 12). Re-running `database/stats_layer.sql`
+is safe any time (idempotent). The frontend ships when the branch merges.
 
 - **Auto handicap index** — WHS differentials per round (net-double-bogey
   adjustment for hole-by-hole rounds using the course stroke index), best 8 of
@@ -35,10 +37,22 @@ lights up immediately, including backfilled stats for every existing round).
   17 assertions covering the WHS math, Dogleg Score anchors, achievements,
   soft-delete recomputation, both RPCs, and idempotent re-runs.
 
-**v1 scope cuts (deliberate):** 9-hole rounds count in all stats but don't earn
-differentials/handicap yet (proper WHS expected-differential method is v2, not
-the wrong shortcut); Quick-Score rounds use raw totals (hole-by-hole rounds get
-the more accurate adjusted gross — one more reason to incentivize holes mode).
+**9-hole rounds (added July 2026, WHS 2024 method):** a 9-hole round's
+differential is combined with an *expected differential* for the unplayed nine
+(0.52 × index + 1.2 — reproduces the USGA's published example exactly), so 9-hole
+rounds count toward the handicap index and earn Dogleg Scores. Plain doubling was
+rejected: it doubles the entry's variance, and best-8-of-20 selection then
+systematically favors those entries, biasing indexes low for players who post
+lots of nines. Requirements: the tee's front/back-9 ratings (84% of imported
+tees have them) and an existing index (or the manually entered profile handicap
+as a cold-start stand-in) — otherwise the round stays pending, matching WHS.
+Matters a lot in practice: 45 of the first 72 production rounds were 9-hole.
+
+**Remaining v1 accuracy tiers (deliberate):** Quick-Score rounds use raw totals;
+18-hole hole-by-hole rounds get net-double-bogey adjusted gross (one more reason
+to incentivize holes mode); 9-hole rounds skip the adjustment. 9-hole rounds
+posted *before* a player has any index stay pending rather than converting
+retroactively (WHS retro-converts; ours stamps at post time — v2).
 
 ---
 

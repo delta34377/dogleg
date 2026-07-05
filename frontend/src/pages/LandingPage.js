@@ -318,8 +318,9 @@ function LandingPage() {
             <span className="text-green-600">Watch your handicap drop.</span>
           </h1>
           <p className="mt-3 max-w-2xl mx-auto text-sm sm:text-lg text-gray-600">
-            An automatic handicap, a 0–10 Dogleg Score for every round, and a feed of
-            your crew's golf. Post in 30 seconds — the stats do themselves.
+            Post a round in 30 seconds. Get a real handicap that updates itself,
+            personal records, and trends that show your game improving — and a
+            feed of your crew doing the same.
           </p>
           <div className="mt-5 flex flex-col sm:flex-row items-center justify-center gap-3">
             <button

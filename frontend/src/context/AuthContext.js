@@ -117,9 +117,13 @@ export const AuthProvider = ({ children }) => {
       
       // If user exists and token isn't expiring, skip the refresh
       if (hasUser && !nearExpiry) return
-      
+
       recheckInFlightRef.current = true
-      setRechecking(true)
+      // Only hold the UI when a signed-in session is being refreshed.
+      // For logged-out visitors the landing page stays put and the session
+      // check runs silently — if one is found (signed in elsewhere), setUser
+      // flips them into the app anyway.
+      if (hasUser) setRechecking(true)
       
       try {
         // Seed from local session quickly (do NOT force user to null here)

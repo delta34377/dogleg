@@ -7,6 +7,9 @@ import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils' 
 import { getInitials } from '../utils/avatarUtils'
 import { getFeedSettings, subscribeToFeedSettings } from '../services/feedSettingsService'
+import { statsService } from '../services/statsService'
+import DoglegScoreChip from './DoglegScoreChip'
+import AchievementBadges from './AchievementBadges'
 import ShareModal from './ShareModal'
 
 const Feed = forwardRef((props, ref) => {
@@ -90,16 +93,19 @@ const Feed = forwardRef((props, ref) => {
       const roundIds = feedRounds.map(r => r.id)
       
       if (roundIds.length > 0) {
-        // Fetch reactions, comments, and userReactions separately
-        const [reactionsData, commentsData, userReactionsData] = await Promise.all([
+        // Fetch reactions, comments, userReactions, and stats fields separately
+        // (the feed RPC predates the stats columns, so they ride a side query)
+        const [reactionsData, commentsData, userReactionsData, statsFieldsData] = await Promise.all([
           roundsService.getReactions(roundIds),
           roundsService.getComments(roundIds),
-          user ? roundsService.getUserReactions(roundIds) : { data: [] }
+          user ? roundsService.getUserReactions(roundIds) : { data: [] },
+          statsService.getRoundStatsFields(roundIds)
         ])
-        
+
         const reactions = reactionsData.data || []
         const comments = commentsData.data || []
         const userReactions = userReactionsData.data || []
+        const statsFields = statsFieldsData.data || {}
         
         // Get follow statuses
         const uniqueUserIds = [...new Set(feedRounds.map(r => r.user_id).filter(id => id !== user?.id))]
@@ -125,6 +131,7 @@ const Feed = forwardRef((props, ref) => {
           
           return {
             ...round,
+            ...(statsFields[round.id] || {}),
             reactions: reactionCounts,
             comments: roundComments.map(c => ({
               id: c.id,
@@ -761,7 +768,10 @@ useEffect(() => {
                   <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-b">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
-                        <h3 className="font-bold text-lg">
+                        <h3
+                          className={`font-bold text-lg ${normalizedRound.course_id ? 'cursor-pointer hover:text-green-700' : ''}`}
+                          onClick={() => normalizedRound.course_id && navigate(`/courses/${normalizedRound.course_id}`)}
+                        >
                           {displayName}
                         </h3>
                         <p className="text-gray-600 text-sm">
@@ -784,16 +794,32 @@ useEffect(() => {
                             {vsPar}
                           </div>
                         )}
+                        {normalizedRound.dogleg_score !== null && normalizedRound.dogleg_score !== undefined && (
+                          <div className="mt-1">
+                            <DoglegScoreChip
+                              score={normalizedRound.dogleg_score}
+                              strokesVsUsual={normalizedRound.strokes_vs_usual}
+                              isOwn={round.user_id === user?.id}
+                            />
+                          </div>
+                        )}
                       </div>
                       {/* NO DELETE BUTTON FOR FEED */}
                     </div>
-                    
+
                     {/* Score breakdown */}
                     <div className="text-sm text-gray-600 mt-2">
                       Front 9: <span className="font-semibold">{round.front9 || '--'}</span>
                       <span className="mx-2">•</span>
                       Back 9: <span className="font-semibold">{round.back9 || '--'}</span>
                     </div>
+
+                    {/* PRs & milestones stamped at post time */}
+                    {normalizedRound.achievements?.length > 0 && (
+                      <div className="mt-2">
+                        <AchievementBadges achievements={normalizedRound.achievements} />
+                      </div>
+                    )}
                   </div>
 
                   {/* Real photos only */}

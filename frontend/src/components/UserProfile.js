@@ -8,6 +8,8 @@ import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils' 
 import { getInitials } from '../utils/avatarUtils'
 import ShareModal from './ShareModal'
+import DoglegScoreChip from './DoglegScoreChip'
+import AchievementBadges from './AchievementBadges'
 
 
 
@@ -166,6 +168,9 @@ function UserProfile() {
             tee: round.tee_data,
             comment: round.caption,
             photo: round.photo_url,
+            dogleg_score: round.dogleg_score,
+            strokes_vs_usual: round.strokes_vs_usual,
+            achievements: round.achievements,
             reactions: reactionCounts,
             comments: roundComments.map(c => ({
   id: c.id,
@@ -792,7 +797,13 @@ function UserProfile() {
         <span className="font-bold text-base sm:text-lg">{profileStats.roundsCount}</span>
         <span className="text-gray-600 ml-0.5 sm:ml-1 text-xs sm:text-sm">rounds</span>
       </div>
-      <button 
+      {profileUser?.handicap_index !== null && profileUser?.handicap_index !== undefined && (
+        <div title="Handicap index — auto-calculated from posted rounds">
+          <span className="font-bold text-base sm:text-lg">{Number(profileUser.handicap_index).toFixed(1)}</span>
+          <span className="text-gray-600 ml-0.5 sm:ml-1 text-xs sm:text-sm">index</span>
+        </div>
+      )}
+      <button
         onClick={async () => {
           const { data } = await followService.getFollowers(profileUser.id)
           setFollowersList(data || [])
@@ -889,16 +900,32 @@ function UserProfile() {
                                 {vsPar}
                               </div>
                             )}
+                            {round.dogleg_score !== null && round.dogleg_score !== undefined && (
+                              <div className="mt-1">
+                                <DoglegScoreChip
+                                  score={round.dogleg_score}
+                                  strokesVsUsual={round.strokes_vs_usual}
+                                  isOwn={round.user_id === currentUser?.id}
+                                />
+                              </div>
+                            )}
                           </div>
                           {/* NO DELETE BUTTON FOR OTHER USER'S ROUNDS */}
                         </div>
-                        
+
                         {/* Score breakdown */}
                         <div className="text-sm text-gray-600 mt-2">
                           Front 9: <span className="font-semibold">{round.front9 || '--'}</span>
                           <span className="mx-2">•</span>
                           Back 9: <span className="font-semibold">{round.back9 || '--'}</span>
                         </div>
+
+                        {/* PRs & milestones stamped at post time */}
+                        {round.achievements?.length > 0 && (
+                          <div className="mt-2">
+                            <AchievementBadges achievements={round.achievements} />
+                          </div>
+                        )}
                       </div>
 
                       {/* Real photos only */}

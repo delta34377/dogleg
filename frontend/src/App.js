@@ -11,6 +11,8 @@ import Feed from './components/Feed'
 import UserProfile from './components/UserProfile'
 import ResetPassword from './components/ResetPassword'
 import SingleRound from './components/SingleRound'
+import StatsPage from './components/StatsPage'
+import CoursePage from './components/CoursePage'
 import SearchUsers from './pages/SearchUsers'
 import TermsOfService from './pages/TermsOfService'
 import PrivacyPolicy from './pages/PrivacyPolicy'
@@ -61,7 +63,7 @@ useEffect(() => {
   
   // Handle Feed tab click - refresh if already on feed
 const handleFeedClick = () => {
-  if (isSingleRoundPage) {
+  if (isDetailPage) {
     setActiveView('feed')
     navigate('/')
   } else if (activeView === 'feed' && feedRef.current) {
@@ -75,7 +77,7 @@ const handleFeedClick = () => {
 
 // Handle My Rounds tab click - scroll to top if already on rounds
 const handleMyRoundsClick = () => {
-  if (isSingleRoundPage) {
+  if (isDetailPage) {
     setActiveView('rounds')
     navigate('/')
   } else if (activeView === 'rounds' && roundsRef.current) {
@@ -89,7 +91,7 @@ const handleMyRoundsClick = () => {
 
 // Add handler for Add Round
 const handleAddRoundClick = () => {
-  if (isSingleRoundPage) {
+  if (isDetailPage) {
     setActiveView('search')
     navigate('/')
   } else {
@@ -97,9 +99,19 @@ const handleAddRoundClick = () => {
   }
 }
 
+// Add handler for Stats
+const handleStatsClick = () => {
+  if (isDetailPage) {
+    setActiveView('stats')
+    navigate('/')
+  } else {
+    setActiveView('stats')
+  }
+}
+
 // Add handler for Profile
 const handleProfileClick = () => {
-  if (isSingleRoundPage) {
+  if (isDetailPage) {
     setActiveView('profile')
     navigate('/')
   } else {
@@ -112,6 +124,12 @@ const handleProfileClick = () => {
 
   // Check if we're on a single round page
 const isSingleRoundPage = location.pathname.startsWith('/rounds/')
+
+  // Check if we're on a course page
+const isCoursePage = location.pathname.startsWith('/courses/')
+
+  // Detail pages render inside the nav shell but aren't a tab
+const isDetailPage = isSingleRoundPage || isCoursePage
   
   // If on user profile page, show UserProfile with navigation
   if (isUserProfilePage) {
@@ -245,6 +263,19 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
 
               <button
                 onClick={() => {
+                  setActiveView('stats')
+                  navigate('/')
+                }}
+                className={`flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50`}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-xl">📈</span>
+                  <span>Stats</span>
+                </div>
+              </button>
+
+              <button
+                onClick={() => {
                   setActiveView('rounds')
                   navigate('/')
                 }}
@@ -266,7 +297,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
 
         {/* Bottom Navigation Bar (Mobile) */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 md:hidden">
-          <div className="grid grid-cols-3 h-16">
+          <div className="grid grid-cols-4 h-16">
             <button
               onClick={() => {
                 setActiveView('feed')
@@ -295,6 +326,19 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
 
             <button
               onClick={() => {
+                setActiveView('stats')
+                navigate('/')
+              }}
+              className={`flex flex-col items-center justify-center gap-1 text-gray-600`}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+              <span className="text-xs">Stats</span>
+            </button>
+
+            <button
+              onClick={() => {
                 setActiveView('rounds')
                 navigate('/')
               }}
@@ -303,7 +347,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
-              <span className="text-xs">My Rounds</span>
+              <span className="text-xs">Rounds</span>
             </button>
           </div>
         </div>
@@ -391,11 +435,11 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
 
       {/* Bottom Navigation Bar (Mobile) */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 md:hidden">
-        <div className="grid grid-cols-3 h-16">
+        <div className="grid grid-cols-4 h-16">
           <button
             onClick={handleFeedClick}
             className={`flex flex-col items-center justify-center gap-1 ${
-                activeView === 'feed' && !isSingleRoundPage ? 'text-green-600' : 'text-gray-600'
+                activeView === 'feed' && !isDetailPage ? 'text-green-600' : 'text-gray-600'
             }`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,7 +451,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
           <button
   onClick={handleAddRoundClick}
             className={`flex flex-col items-center justify-center gap-1 ${
-              activeView === 'search' ? 'text-green-600' : 'text-gray-600'
+              activeView === 'search' && !isDetailPage ? 'text-green-600' : 'text-gray-600'
             }`}
           >
             <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center -mt-2">
@@ -417,15 +461,27 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
           </button>
 
           <button
+  onClick={handleStatsClick}
+            className={`flex flex-col items-center justify-center gap-1 ${
+              activeView === 'stats' && !isDetailPage ? 'text-green-600' : 'text-gray-600'
+            }`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+            <span className="text-xs">Stats</span>
+          </button>
+
+          <button
   onClick={handleMyRoundsClick}
             className={`flex flex-col items-center justify-center gap-1 ${
-              activeView === 'rounds' ? 'text-green-600' : 'text-gray-600'
+              activeView === 'rounds' && !isDetailPage ? 'text-green-600' : 'text-gray-600'
             }`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            <span className="text-xs">My Rounds</span>
+            <span className="text-xs">Rounds</span>
           </button>
         </div>
       </div>
@@ -451,7 +507,7 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
             <button
   onClick={handleAddRoundClick}
               className={`flex-1 py-4 px-4 text-center font-medium transition-colors ${
-                activeView === 'search'
+                activeView === 'search' && !isDetailPage
                   ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
               }`}
@@ -463,9 +519,23 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
             </button>
 
             <button
+  onClick={handleStatsClick}
+              className={`flex-1 py-4 px-4 text-center font-medium transition-colors ${
+                activeView === 'stats' && !isDetailPage
+                  ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
+                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-xl">📈</span>
+                <span>Stats</span>
+              </div>
+            </button>
+
+            <button
   onClick={handleMyRoundsClick}
               className={`flex-1 py-4 px-4 text-center font-medium transition-colors ${
-                activeView === 'rounds'
+                activeView === 'rounds' && !isDetailPage
                   ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
                   : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
               }`}
@@ -483,10 +553,13 @@ const isSingleRoundPage = location.pathname.startsWith('/rounds/')
 <div className="pt-4 pb-20 md:pb-4">
   {isSingleRoundPage ? (
     <SingleRound />
+  ) : isCoursePage ? (
+    <CoursePage />
   ) : (
     <>
       {activeView === 'feed' && <Feed ref={feedRef} />}
       {activeView === 'search' && <CourseSearch />}
+      {activeView === 'stats' && <StatsPage />}
       {activeView === 'rounds' && <MyRounds ref={roundsRef} />}
       {activeView === 'profile' && <Profile />}
     </>
@@ -575,8 +648,18 @@ function App() {
           />
           
           {/* Individual round route */}
-          <Route 
-  path="/rounds/:roundId" 
+          <Route
+  path="/rounds/:roundId"
+  element={
+    <ProtectedRoute>
+      <AuthenticatedApp />
+    </ProtectedRoute>
+  }
+/>
+
+          {/* Course page route */}
+          <Route
+  path="/courses/:courseId"
   element={
     <ProtectedRoute>
       <AuthenticatedApp />

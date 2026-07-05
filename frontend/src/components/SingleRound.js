@@ -7,6 +7,8 @@ import FollowButton from './FollowButton'
 import { getDisplayName } from '../utils/courseNameUtils'
 import { getInitials } from '../utils/avatarUtils'
 import ShareModal from './ShareModal'
+import DoglegScoreChip from './DoglegScoreChip'
+import AchievementBadges from './AchievementBadges'
 
 
 function SingleRound() {
@@ -591,7 +593,10 @@ function SingleRound() {
               <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-b">
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex-1">
-                    <h3 className="font-bold text-lg">
+                    <h3
+                      className={`font-bold text-lg ${round.course_id ? 'cursor-pointer hover:text-green-700' : ''}`}
+                      onClick={() => round.course_id && navigate(`/courses/${round.course_id}`)}
+                    >
                       {displayName}
                     </h3>
                     <p className="text-gray-600 text-sm">
@@ -614,15 +619,31 @@ function SingleRound() {
                         {vsPar}
                       </div>
                     )}
+                    {normalizedRound.dogleg_score !== null && normalizedRound.dogleg_score !== undefined && (
+                      <div className="mt-1">
+                        <DoglegScoreChip
+                          score={normalizedRound.dogleg_score}
+                          strokesVsUsual={normalizedRound.strokes_vs_usual}
+                          isOwn={round.user_id === user?.id}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
-                
+
                 {/* Score breakdown */}
                 <div className="text-sm text-gray-600 mt-2">
                   Front 9: <span className="font-semibold">{round.front9 || '--'}</span>
                   <span className="mx-2">•</span>
                   Back 9: <span className="font-semibold">{round.back9 || '--'}</span>
                 </div>
+
+                {/* PRs & milestones stamped at post time */}
+                {normalizedRound.achievements?.length > 0 && (
+                  <div className="mt-2">
+                    <AchievementBadges achievements={normalizedRound.achievements} />
+                  </div>
+                )}
               </div>
 
               {/* Real photos only */}

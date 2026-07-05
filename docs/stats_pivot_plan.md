@@ -1,9 +1,44 @@
 # 📈 Dogleg — "Strava for Golf" Pivot Plan
 
-**Status: PROPOSAL — under consideration, NOT adopted (July 2026).**
+**Status (July 2026): stat layer BUILT (steps 1–6 below), brand flip NOT done.**
 The live positioning is still social-first (June 2026 — see `feature_ideas.md` and
-`google_ads.md`). Nothing in the product, landing page, or ads changes until the
-decision is made. This doc captures the agreed plan for *if/when* we flip.
+`google_ads.md`). The landing page and ads are untouched — flipping them is step 7,
+a separate, deliberate decision.
+
+## ✅ What's implemented (branch: claude/golf-stats-positioning-qkes3j)
+
+**One manual step to switch it on: open Supabase → SQL Editor, paste
+`database/stats_layer.sql`, Run.** Do this BEFORE merging the frontend (either
+order is safe — the app degrades gracefully — but SQL-first means everything
+lights up immediately, including backfilled stats for every existing round).
+
+- **Auto handicap index** — WHS differentials per round (net-double-bogey
+  adjustment for hole-by-hole rounds using the course stroke index), best 8 of
+  last 20 with the official small-sample table, auto-updates on every post /
+  soft delete. Shows on the Stats tab and profile pages.
+- **Dogleg Score** — 0.0–10.0 per round + "strokes vs your usual", computed at
+  post time, chip on every round card (feed, my rounds, single round, profiles).
+- **Achievements** — 🎉 first round, 🏆 personal best / best vs par,
+  💯 first time breaking 100/90/80/70, ⛳ course PR, 🔥 most birdies,
+  📅 round-count milestones — stamped at post time, badges on cards.
+- **Stats tab** (new 4th nav tab) — handicap hero, latest Dogleg Score,
+  scoring averages, score-vs-par trend, handicap trend (differentials + rolling
+  index), rounds/month, par 3/4/5 + front/back + birdie/bogey breakdown,
+  putting stats, most-played courses.
+- **Course pages** — `/courses/:courseId` with leaderboard (each player's best
+  18-hole round), recent rounds, average score; course names on cards link there.
+- **Score entry** — last-used tee preselected per course, "counts toward your
+  handicap" hint, optional putts-per-hole tracking (hole-by-hole mode).
+- **Backfill** — the migration recomputes everything for all existing rounds in
+  chronological order, so history is populated on day one.
+- Validated against a local Postgres with a mock of the production schema:
+  17 assertions covering the WHS math, Dogleg Score anchors, achievements,
+  soft-delete recomputation, both RPCs, and idempotent re-runs.
+
+**v1 scope cuts (deliberate):** 9-hole rounds count in all stats but don't earn
+differentials/handicap yet (proper WHS expected-differential method is v2, not
+the wrong shortcut); Quick-Score rounds use raw totals (hole-by-hole rounds get
+the more accurate adjusted gross — one more reason to incentivize holes mode).
 
 ---
 

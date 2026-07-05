@@ -8,6 +8,8 @@ import { getDisplayName } from '../utils/courseNameUtils'
 import { getInitials } from '../utils/avatarUtils'
 import AvatarUpload from '../components/AvatarUpload'
 import ShareModal from './ShareModal'
+import DoglegScoreChip from './DoglegScoreChip'
+import AchievementBadges from './AchievementBadges'
 
 
 const MyRounds = forwardRef((props, ref) => {
@@ -141,6 +143,9 @@ const MyRounds = forwardRef((props, ref) => {
           tee: round.tee_data,
           comment: round.caption,
           photo: round.photo_url,
+          dogleg_score: round.dogleg_score,
+          strokes_vs_usual: round.strokes_vs_usual,
+          achievements: round.achievements,
           reactions: reactionCounts,
           comments: roundComments.map(c => ({
   id: c.id,
@@ -824,7 +829,10 @@ useImperativeHandle(ref, () => ({
                       <div className="px-3 sm:px-4 pt-3 sm:pt-4 pb-3 sm:pb-4 border-b">
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
-                            <h3 className="font-bold text-lg">
+                            <h3
+                              className={`font-bold text-lg ${round.course_id ? 'cursor-pointer hover:text-green-700' : ''}`}
+                              onClick={() => round.course_id && navigate(`/courses/${round.course_id}`)}
+                            >
                               {displayName}
                             </h3>
                             <p className="text-gray-600 text-sm">
@@ -845,6 +853,14 @@ useImperativeHandle(ref, () => ({
                             {vsPar && (
                               <div className={`text-2xl font-bold ${getScoreColor(vsPar)}`}>
                                 {vsPar}
+                              </div>
+                            )}
+                            {round.dogleg_score !== null && round.dogleg_score !== undefined && (
+                              <div className="mt-1">
+                                <DoglegScoreChip
+                                  score={round.dogleg_score}
+                                  strokesVsUsual={round.strokes_vs_usual}
+                                />
                               </div>
                             )}
                           </div>
@@ -889,6 +905,13 @@ useImperativeHandle(ref, () => ({
                           <span className="mx-2">•</span>
                           Back 9: <span className="font-semibold">{round.back9 || '--'}</span>
                         </div>
+
+                        {/* PRs & milestones stamped at post time */}
+                        {round.achievements?.length > 0 && (
+                          <div className="mt-2">
+                            <AchievementBadges achievements={round.achievements} />
+                          </div>
+                        )}
                       </div>
 
                       {/* Real photos only - no placeholders */}

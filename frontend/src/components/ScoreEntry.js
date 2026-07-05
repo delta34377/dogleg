@@ -10,6 +10,8 @@ function ScoreEntry({ course, onComplete, onCancel }) {
   const [selectedTee, setSelectedTee] = useState(null)
   const [entryMode, setEntryMode] = useState('simple') // 'simple' or 'holes'
   const [isSaving, setIsSaving] = useState(false)
+  const [trackPutts, setTrackPutts] = useState(false)
+  const [putts, setPutts] = useState(Array(18).fill(''))
   const [roundData, setRoundData] = useState({
   date: new Date().toLocaleDateString('en-CA'), // Returns YYYY-MM-DD in local time
     front9: '',
@@ -42,6 +44,37 @@ function ScoreEntry({ course, onComplete, onCancel }) {
     loadTees()
   }
 }, [course])
+
+  // Preselect the tee the user last played here (most golfers play the same
+  // tees every time, and a selected tee is what makes the round count toward
+  // their handicap index)
+  useEffect(() => {
+  const preselectLastTee = async () => {
+    if (!user || !course?.course_id || tees.length === 0 || selectedTee) return
+
+    try {
+      const { data } = await supabase
+        .from('rounds')
+        .select('tee_id')
+        .eq('user_id', user.id)
+        .eq('course_id', course.course_id)
+        .not('tee_id', 'is', null)
+        .order('played_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (data?.tee_id) {
+        const lastTee = tees.find(t => t.tee_id === data.tee_id)
+        if (lastTee) setSelectedTee(lastTee)
+      }
+    } catch (error) {
+      // Preselection is a convenience — never block entry over it
+    }
+  }
+
+  preselectLastTee()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [tees, user])
 
   // Load complete course data with hole pars
   const [fullCourseData, setFullCourseData] = useState(null)
@@ -152,6 +185,7 @@ function ScoreEntry({ course, onComplete, onCancel }) {
 
   // Clear all scores
   const clearScores = () => {
+    setPutts(Array(18).fill(''))
     setRoundData(prev => ({
       ...prev,
       front9: '',
@@ -159,6 +193,14 @@ function ScoreEntry({ course, onComplete, onCancel }) {
       total: '',
       holes: Array(18).fill('')
     }))
+  }
+
+  const handlePuttChange = (holeIndex, value) => {
+    setPutts(prev => {
+      const next = [...prev]
+      next[holeIndex] = value
+      return next
+    })
   }
 
   // Calculate vs par for simple scoring
@@ -285,6 +327,9 @@ date: roundData.date + 'T00:00:00',
       back9: parseInt(roundData.back9) || null,
       total: finalTotal,
       holes: entryMode === 'holes' ? roundData.holes.map(h => parseInt(h) || null) : [],
+      statsByHole: entryMode === 'holes' && trackPutts && putts.some(p => p !== '')
+        ? putts.map(p => ({ putts: parseInt(p) >= 0 ? parseInt(p) : null }))
+        : null,
       comment: roundData.comment ? roundData.comment.slice(0, 280) : '',
       photo: roundData.photo, // This is now a File object
       par: course.total_par || 72,
@@ -367,6 +412,11 @@ date: roundData.date + 'T00:00:00',
         </option>
       ))}
     </select>
+    <p className={`text-xs mt-1 ${selectedTee?.slope ? 'text-green-600' : 'text-gray-400'}`}>
+      {selectedTee?.slope
+        ? '✓ Counts toward your handicap index'
+        : 'Pick tees and this round counts toward your handicap'}
+    </p>
   </div>
 </div>
 
@@ -535,6 +585,56 @@ date: roundData.date + 'T00:00:00',
               </div>
             </div>
             
+            {/* Optional putts tracking — unlocks putting stats on the Stats tab */}
+            <div className="mb-3">
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={trackPutts}
+                  onChange={(e) => setTrackPutts(e.target.checked)}
+                  className="rounded"
+                />
+                Track putts (optional)
+              </label>
+              {trackPutts && (
+                <div className="mt-2 space-y-2">
+                  <div className="grid grid-cols-9 gap-1">
+                    {[...Array(9)].map((_, i) => (
+                      <input
+                        key={i}
+                        type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={putts[i]}
+                        onChange={(e) => handlePuttChange(i, e.target.value)}
+                        className="w-full px-1 py-1.5 text-center border border-dashed rounded text-sm text-gray-700"
+                        placeholder="P"
+                        min="0"
+                        max="9"
+                      />
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-9 gap-1">
+                    {[...Array(9)].map((_, i) => (
+                      <input
+                        key={i + 9}
+                        type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={putts[i + 9]}
+                        onChange={(e) => handlePuttChange(i + 9, e.target.value)}
+                        className="w-full px-1 py-1.5 text-center border border-dashed rounded text-sm text-gray-700"
+                        placeholder="P"
+                        min="0"
+                        max="9"
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-400 text-center">Putts per hole, same order as scores</p>
+                </div>
+              )}
+            </div>
+
             {holesVsPar && (
               <div className="text-center pt-2 border-t">
                 <div className="text-sm text-gray-600">

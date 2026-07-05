@@ -124,6 +124,18 @@
 - Live in production at vercel app URL
 - Monitoring user engagement with discovery content
 
+## 🟡 Built, awaiting rollout (branch claude/golf-stats-positioning-qkes3j)
+- **Stats layer ("Strava for Golf" foundation)** — see `docs/stats_pivot_plan.md`
+  - ⚠️ To enable: run `database/stats_layer.sql` in the Supabase SQL editor
+    (one time, before or right after merging — SQL-first recommended)
+  - Auto handicap index (WHS), per-round differentials, backfilled for all rounds
+  - Dogleg Score (0.0–10.0) chips on every round card
+  - Achievements/PR badges stamped at post time
+  - New Stats tab (4th nav tab) with trends and breakdowns (Recharts)
+  - Course pages with leaderboards at /courses/:courseId
+  - Score entry: last-used tee preselect, handicap hint, optional putts tracking
+  - Positioning/brand flip NOT included — deliberately deferred (see plan doc)
+
 ## Next Steps
 - Add user discovery ("Find Golfers to Follow")
 - Add following/followers functionality

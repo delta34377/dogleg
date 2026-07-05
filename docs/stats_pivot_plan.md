@@ -12,7 +12,8 @@ connection — recorded as migrations `stats_layer` + `stats_layer_hardening`.
 All 72 existing rounds backfilled (49 earned differentials, 47 Dogleg Scores,
 18 achievement badges); auto handicap indexes live (Mark's computed index:
 12.0 — matching his manually entered 12). Re-running `database/stats_layer.sql`
-is safe any time (idempotent). The frontend ships when the branch merges.
+is safe any time (idempotent). Frontend merged to master and deployed to
+production on July 5, 2026 — the stat layer is fully live.
 
 - **Auto handicap index** — WHS differentials per round (net-double-bogey
   adjustment for hole-by-hole rounds using the course stroke index), best 8 of

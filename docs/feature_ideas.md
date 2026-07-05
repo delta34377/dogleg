@@ -10,6 +10,12 @@ user-facing copy and ads de-emphasize the stat-tracking / "Strava" angle for now
 The single-player stats ideas below are deliberately **parked**, not dead: they're the
 retention layer to build once the social loop is bringing people in.
 
+> **Update (July 2026):** a stats-first re-lead ("Strava for Golf") is under
+> consideration — not decided yet. If it happens, the parked section below gets
+> unparked and built first. Full plan, build order, and the new **Dogleg Score**
+> concept (a Relative-Effort-style "how good was this round *for you*" metric):
+> see `stats_pivot_plan.md`.
+
 ---
 
 ## 🟢 Aligned with the social-growth strategy (build these first)

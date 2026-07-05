@@ -9,7 +9,7 @@ export function DoglegScoreModal({ onClose, contextLine }) {
       onClick={(e) => { e.stopPropagation(); onClose() }}
     >
       <div
-        className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5"
+        className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 text-left"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-2">

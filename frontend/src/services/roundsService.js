@@ -45,9 +45,10 @@ export const roundsService = {
         back9: roundData.back9 || null,
         total_score: roundData.total,
         scores_by_hole: roundData.holes?.length > 0 ? roundData.holes : null,
-        // Only send stats_by_hole when there is data — the column exists only
+        // Only send stats columns when there is data — they exist only
         // after database/stats_layer.sql has been run
         ...(roundData.statsByHole ? { stats_by_hole: roundData.statsByHole } : {}),
+        ...(roundData.totalPutts ? { total_putts: roundData.totalPutts } : {}),
         par: roundData.par || 72,
         course_pars: roundData.coursePars || Array(18).fill(4),
         caption: roundData.comment || '',

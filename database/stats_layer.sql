@@ -63,7 +63,8 @@ ALTER TABLE public.rounds
   ADD COLUMN IF NOT EXISTS dogleg_score     numeric(3,1),
   ADD COLUMN IF NOT EXISTS strokes_vs_usual numeric(4,1),
   ADD COLUMN IF NOT EXISTS achievements     jsonb,
-  ADD COLUMN IF NOT EXISTS stats_by_hole    jsonb;
+  ADD COLUMN IF NOT EXISTS stats_by_hole    jsonb,
+  ADD COLUMN IF NOT EXISTS total_putts      integer;
 
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS handicap_index numeric(4,1);
@@ -807,6 +808,8 @@ BEGIN
                             WHERE dogleg_score IS NOT NULL
                             ORDER BY played_at DESC, created_at DESC LIMIT 1),
     'best_dogleg_score',   (SELECT max(dogleg_score) FROM my_rounds),
+    'putts_rounds',        (SELECT count(*) FROM my_rounds WHERE total_putts IS NOT NULL),
+    'putts_per_round',     (SELECT round(avg(total_putts), 1) FROM my_rounds WHERE total_putts IS NOT NULL),
     'rounds_per_month',    coalesce((SELECT jsonb_agg(to_jsonb(monthly) ORDER BY monthly.month) FROM monthly), '[]'::jsonb),
     'top_courses',         coalesce((SELECT jsonb_agg(to_jsonb(top_courses) ORDER BY top_courses.rounds DESC) FROM top_courses), '[]'::jsonb),
     'series',              coalesce((SELECT jsonb_agg(

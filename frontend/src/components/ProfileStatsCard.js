@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { ResponsiveContainer, LineChart, Line, Tooltip, ReferenceLine } from 'recharts'
 import { statsService } from '../services/statsService'
 import DoglegScoreChip from './DoglegScoreChip'
+import DoglegScoreInfo from './DoglegScoreInfo'
 
 const GREEN = '#16a34a'
 
@@ -57,7 +58,7 @@ function ProfileStatsCard({ userId }) {
     <div className="bg-white rounded-lg shadow-sm mb-3 sm:mb-4">
       <div className="p-3 sm:p-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-gray-900">📈 Stats</h3>
+          <h3 className="font-semibold text-gray-900 flex items-center gap-1.5">📈 Stats <DoglegScoreInfo /></h3>
           {stats.latest_dogleg_score !== null && stats.latest_dogleg_score !== undefined && (
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <span>Last round</span>

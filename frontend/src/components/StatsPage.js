@@ -6,7 +6,8 @@ import {
 } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import { statsService, rollingHandicapSeries } from '../services/statsService'
-import DoglegScoreChip from './DoglegScoreChip'
+import DoglegScoreChip, { formatStrokesVsUsual } from './DoglegScoreChip'
+import DoglegScoreInfo from './DoglegScoreInfo'
 
 // Chart palette (validated): brand green for the primary series,
 // sky for the handicap index line on the two-series chart.
@@ -16,17 +17,26 @@ const GRID = '#f3f4f6'
 const AXIS = '#e5e7eb'
 const TICK = { fontSize: 12, fill: '#6b7280' }
 
+const formatMonthLabel = (m) => {
+  if (!m) return ''
+  const [y, mo] = String(m).split('-')
+  return new Date(Number(y), Number(mo) - 1, 1)
+    .toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
 const formatChartDate = (d) => {
   if (!d) return ''
   const date = new Date(d + 'T00:00:00')
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function ChartTooltip({ active, payload, label, rows }) {
+function ChartTooltip({ active, payload, label, rows, title }) {
   if (!active || !payload || payload.length === 0) return null
   return (
     <div className="bg-white border border-gray-200 rounded-lg shadow-md px-3 py-2 text-sm">
-      <div className="text-gray-500 text-xs mb-1">{formatChartDate(label)}</div>
+      <div className="text-gray-500 text-xs mb-1">
+        {title ? title(payload[0].payload) : formatChartDate(label)}
+      </div>
       {rows(payload[0].payload).map(({ name, value }) => (
         <div key={name} className="flex justify-between gap-4">
           <span className="text-gray-600">{name}</span>
@@ -245,14 +255,21 @@ function StatsPage() {
                 )}
               </div>
               {latestWithScore && (
-                <div className="text-right">
-                  <div className="text-sm text-gray-500 mb-1">Latest Dogleg Score</div>
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                    <span>Latest Dogleg Score</span>
+                    <DoglegScoreInfo />
+                  </div>
                   <DoglegScoreChip
                     score={latestWithScore.dogleg_score}
                     strokesVsUsual={latestWithScore.strokes_vs_usual}
                     size="lg"
-                    showSubtitle
                   />
+                  {formatStrokesVsUsual(latestWithScore.strokes_vs_usual) && (
+                    <div className="text-xs text-gray-500">
+                      {formatStrokesVsUsual(latestWithScore.strokes_vs_usual)}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -278,7 +295,7 @@ function StatsPage() {
             <SectionCard title="Score vs par" subtitle="18-hole rounds, oldest to newest">
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={vsParData} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+                  <LineChart data={vsParData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
                     <CartesianGrid stroke={GRID} vertical={false} />
                     <XAxis dataKey="date" tickFormatter={formatChartDate} tick={TICK}
                       axisLine={{ stroke: AXIS }} tickLine={false} minTickGap={40} />
@@ -313,7 +330,7 @@ function StatsPage() {
               </div>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={handicapData} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+                  <ComposedChart data={handicapData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
                     <CartesianGrid stroke={GRID} vertical={false} />
                     <XAxis dataKey="date" tickFormatter={formatChartDate} tick={TICK}
                       axisLine={{ stroke: AXIS }} tickLine={false} minTickGap={40} />
@@ -335,11 +352,13 @@ function StatsPage() {
           <SectionCard title="Rounds per month" subtitle="Last 12 months">
             <div className="h-44">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthsData} margin={{ top: 8, right: 12, left: -28, bottom: 0 }}>
+                <BarChart data={monthsData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid stroke={GRID} vertical={false} />
                   <XAxis dataKey="label" tick={TICK} axisLine={{ stroke: AXIS }} tickLine={false} interval={0} />
-                  <YAxis tick={TICK} axisLine={false} tickLine={false} allowDecimals={false} width={40} />
-                  <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} content={<ChartTooltip rows={(p) => [
+                  <YAxis tick={TICK} axisLine={false} tickLine={false} allowDecimals={false} width={28} />
+                  <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} content={<ChartTooltip
+                    title={(p) => formatMonthLabel(p.month)}
+                    rows={(p) => [
                     { name: 'Rounds', value: p.rounds }
                   ]} />} />
                   <Bar dataKey="rounds" fill={GREEN} radius={[4, 4, 0, 0]} maxBarSize={24} />
@@ -388,19 +407,29 @@ function StatsPage() {
                   <StatTile label="Back 9 (per hole)" value={holeStats.back9_avg_per_hole ?? '—'} />
                 </div>
               )}
-              {holeStats.holes_with_putts > 0 && (
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                  <StatTile label="Putts per hole" value={holeStats.putts_avg}
-                    sub={`${holeStats.holes_with_putts} holes tracked`} />
-                  <StatTile label="Putts per 18" value={(Number(holeStats.putts_avg) * 18).toFixed(1)} />
-                </div>
-              )}
+
             </SectionCard>
           ) : (
             <div className="bg-white rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 text-center">
               Enter a round hole-by-hole to unlock par 3/4/5 averages, birdie counts,
               and the most accurate handicap.
             </div>
+          )}
+
+          {/* Putting */}
+          {(stats?.putts_rounds > 0 || holeStats?.holes_with_putts > 0) && (
+            <SectionCard title="Putting">
+              <div className="grid grid-cols-2 gap-3">
+                {stats?.putts_per_round && (
+                  <StatTile label="Putts per round" value={stats.putts_per_round}
+                    sub={`${stats.putts_rounds} ${stats.putts_rounds === 1 ? 'round' : 'rounds'} tracked`} />
+                )}
+                {holeStats?.putts_avg && (
+                  <StatTile label="Putts per hole" value={holeStats.putts_avg}
+                    sub={`${holeStats.holes_with_putts} holes tracked`} />
+                )}
+              </div>
+            </SectionCard>
           )}
 
           {/* Most played courses */}

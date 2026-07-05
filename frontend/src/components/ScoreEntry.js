@@ -12,6 +12,7 @@ function ScoreEntry({ course, onComplete, onCancel }) {
   const [isSaving, setIsSaving] = useState(false)
   const [trackPutts, setTrackPutts] = useState(false)
   const [putts, setPutts] = useState(Array(18).fill(''))
+  const [totalPutts, setTotalPutts] = useState('')
   const [roundData, setRoundData] = useState({
   date: new Date().toLocaleDateString('en-CA'), // Returns YYYY-MM-DD in local time
     front9: '',
@@ -186,6 +187,7 @@ function ScoreEntry({ course, onComplete, onCancel }) {
   // Clear all scores
   const clearScores = () => {
     setPutts(Array(18).fill(''))
+    setTotalPutts('')
     setRoundData(prev => ({
       ...prev,
       front9: '',
@@ -345,6 +347,18 @@ date: roundData.date + 'T00:00:00',
       statsByHole: entryMode === 'holes' && trackPutts && putts.some(p => p !== '')
         ? putts.map(p => ({ putts: parseInt(p) >= 0 ? parseInt(p) : null }))
         : null,
+      totalPutts: (() => {
+        const typed = parseInt(totalPutts)
+        if (typed > 0) return typed
+        if (entryMode === 'holes' && trackPutts) {
+          const scored = roundData.holes.filter(h => h !== '').length
+          const filled = putts.filter(p => p !== '')
+          if (scored > 0 && filled.length === scored) {
+            return filled.reduce((sum, x) => sum + (parseInt(x) || 0), 0)
+          }
+        }
+        return null
+      })(),
       comment: roundData.comment ? roundData.comment.slice(0, 280) : '',
       photo: roundData.photo, // This is now a File object
       par: course.total_par || 72,
@@ -550,6 +564,21 @@ date: roundData.date + 'T00:00:00',
             <p className="text-xs text-gray-500 text-center">
               Enter any combination - Front 9, Back 9, or just Total
             </p>
+
+            <div className="flex items-center justify-center gap-2">
+              <label className="text-sm text-gray-600">Putts (optional):</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={totalPutts}
+                onChange={(e) => setTotalPutts(e.target.value)}
+                className="w-20 px-2 py-1.5 text-center border rounded-lg text-sm"
+                placeholder="total"
+                min="0"
+                max="99"
+              />
+            </div>
           </div>
         )}
 
@@ -613,6 +642,21 @@ date: roundData.date + 'T00:00:00',
               </label>
               {trackPutts && (
                 <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-gray-500">Total putts:</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={totalPutts}
+                      onChange={(e) => setTotalPutts(e.target.value)}
+                      className="w-20 px-2 py-1 text-center border rounded text-sm"
+                      placeholder="e.g. 32"
+                      min="0"
+                      max="99"
+                    />
+                    <span className="text-xs text-gray-400">— or tap them in per hole:</span>
+                  </div>
                   <div className="grid grid-cols-9 gap-1">
                     {[...Array(9)].map((_, i) => (
                       <input

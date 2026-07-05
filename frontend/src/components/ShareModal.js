@@ -199,9 +199,20 @@ try {
       return `${parseInt(m)}/${parseInt(day)}/${y}`
     }
     
+    const holesArr = round.holes || round.scores_by_hole || null
+    const frontPlayed = holesArr && holesArr.some(h => h)
+      ? holesArr.slice(0, 9).some(h => h)
+      : !!round.front9
+    const backPlayed = holesArr && holesArr.some(h => h)
+      ? holesArr.slice(9, 18).some(h => h)
+      : !!round.back9
+    const isNineHole = frontPlayed !== backPlayed
+
     ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif'
     ctx.globalAlpha = 0.9
-    ctx.fillText(`${formatDate(round.date)} • ${round.city}, ${round.state}`, 16, currentY)
+    ctx.fillText(
+      `${formatDate(round.date)} • ${round.city}, ${round.state}${isNineHole ? ' • 9 holes' : ''}`,
+      16, currentY)
     ctx.globalAlpha = 1
     
     // -- Bottom Section (Score) --
@@ -217,8 +228,16 @@ try {
     const calcVsPar = () => {
       if (!round.par && !round.coursePars) return null
       let par = round.par || 72
-      if (round.holes && round.holes.some(h => h) && round.coursePars) {
-        par = round.holes.reduce((s, score, i) => score ? s + parseInt(round.coursePars[i] || 4) : s, 0)
+      if (holesArr && holesArr.some(h => h) && round.coursePars) {
+        par = holesArr.reduce((s, score, i) => score ? s + parseInt(round.coursePars[i] || 4) : s, 0)
+      } else if (isNineHole) {
+        // one nine entered without hole detail: par of that nine
+        if (round.coursePars) {
+          const slice = frontPlayed ? round.coursePars.slice(0, 9) : round.coursePars.slice(9, 18)
+          par = slice.reduce((s, p) => s + parseInt(p || 4), 0)
+        } else {
+          par = Math.round(par / 2)
+        }
       }
       const diff = round.total - par
       return diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`
@@ -246,8 +265,8 @@ try {
     ctx.fillStyle = scGrad
     ctx.fillRect(0, photoH, 360, scorecardH)
     
-    // Scorecard logic
-    const hasHoles = round.holes && round.holes.some(h => h !== '' && h !== null)
+    // Scorecard logic — draw only the nines that were played
+    const hasHoles = holesArr && holesArr.some(h => h !== '' && h !== null)
     const pars = round.coursePars || Array(18).fill(4)
     
     const getScoreColor = (score, par) => {
@@ -278,117 +297,91 @@ try {
     if (hasHoles) {
       const cellW = 32
       const gap = 2
-      const startX = 10 
+      const startX = 10
       
-      let y = photoH + 15 
+      const nines = []
+      if (frontPlayed) nines.push({ label: 'Out', offset: 0, subtotal: round.front9 })
+      if (backPlayed) nines.push({ label: 'In', offset: 9, subtotal: round.back9 })
+      
+      // Two nines fill the panel; a single nine sits vertically centered
+      let y = photoH + (nines.length === 1 ? 53 : 15)
       
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       
-      // --- FRONT 9 ---
-      ctx.font = '600 10px -apple-system, BlinkMacSystemFont, sans-serif'
-      ctx.fillStyle = '#64748b'
-      for (let i = 0; i < 9; i++) {
-        ctx.fillText(String(i + 1), startX + i * (cellW + gap) + cellW/2, y)
-      }
-      ctx.fillText('Out', startX + 9 * (cellW + gap) + cellW/2, y)
-      
-      y += 14
-      
-      ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
-      ctx.fillStyle = '#94a3b8'
-      for (let i = 0; i < 9; i++) {
-        ctx.fillText(String(pars[i]), startX + i * (cellW + gap) + cellW/2, y)
-      }
-      const frontPar = pars.slice(0, 9).reduce((a, b) => a + parseInt(b), 0)
-      ctx.fillText(String(frontPar), startX + 9 * (cellW + gap) + cellW/2, y)
-      
-      y += 20 
-      
-      ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, sans-serif'
-      for (let i = 0; i < 9; i++) {
-        const score = round.holes[i]
-        const colors = getScoreColor(score, pars[i])
-        ctx.fillStyle = colors.bg
-        roundRect(startX + i * (cellW + gap), y - 10, cellW, 28, 4)
+      for (const nine of nines) {
+        ctx.font = '600 10px -apple-system, BlinkMacSystemFont, sans-serif'
+        ctx.fillStyle = '#64748b'
+        for (let i = 0; i < 9; i++) {
+          ctx.fillText(String(nine.offset + i + 1), startX + i * (cellW + gap) + cellW/2, y)
+        }
+        ctx.fillText(nine.label, startX + 9 * (cellW + gap) + cellW/2, y)
+        
+        y += 14
+        
+        ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
+        ctx.fillStyle = '#94a3b8'
+        for (let i = 0; i < 9; i++) {
+          ctx.fillText(String(pars[nine.offset + i]), startX + i * (cellW + gap) + cellW/2, y)
+        }
+        const ninePar = pars.slice(nine.offset, nine.offset + 9).reduce((a, b) => a + parseInt(b), 0)
+        ctx.fillText(String(ninePar), startX + 9 * (cellW + gap) + cellW/2, y)
+        
+        y += 20
+        
+        ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, sans-serif'
+        for (let i = 0; i < 9; i++) {
+          const score = holesArr[nine.offset + i]
+          const colors = getScoreColor(score, pars[nine.offset + i])
+          ctx.fillStyle = colors.bg
+          roundRect(startX + i * (cellW + gap), y - 10, cellW, 28, 4)
+          ctx.fill()
+          ctx.fillStyle = colors.fg
+          ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 4)
+        }
+        // Nine subtotal
+        ctx.fillStyle = '#1e293b'
+        roundRect(startX + 9 * (cellW + gap), y - 10, cellW, 28, 4)
         ctx.fill()
-        ctx.fillStyle = colors.fg
-        ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 4)
+        ctx.fillStyle = 'white'
+        ctx.fillText(String(nine.subtotal || '-'), startX + 9 * (cellW + gap) + cellW/2, y + 4)
+        
+        y += 42
       }
-      // Out total
-      ctx.fillStyle = '#1e293b'
-      roundRect(startX + 9 * (cellW + gap), y - 10, cellW, 28, 4)
-      ctx.fill()
-      ctx.fillStyle = 'white'
-      ctx.fillText(String(round.front9 || '-'), startX + 9 * (cellW + gap) + cellW/2, y + 4)
-      
-      // --- BACK 9 ---
-      y += 42 
-      
-      ctx.font = '600 10px -apple-system, BlinkMacSystemFont, sans-serif'
-      ctx.fillStyle = '#64748b'
-      for (let i = 0; i < 9; i++) {
-        ctx.fillText(String(i + 10), startX + i * (cellW + gap) + cellW/2, y)
-      }
-      ctx.fillText('In', startX + 9 * (cellW + gap) + cellW/2, y)
-      
-      y += 14
-      
-      ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
-      ctx.fillStyle = '#94a3b8'
-      for (let i = 0; i < 9; i++) {
-        ctx.fillText(String(pars[i + 9]), startX + i * (cellW + gap) + cellW/2, y)
-      }
-      const backPar = pars.slice(9, 18).reduce((a, b) => a + parseInt(b), 0)
-      ctx.fillText(String(backPar), startX + 9 * (cellW + gap) + cellW/2, y)
-      
-      y += 20
-      
-      ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, sans-serif'
-      for (let i = 0; i < 9; i++) {
-        const score = round.holes[i + 9]
-        const colors = getScoreColor(score, pars[i + 9])
-        ctx.fillStyle = colors.bg
-        roundRect(startX + i * (cellW + gap), y - 10, cellW, 28, 4)
-        ctx.fill()
-        ctx.fillStyle = colors.fg
-        ctx.fillText(score || '-', startX + i * (cellW + gap) + cellW/2, y + 4)
-      }
-      // In total
-      ctx.fillStyle = '#1e293b'
-      roundRect(startX + 9 * (cellW + gap), y - 10, cellW, 28, 4)
-      ctx.fill()
-      ctx.fillStyle = 'white'
-      ctx.fillText(String(round.back9 || '-'), startX + 9 * (cellW + gap) + cellW/2, y + 4)
       
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
       
     } else {
-      // Fallback display
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      const centerY = photoH + scorecardH / 2
+      // Fallback display: a box per nine that exists; total-only rounds skip
+      // the boxes (the big score on the photo already carries it)
+      const boxes = []
+      if (round.front9) boxes.push({ label: 'Front 9', value: round.front9 })
+      if (round.back9) boxes.push({ label: 'Back 9', value: round.back9 })
       
-      ctx.fillStyle = 'white'
-      roundRect(80, centerY - 35, 80, 70, 12)
-      ctx.fill()
-      
-      roundRect(200, centerY - 35, 80, 70, 12)
-      ctx.fill()
-      
-      ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif'
-      ctx.fillStyle = '#64748b'
-      ctx.fillText('Front 9', 120, centerY - 15)
-      ctx.fillText('Back 9', 240, centerY - 15)
-      
-      ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif'
-      ctx.fillStyle = '#1e293b'
-      ctx.fillText(String(round.front9 || '--'), 120, centerY + 15)
-      ctx.fillText(String(round.back9 || '--'), 240, centerY + 15)
-      
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'top'
+      if (boxes.length > 0) {
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        const centerY = photoH + scorecardH / 2
+        const xs = boxes.length === 2 ? [120, 240] : [180]
+        
+        boxes.forEach((box, i) => {
+          ctx.fillStyle = 'white'
+          roundRect(xs[i] - 40, centerY - 35, 80, 70, 12)
+          ctx.fill()
+          
+          ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif'
+          ctx.fillStyle = '#64748b'
+          ctx.fillText(box.label, xs[i], centerY - 15)
+          
+          ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif'
+          ctx.fillStyle = '#1e293b'
+          ctx.fillText(String(box.value), xs[i], centerY + 15)
+        })
+        
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'top'
+      }
     }
     
     return canvas

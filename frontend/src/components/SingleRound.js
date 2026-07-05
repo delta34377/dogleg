@@ -8,6 +8,8 @@ import { getDisplayName } from '../utils/courseNameUtils'
 import { getInitials } from '../utils/avatarUtils'
 import ShareModal from './ShareModal'
 import DoglegScoreChip from './DoglegScoreChip'
+import Scorecard from './Scorecard'
+import ScoreBreakdown from './ScoreBreakdown'
 import AchievementBadges from './AchievementBadges'
 
 
@@ -315,175 +317,6 @@ function SingleRound() {
     )
   }
 
-  const Scorecard = ({ round }) => {
-    const pars = round.coursePars || round.course_pars || Array(18).fill(4)
-    
-    const getScoreStyle = (score, par) => {
-      if (!score || score === '') return { backgroundColor: 'white', color: '#999' }
-      
-      const diff = parseInt(score) - parseInt(par)
-      if (diff <= -2) return { backgroundColor: '#0d7d0d', color: '#fff' }
-      if (diff === -1) return { backgroundColor: '#4caf50', color: '#fff' }
-      if (diff === 0) return { backgroundColor: 'white', color: '#333' }
-      if (diff === 1) return { backgroundColor: '#ffcdd2', color: '#333' }
-      if (diff === 2) return { backgroundColor: '#ef5350', color: '#fff' }
-      return { backgroundColor: '#c62828', color: '#fff' }
-    }
-    
-    return (
-      <div className="my-4">
-        <div className="bg-gray-100 px-4 py-2 rounded-t-lg">
-          <h3 className="text-sm font-bold text-gray-700">SCORECARD</h3>
-        </div>
-        
-        <div className="bg-white border border-gray-200 rounded-b-lg p-4">
-          <div className="mb-4">
-            <div className="bg-gray-50 px-2 py-1 rounded mb-2">
-              <div className="text-xs font-semibold text-gray-600">FRONT 9</div>
-            </div>
-            <div className="grid grid-cols-10 gap-1 text-center text-xs">
-              <div className="contents">
-                {[...Array(9)].map((_, i) => (
-                  <div key={`f9-hole-${i}`} className="text-gray-600 font-medium">
-                    {i + 1}
-                  </div>
-                ))}
-                <div className="text-gray-600 font-bold">OUT</div>
-              </div>
-              
-              <div className="contents">
-                {pars.slice(0, 9).map((par, i) => (
-                  <div key={`f9-par-${i}`} className="text-gray-500 bg-gray-50 py-1 rounded text-xs">
-                    P{par}
-                  </div>
-                ))}
-                <div className="text-gray-500 bg-gray-50 py-1 rounded text-xs font-bold">
-                  {pars.slice(0, 9).reduce((sum, p) => sum + parseInt(p), 0)}
-                </div>
-              </div>
-              
-              <div className="contents">
-                {round.holes || round.scores_by_hole ? (
-                  <>
-                    {(round.holes || round.scores_by_hole).slice(0, 9).map((score, i) => {
-                      const style = getScoreStyle(score, pars[i])
-                      return (
-                        <div 
-                          key={`f9-score-${i}`} 
-                          className="py-2 rounded font-medium"
-                          style={style}
-                        >
-                          {score || '-'}
-                        </div>
-                      )
-                    })}
-                    <div className="py-2 bg-gray-900 text-white font-bold rounded">
-                      {round.front9 || '--'}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {[...Array(9)].map((_, i) => (
-                      <div key={`f9-empty-${i}`} className="py-2 bg-white border rounded text-gray-300">-</div>
-                    ))}
-                    <div className="py-2 bg-gray-900 text-white font-bold rounded">
-                      {round.front9 || '--'}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          <div className="mb-4">
-            <div className="bg-gray-50 px-2 py-1 rounded mb-2">
-              <div className="text-xs font-semibold text-gray-600">BACK 9</div>
-            </div>
-            <div className="grid grid-cols-10 gap-1 text-center text-xs">
-              <div className="contents">
-                {[...Array(9)].map((_, i) => (
-                  <div key={`b9-hole-${i}`} className="text-gray-600 font-medium">
-                    {i + 10}
-                  </div>
-                ))}
-                <div className="text-gray-600 font-bold">IN</div>
-              </div>
-              
-              <div className="contents">
-                {pars.slice(9, 18).map((par, i) => (
-                  <div key={`b9-par-${i}`} className="text-gray-500 bg-gray-50 py-1 rounded text-xs">
-                    P{par}
-                  </div>
-                ))}
-                <div className="text-gray-500 bg-gray-50 py-1 rounded text-xs font-bold">
-                  {pars.slice(9, 18).reduce((sum, p) => sum + parseInt(p), 0)}
-                </div>
-              </div>
-              
-              <div className="contents">
-                {round.holes || round.scores_by_hole ? (
-                  <>
-                    {(round.holes || round.scores_by_hole).slice(9, 18).map((score, i) => {
-                      const style = getScoreStyle(score, pars[i + 9])
-                      return (
-                        <div 
-                          key={`b9-score-${i}`} 
-                          className="py-2 rounded font-medium"
-                          style={style}
-                        >
-                          {score || '-'}
-                        </div>
-                      )
-                    })}
-                    <div className="py-2 bg-gray-900 text-white font-bold rounded">
-                      {round.back9 || '--'}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {[...Array(9)].map((_, i) => (
-                      <div key={`b9-empty-${i}`} className="py-2 bg-white border rounded text-gray-300">-</div>
-                    ))}
-                    <div className="py-2 bg-gray-900 text-white font-bold rounded">
-                      {round.back9 || '--'}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {/* Legend */}
-<div className="flex flex-wrap gap-2 sm:gap-3 text-[9px] sm:text-xs mt-3 pt-3 border-t justify-left">
-  <div className="flex items-center gap-1">
-    <div className="w-3 h-3 rounded" style={{backgroundColor: '#0d7d0d'}}></div>
-    <span className="text-gray-600">Eagle-</span>
-  </div>
-  <div className="flex items-center gap-1">
-    <div className="w-3 h-3 rounded" style={{backgroundColor: '#4caf50'}}></div>
-    <span className="text-gray-600">Birdie</span>
-  </div>
-  <div className="flex items-center gap-1">
-    <div className="w-3 h-3 rounded border border-gray-300" style={{backgroundColor: 'white'}}></div>
-    <span className="text-gray-600">Par</span>
-  </div>
-  <div className="flex items-center gap-1">
-    <div className="w-3 h-3 rounded" style={{backgroundColor: '#ffcdd2'}}></div>
-    <span className="text-gray-600">Bogey</span>
-  </div>
-  <div className="flex items-center gap-1">
-    <div className="w-3 h-3 rounded" style={{backgroundColor: '#ef5350'}}></div>
-    <span className="text-gray-600">Double</span>
-  </div>
-  <div className="flex items-center gap-1">
-    <div className="w-3 h-3 rounded" style={{backgroundColor: '#c62828'}}></div>
-    <span className="text-gray-600">Triple+</span>
-  </div>
-</div>
-        </div>
-      </div>
-    )
-  }
 
   // Not found state
   if (!isLoading && !round) {
@@ -632,11 +465,7 @@ function SingleRound() {
                 </div>
 
                 {/* Score breakdown */}
-                <div className="text-sm text-gray-600 mt-2">
-                  Front 9: <span className="font-semibold">{round.front9 || '--'}</span>
-                  <span className="mx-2">•</span>
-                  Back 9: <span className="font-semibold">{round.back9 || '--'}</span>
-                </div>
+                <ScoreBreakdown front9={round.front9} back9={round.back9} />
 
                 {/* PRs & milestones stamped at post time */}
                 {normalizedRound.achievements?.length > 0 && (

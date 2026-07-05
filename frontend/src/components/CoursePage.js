@@ -45,9 +45,12 @@ function PlayerRow({ entry, rank, isMe, navigate }) {
       )}
       <button
         onClick={() => entry.short_code && navigate(`/rounds/${entry.short_code}`)}
-        className="text-lg font-bold text-gray-900 hover:text-green-700 w-10 text-right"
+        className="text-right hover:text-green-700"
       >
-        {entry.total_score}
+        <span className="text-lg font-bold text-gray-900">{entry.total_score}</span>
+        {entry.holes_played === 9 && (
+          <span className="block text-[10px] leading-none text-gray-400">9 holes</span>
+        )}
       </button>
     </div>
   )

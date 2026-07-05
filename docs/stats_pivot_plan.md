@@ -199,8 +199,12 @@ makes other people's rounds legible → reactions get easier → the stat feeds 
 social loop instead of competing with it.
 
 **Details:**
-- **Cold start:** <3 rounds → "Establishing your baseline — N rounds to go" (itself a
-  retention hook). Seed from the manually-entered profile handicap if present.
+- **Cold start (relaxed July 2026 after live feedback):** any single prior
+  counting round is enough for a baseline — early scores are rougher but
+  visible, and the median self-corrects within a few rounds. A first-ever
+  counting round seeds from the manually entered profile handicap if present,
+  else shows nothing. (The handicap *index* still requires 3 counting rounds —
+  the relaxation is Dogleg-Score-only.)
 - **Requires a tee** (slope/rating) — same dependency as the handicap index; one more
   reason tee selection must be near-universal.
 - **9-hole rounds:** scale/combine per WHS.

@@ -34,11 +34,14 @@ import UsernameSetup from './components/UsernameSetup'
 
 // Main authenticated app with navigation
 function AuthenticatedApp() {
-  const [activeView, setActiveView] = useState('feed')
+  const location = useLocation()
+  // Detail pages (/rounds/:id, /courses/:id, /profile/:username) mount their
+  // own AuthenticatedApp instance, so tab state is lost when leaving them.
+  // Tab clicks on those pages pass the target through navigation state.
+  const [activeView, setActiveView] = useState(() => location.state?.view || 'feed')
   const feedRef = useRef(null)
   const roundsRef = useRef(null)
   const { user, profile, signOut } = useAuth()
-  const location = useLocation()
   const navigate = useNavigate()
 
   
@@ -64,8 +67,7 @@ useEffect(() => {
   // Handle Feed tab click - refresh if already on feed
 const handleFeedClick = () => {
   if (isDetailPage) {
-    setActiveView('feed')
-    navigate('/')
+    navigate('/', { state: { view: 'feed' } })
   } else if (activeView === 'feed' && feedRef.current) {
     // Already on feed, trigger refresh and scroll to top
     feedRef.current.refresh()
@@ -78,8 +80,7 @@ const handleFeedClick = () => {
 // Handle My Rounds tab click - scroll to top if already on rounds
 const handleMyRoundsClick = () => {
   if (isDetailPage) {
-    setActiveView('rounds')
-    navigate('/')
+    navigate('/', { state: { view: 'rounds' } })
   } else if (activeView === 'rounds' && roundsRef.current) {
     // Already on rounds, trigger scroll to top
     roundsRef.current.scrollToTop()
@@ -92,8 +93,7 @@ const handleMyRoundsClick = () => {
 // Add handler for Add Round
 const handleAddRoundClick = () => {
   if (isDetailPage) {
-    setActiveView('search')
-    navigate('/')
+    navigate('/', { state: { view: 'search' } })
   } else {
     setActiveView('search')
   }
@@ -102,8 +102,7 @@ const handleAddRoundClick = () => {
 // Add handler for Stats
 const handleStatsClick = () => {
   if (isDetailPage) {
-    setActiveView('stats')
-    navigate('/')
+    navigate('/', { state: { view: 'stats' } })
   } else {
     setActiveView('stats')
   }
@@ -112,8 +111,7 @@ const handleStatsClick = () => {
 // Add handler for Profile
 const handleProfileClick = () => {
   if (isDetailPage) {
-    setActiveView('profile')
-    navigate('/')
+    navigate('/', { state: { view: 'profile' } })
   } else {
     setActiveView('profile')
   }
@@ -151,8 +149,7 @@ const isDetailPage = isSingleRoundPage || isCoursePage
                 </button>
                 <button
                   onClick={() => {
-                    setActiveView('feed')
-                    navigate('/')
+                    navigate('/', { state: { view: 'feed' } })
                   }}
                   className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                 >
@@ -194,8 +191,7 @@ const isDetailPage = isSingleRoundPage || isCoursePage
 
                 <button
                   onClick={() => {
-                    setActiveView('profile')
-                    navigate('/')
+                    navigate('/', { state: { view: 'profile' } })
                   }}
                   className="flex items-center gap-2 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
                 >
@@ -237,8 +233,7 @@ const isDetailPage = isSingleRoundPage || isCoursePage
             <div className="flex">
               <button
                 onClick={() => {
-                  setActiveView('feed')
-                  navigate('/')
+                  navigate('/', { state: { view: 'feed' } })
                 }}
                 className={`flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50`}
               >
@@ -250,8 +245,7 @@ const isDetailPage = isSingleRoundPage || isCoursePage
 
               <button
                 onClick={() => {
-                  setActiveView('search')
-                  navigate('/')
+                  navigate('/', { state: { view: 'search' } })
                 }}
                 className={`flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50`}
               >
@@ -263,8 +257,7 @@ const isDetailPage = isSingleRoundPage || isCoursePage
 
               <button
                 onClick={() => {
-                  setActiveView('stats')
-                  navigate('/')
+                  navigate('/', { state: { view: 'stats' } })
                 }}
                 className={`flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50`}
               >
@@ -276,8 +269,7 @@ const isDetailPage = isSingleRoundPage || isCoursePage
 
               <button
                 onClick={() => {
-                  setActiveView('rounds')
-                  navigate('/')
+                  navigate('/', { state: { view: 'rounds' } })
                 }}
                 className={`flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50`}
               >
@@ -300,8 +292,7 @@ const isDetailPage = isSingleRoundPage || isCoursePage
           <div className="grid grid-cols-4 h-16">
             <button
               onClick={() => {
-                setActiveView('feed')
-                navigate('/')
+                navigate('/', { state: { view: 'feed' } })
               }}
               className={`flex flex-col items-center justify-center gap-1 text-gray-600`}
             >
@@ -313,8 +304,7 @@ const isDetailPage = isSingleRoundPage || isCoursePage
 
             <button
               onClick={() => {
-                setActiveView('search')
-                navigate('/')
+                navigate('/', { state: { view: 'search' } })
               }}
               className={`flex flex-col items-center justify-center gap-1 text-gray-600`}
             >
@@ -326,8 +316,7 @@ const isDetailPage = isSingleRoundPage || isCoursePage
 
             <button
               onClick={() => {
-                setActiveView('stats')
-                navigate('/')
+                navigate('/', { state: { view: 'stats' } })
               }}
               className={`flex flex-col items-center justify-center gap-1 text-gray-600`}
             >
@@ -339,8 +328,7 @@ const isDetailPage = isSingleRoundPage || isCoursePage
 
             <button
               onClick={() => {
-                setActiveView('rounds')
-                navigate('/')
+                navigate('/', { state: { view: 'rounds' } })
               }}
               className={`flex flex-col items-center justify-center gap-1 text-gray-600`}
             >

@@ -395,11 +395,16 @@ BEGIN
     LIMIT 20
   ) d;
 
-  IF n >= 3 THEN
+  -- Any prior differential is enough for a baseline (was >= 3): early scores
+  -- are rougher but visible, and the median self-corrects within a few rounds.
+  -- This is a Dogleg Score choice, not a WHS one — the handicap index still
+  -- requires 3 counting rounds.
+  IF n >= 1 THEN
     RETURN round(med::numeric, 1);
   END IF;
 
-  -- Cold start: seed from the manually entered handicap when there is one
+  -- True cold start (first-ever counting round): seed from the manually
+  -- entered handicap when there is one
   SELECT handicap INTO manual FROM public.profiles WHERE id = p_user_id;
   IF manual IS NOT NULL THEN
     RETURN manual + 3;

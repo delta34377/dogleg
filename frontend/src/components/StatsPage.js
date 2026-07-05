@@ -230,7 +230,7 @@ function StatsPage() {
 
           {/* Hero: handicap index */}
           <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div>
                 <div className="text-sm text-gray-500">Handicap index</div>
                 {handicapIndex !== null && handicapIndex !== undefined ? (
@@ -255,7 +255,7 @@ function StatsPage() {
                 )}
               </div>
               {latestWithScore && (
-                <div className="flex flex-col items-end gap-1 shrink-0">
+                <div className="flex flex-col items-start sm:items-end gap-1 shrink-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100">
                   <div className="flex items-center gap-1.5 text-sm text-gray-500">
                     <span>Latest Dogleg Score</span>
                     <DoglegScoreInfo />

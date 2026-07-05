@@ -1,6 +1,9 @@
 // Dogleg Score chip — the 0.0–10.0 "how good was this round FOR YOU" metric.
 // Spec: docs/stats_pivot_plan.md. Always a tier-colored pill, never a bare
-// number, so it can't be misread as a gross score or a handicap.
+// number, so it can't be misread as a gross score or a handicap. Tapping any
+// chip opens the explainer modal.
+import { useState } from 'react'
+import { DoglegScoreModal } from './DoglegScoreInfo'
 
 const TIERS = [
   { min: 9.0, label: 'Career Day', chip: 'bg-amber-400 text-amber-950', accent: 'text-amber-700' },
@@ -28,7 +31,9 @@ export function formatStrokesVsUsualTheirs(strokesVsUsual) {
   return mine ? mine.replace('your usual', 'their usual') : null
 }
 
-function DoglegScoreChip({ score, strokesVsUsual, isOwn = true, size = 'md', showSubtitle = false }) {
+function DoglegScoreChip({ score, strokesVsUsual, isOwn = true, size = 'md' }) {
+  const [showInfo, setShowInfo] = useState(false)
+
   if (score === null || score === undefined) return null
 
   const tier = getDoglegTier(score)
@@ -42,10 +47,12 @@ function DoglegScoreChip({ score, strokesVsUsual, isOwn = true, size = 'md', sho
     : 'text-xs px-2 py-0.5'
 
   return (
-    <div className={`inline-flex flex-col ${showSubtitle ? 'items-end' : ''}`}>
-      <span
+    <>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setShowInfo(true) }}
         className={`inline-flex items-center gap-1 rounded-full font-bold ${sizeClasses} ${tier.chip}`}
-        title={subtitle ? `Dogleg Score — ${subtitle}` : 'Dogleg Score — how good this round was relative to this golfer'}
+        title={subtitle ? `Dogleg Score — ${subtitle}` : "What's a Dogleg Score? Tap to find out"}
       >
         <span aria-hidden="true">🐶</span>
         {/* The "/10" denominator is load-bearing: it stops the number reading
@@ -55,11 +62,11 @@ function DoglegScoreChip({ score, strokesVsUsual, isOwn = true, size = 'md', sho
           <span className="font-semibold opacity-60 text-[0.8em]">/10</span>
         </span>
         {tier.label && <span className="font-semibold">· {tier.label}</span>}
-      </span>
-      {showSubtitle && subtitle && (
-        <span className="text-xs text-gray-500 mt-0.5">{subtitle}</span>
+      </button>
+      {showInfo && (
+        <DoglegScoreModal onClose={() => setShowInfo(false)} contextLine={subtitle} />
       )}
-    </div>
+    </>
   )
 }
 

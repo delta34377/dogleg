@@ -37,22 +37,22 @@ export function DoglegScoreModal({ onClose, contextLine }) {
             post a 9.5.
           </p>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 text-xs">
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full font-bold text-xs px-2 py-0.5 bg-amber-400 text-amber-950">🐶 9.0+</span>
-              <span>Career Day — one you'll talk about for years</span>
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full font-bold text-xs px-2 py-0.5 bg-amber-400 text-amber-950 whitespace-nowrap">🐶 9.0+</span>
+              <span className="whitespace-nowrap">Career Day — brag for years</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full font-bold text-xs px-2 py-0.5 bg-emerald-700 text-white">🐶 8.0+</span>
-              <span>Heater — well beyond your usual</span>
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full font-bold text-xs px-2 py-0.5 bg-emerald-700 text-white whitespace-nowrap">🐶 8.0+</span>
+              <span className="whitespace-nowrap">Heater — way past your usual</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full font-bold text-xs px-2 py-0.5 bg-emerald-100 text-emerald-800">🐶 6.5+</span>
-              <span>Better than your typical round</span>
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full font-bold text-xs px-2 py-0.5 bg-emerald-100 text-emerald-800 whitespace-nowrap">🐶 6.5+</span>
+              <span className="whitespace-nowrap">Better than your typical day</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full font-bold text-xs px-2 py-0.5 bg-gray-100 text-gray-600">🐶 ~6.0</span>
-              <span>Your usual day at the course</span>
+              <span className="shrink-0 inline-flex items-center gap-1 rounded-full font-bold text-xs px-2 py-0.5 bg-gray-100 text-gray-600 whitespace-nowrap">🐶 ~6.0</span>
+              <span className="whitespace-nowrap">Right at your usual</span>
             </div>
           </div>
 

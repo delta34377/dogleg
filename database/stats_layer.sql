@@ -758,7 +758,8 @@ BEGIN
       SELECT id, short_code, played_at, created_at,
              played_at::date AS date, total_score, par,
              (total_score - coalesce(par, 72)) AS vs_par,
-             differential, dogleg_score, strokes_vs_usual, holes_played
+             differential, dogleg_score, strokes_vs_usual, holes_played,
+             total_putts
       FROM my_rounds
       WHERE total_score IS NOT NULL
       ORDER BY played_at DESC, created_at DESC

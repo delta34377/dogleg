@@ -136,6 +136,18 @@ function StatsPage() {
     return out
   }, [stats])
 
+  // Putting trend: putts per 18 holes (9-hole rounds normalized x2)
+  const puttsData = useMemo(() =>
+    series
+      .filter(r => r.total_putts && (r.holes_played === 18 || r.holes_played === 9))
+      .map(r => ({
+        date: r.date,
+        putts: Math.round((r.total_putts * 18 / r.holes_played) * 10) / 10,
+        rawPutts: r.total_putts,
+        holes: r.holes_played
+      })),
+    [series])
+
   const latestWithScore = useMemo(() => {
     for (let i = series.length - 1; i >= 0; i--) {
       if (series[i].dogleg_score !== null && series[i].dogleg_score !== undefined) return series[i]
@@ -429,6 +441,36 @@ function StatsPage() {
                     sub={`${holeStats.holes_with_putts} holes tracked`} />
                 )}
               </div>
+              {puttsData.length >= 2 && (
+                <div className="mt-4">
+                  <div className="text-xs text-gray-500 mb-1">
+                    Putts per 18 holes over time
+                    {puttsData.some(p => p.holes === 9) ? ' (9-hole rounds normalized)' : ''}
+                  </div>
+                  <div className="h-44">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={puttsData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
+                        <CartesianGrid stroke={GRID} vertical={false} />
+                        <XAxis dataKey="date" tickFormatter={formatChartDate} tick={TICK}
+                          axisLine={{ stroke: AXIS }} tickLine={false} minTickGap={40} />
+                        <YAxis tick={TICK} axisLine={false} tickLine={false} width={34}
+                          domain={['dataMin - 2', 'dataMax + 2']} allowDecimals={false} />
+                        <ReferenceLine y={36} stroke="#9ca3af" strokeWidth={1}
+                          label={{ value: '2-putt pace', position: 'insideTopRight',
+                                   fontSize: 11, fill: '#9ca3af' }} />
+                        <Tooltip content={<ChartTooltip rows={(p) => [
+                          p.holes === 9
+                            ? { name: 'Putts', value: `${p.rawPutts} over 9 (≈${p.putts}/18)` }
+                            : { name: 'Putts', value: p.rawPutts }
+                        ]} />} />
+                        <Line type="monotone" dataKey="putts" stroke={GREEN} strokeWidth={2}
+                          dot={{ r: 4, fill: GREEN, stroke: '#ffffff', strokeWidth: 2 }}
+                          activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
             </SectionCard>
           )}
 

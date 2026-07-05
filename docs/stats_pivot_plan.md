@@ -49,11 +49,16 @@ tees have them) and an existing index (or the manually entered profile handicap
 as a cold-start stand-in) — otherwise the round stays pending, matching WHS.
 Matters a lot in practice: 45 of the first 72 production rounds were 9-hole.
 
-**Remaining v1 accuracy tiers (deliberate):** Quick-Score rounds use raw totals;
-18-hole hole-by-hole rounds get net-double-bogey adjusted gross (one more reason
-to incentivize holes mode); 9-hole rounds skip the adjustment. 9-hole rounds
-posted *before* a player has any index stay pending rather than converting
-retroactively (WHS retro-converts; ours stamps at post time — v2).
+**Ratings accuracy tiers (July 2026 — a skipped tee picker no longer blocks
+stats):** every entry format earns a differential — total-only, front/back, or a
+single nine. Ratings resolve in tiers: (1) the picked tee = exact WHS; (2) the
+course's median-rated tee = good estimate, course difficulty captured; (3) par
+at slope 113 = rough, unrated courses only. The handicap index includes
+estimated differentials — documented app behavior, not a GHIN substitute.
+Remaining tiers: Quick-Score rounds use raw totals; 18-hole hole-by-hole rounds
+get net-double-bogey adjusted gross; 9-hole rounds skip the adjustment and
+still need an index or manual handicap for the expected-differential term
+(first-ever nines stay pending; WHS retro-converts, ours stamps at post — v2).
 
 ---
 

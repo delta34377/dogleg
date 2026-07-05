@@ -237,9 +237,9 @@ function StatsPage() {
                   <>
                     <div className="text-5xl font-semibold text-gray-300 mt-1">—</div>
                     <div className="text-xs text-gray-500 mt-2">
-                      {handicapRounds} of 3 counting rounds so far. Rounds with tees
-                      selected count toward your index — 9-hole rounds too, once you
-                      have an index or a handicap set on your profile.
+                      {handicapRounds} of 3 counting rounds so far. Every posted round
+                      counts — full rounds, nines, or just a total. Picking tees makes
+                      the math exact.
                     </div>
                   </>
                 )}

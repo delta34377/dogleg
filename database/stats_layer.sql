@@ -36,6 +36,11 @@
 --     Plain doubling was rejected: it doubles the variance of the entry, and
 --     best-8-of-20 selection then systematically favors those entries,
 --     biasing the index low for players who post many nines.
+--   * Ratings accuracy tiers (July 2026): picked tee (exact WHS) -> course's
+--     median-rated tee (estimate) -> par at slope 113 (rough). A skipped tee
+--     picker no longer blocks stats; it just costs precision. The handicap
+--     index therefore includes estimated differentials — documented app
+--     behavior, not a GHIN substitute.
 --   * Adjusted gross ("net double bogey") applies to hole-by-hole rounds:
 --     with an index we cap each hole at par + 2 + strokes received (using the
 --     course's stroke-index allocation); without one we use the WHS par + 5
@@ -210,6 +215,30 @@ BEGIN
 END;
 $$;
 
+-- Representative ratings for a course when the golfer didn't pick tees:
+-- the course's median-rated tee. Returned as jsonb with the same keys as
+-- rounds.tee_data so the differential function can treat both alike.
+CREATE OR REPLACE FUNCTION public.dogleg_course_default_tee(p_course_id text)
+RETURNS jsonb
+LANGUAGE sql STABLE
+SET search_path = public
+AS $$
+  SELECT to_jsonb(t) FROM (
+    SELECT slope, course_rating, slope_front9, cr_front9, slope_back9, cr_back9
+    FROM public.tees
+    WHERE course_id = p_course_id
+      AND slope BETWEEN 55 AND 155
+      AND course_rating IS NOT NULL
+    ORDER BY course_rating
+    OFFSET (SELECT greatest(count(*) - 1, 0) / 2
+            FROM public.tees
+            WHERE course_id = p_course_id
+              AND slope BETWEEN 55 AND 155
+              AND course_rating IS NOT NULL)
+    LIMIT 1
+  ) t;
+$$;
+
 -- WHS score differential for one round row, always as an 18-hole equivalent.
 --   18-hole rounds: (adjusted gross - rating) x 113 / slope.
 --   9-hole rounds (WHS 2024): 9-hole differential + expected differential for
@@ -217,7 +246,13 @@ $$;
 --   published example: index 14.0, 9-hole differential 7.2 -> 15.7). The
 --   manual profile handicap stands in for a missing index; with neither, the
 --   round stays pending (NULL), matching WHS treatment of 9-hole scores.
--- NULL when not computable (no tee, missing ratings, implausible total).
+--
+-- Ratings resolve through accuracy tiers so any entry format earns a score
+-- (added July 2026 — previously a skipped tee picker meant no stats at all):
+--   1. the tee the golfer picked (exact WHS)
+--   2. the course's median-rated tee (good estimate; course difficulty
+--      captured, tee choice unknown)
+--   3. par with slope 113 (rough; unrated courses only)
 CREATE OR REPLACE FUNCTION public.dogleg_round_differential(r public.rounds)
 RETURNS numeric
 LANGUAGE plpgsql STABLE
@@ -225,6 +260,7 @@ SET search_path = public
 AS $$
 DECLARE
   tee     jsonb;
+  fallback jsonb;
   slope   numeric;
   rating  numeric;
   holes   integer;
@@ -232,10 +268,12 @@ DECLARE
   idx     numeric;
   adjusted numeric;
   scores  numeric[];
+  pars    numeric[];
   filled_front int;
   filled_back int;
   nine    text;
   score9  numeric;
+  par9    numeric;
   d9      numeric;
 BEGIN
   IF r.total_score IS NULL THEN RETURN NULL; END IF;
@@ -243,13 +281,25 @@ BEGIN
   holes := public.dogleg_holes_played(to_jsonb(r.scores_by_hole), r.front9, r.back9, r.total_score);
 
   tee := to_jsonb(r.tee_data);
-  IF tee IS NULL OR jsonb_typeof(tee) <> 'object' THEN RETURN NULL; END IF;
+  IF tee IS NULL OR jsonb_typeof(tee) <> 'object' THEN tee := '{}'::jsonb; END IF;
 
   IF holes = 18 THEN
     IF r.total_score NOT BETWEEN 45 AND 160 THEN RETURN NULL; END IF;
+
+    -- Tier 1: the picked tee
     slope  := public.dogleg_to_num(tee ->> 'slope');
     rating := public.dogleg_to_num(tee ->> 'course_rating');
-    IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN RETURN NULL; END IF;
+    -- Tier 2: the course's median-rated tee
+    IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN
+      fallback := public.dogleg_course_default_tee(r.course_id);
+      slope  := public.dogleg_to_num(fallback ->> 'slope');
+      rating := public.dogleg_to_num(fallback ->> 'course_rating');
+    END IF;
+    -- Tier 3: par at neutral slope
+    IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN
+      slope := 113;
+      rating := coalesce(r.par, 72);
+    END IF;
 
     SELECT to_jsonb(c.handicaps) INTO sidx FROM public.courses c WHERE c.course_id = r.course_id;
     SELECT p.handicap_index INTO idx FROM public.profiles p WHERE p.id = r.user_id;
@@ -289,7 +339,7 @@ BEGIN
 
   IF score9 IS NULL OR score9 NOT BETWEEN 25 AND 90 THEN RETURN NULL; END IF;
 
-  -- The played nine's own slope and rating (84% of imported tees have them)
+  -- Tier 1: the picked tee's ratings for that nine
   IF nine = 'front' THEN
     slope  := public.dogleg_to_num(tee ->> 'slope_front9');
     rating := public.dogleg_to_num(tee ->> 'cr_front9');
@@ -297,7 +347,31 @@ BEGIN
     slope  := public.dogleg_to_num(tee ->> 'slope_back9');
     rating := public.dogleg_to_num(tee ->> 'cr_back9');
   END IF;
-  IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN RETURN NULL; END IF;
+  -- Tier 2: the course's median-rated tee, same nine
+  IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN
+    fallback := public.dogleg_course_default_tee(r.course_id);
+    IF nine = 'front' THEN
+      slope  := public.dogleg_to_num(fallback ->> 'slope_front9');
+      rating := public.dogleg_to_num(fallback ->> 'cr_front9');
+    ELSE
+      slope  := public.dogleg_to_num(fallback ->> 'slope_back9');
+      rating := public.dogleg_to_num(fallback ->> 'cr_back9');
+    END IF;
+  END IF;
+  -- Tier 3: that nine's par at neutral slope
+  IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN
+    pars := public.dogleg_nums(to_jsonb(r.course_pars));
+    par9 := NULL;
+    IF pars IS NOT NULL AND array_length(pars, 1) = 18 THEN
+      IF nine = 'front' THEN
+        SELECT sum(pars[i]) INTO par9 FROM generate_series(1, 9) i;
+      ELSE
+        SELECT sum(pars[i]) INTO par9 FROM generate_series(10, 18) i;
+      END IF;
+    END IF;
+    slope := 113;
+    rating := coalesce(par9, coalesce(r.par, 72) / 2.0);
+  END IF;
 
   -- Expected differential for the unplayed nine needs an index; the manual
   -- handicap stands in during cold start. Neither -> pending, like WHS.

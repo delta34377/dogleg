@@ -430,7 +430,7 @@ date: roundData.date + 'T00:00:00',
     <p className={`text-xs mt-1 ${selectedTee?.slope ? 'text-green-600' : 'text-gray-400'}`}>
       {selectedTee?.slope
         ? '✓ Counts toward your handicap index'
-        : 'Pick tees and this round counts toward your handicap'}
+        : "No tees? We'll estimate from the course — pick tees for full accuracy"}
     </p>
   </div>
 </div>

@@ -87,7 +87,10 @@ function StatsPage() {
     }
     load()
     return () => { cancelled = true }
-  }, [user])
+    // Key on the id, not the object: supabase emits auth events on every tab
+    // refocus with a fresh user object, and we shouldn't reload stats for that
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   const series = useMemo(() => stats?.series || [], [stats])
 

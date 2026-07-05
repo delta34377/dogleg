@@ -143,6 +143,36 @@ END;
 $$;
 
 
+-- Total putts derived from per-hole entries — only when every scored hole
+-- has a putts value (a partial sum would understate the round)
+CREATE OR REPLACE FUNCTION public.dogleg_putts_total(p_scores jsonb, p_stats jsonb)
+RETURNS integer
+LANGUAGE plpgsql IMMUTABLE
+SET search_path = public
+AS $$
+DECLARE
+  scored int;
+  putt_cnt int;
+  putt_sum int;
+BEGIN
+  IF p_stats IS NULL OR jsonb_typeof(p_stats) <> 'array' THEN RETURN NULL; END IF;
+
+  SELECT count(*) INTO scored
+  FROM unnest(public.dogleg_nums(p_scores)) s WHERE s IS NOT NULL;
+
+  SELECT count(*) FILTER (WHERE public.dogleg_to_num(e ->> 'putts') IS NOT NULL),
+         sum(public.dogleg_to_num(e ->> 'putts'))::int
+  INTO putt_cnt, putt_sum
+  FROM jsonb_array_elements(p_stats) e;
+
+  IF putt_cnt > 0 AND putt_cnt = scored THEN RETURN putt_sum; END IF;
+  RETURN NULL;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NULL;
+END;
+$$;
+
+
 -- ============================================================================
 -- PART 3 — WHS math: adjusted gross, differential, handicap index
 -- ============================================================================
@@ -646,6 +676,11 @@ BEGIN
   NEW.holes_played := public.dogleg_holes_played(
     to_jsonb(NEW.scores_by_hole), NEW.front9, NEW.back9, NEW.total_score);
 
+  IF NEW.total_putts IS NULL THEN
+    NEW.total_putts := public.dogleg_putts_total(
+      to_jsonb(NEW.scores_by_hole), to_jsonb(NEW.stats_by_hole));
+  END IF;
+
   NEW.differential := public.dogleg_round_differential(NEW);
 
   IF NEW.differential IS NOT NULL THEN
@@ -916,6 +951,12 @@ DECLARE
   ts timestamptz;
   n int := 0;
 BEGIN
+  -- Derive total_putts for rounds that tracked per-hole putts before the
+  -- total_putts column existed
+  UPDATE public.rounds
+  SET total_putts = public.dogleg_putts_total(to_jsonb(scores_by_hole), to_jsonb(stats_by_hole))
+  WHERE total_putts IS NULL AND stats_by_hole IS NOT NULL;
+
   -- Start from a clean slate so re-runs converge (differentials feed
   -- baselines, so stale values would skew the chronological pass).
   UPDATE public.rounds

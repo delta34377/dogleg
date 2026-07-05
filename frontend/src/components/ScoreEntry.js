@@ -75,7 +75,7 @@ function ScoreEntry({ course, onComplete, onCancel }) {
 
   preselectLastTee()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [tees, user])
+}, [tees, user?.id])
 
   // Load complete course data with hole pars
   const [fullCourseData, setFullCourseData] = useState(null)

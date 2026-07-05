@@ -201,6 +201,21 @@ function ScoreEntry({ course, onComplete, onCancel }) {
       next[holeIndex] = value
       return next
     })
+
+    // Auto-advance to the next putts cell, same as hole score entry
+    // (putts are always a single digit)
+    if (value.length === 1 && /^[0-9]$/.test(value)) {
+      const nextIndex = holeIndex + 1
+      if (nextIndex < 18) {
+        setTimeout(() => {
+          const nextInput = document.getElementById(`putt-input-${nextIndex}`)
+          if (nextInput) {
+            nextInput.focus()
+            nextInput.select()
+          }
+        }, 50)
+      }
+    }
   }
 
   // Calculate vs par for simple scoring
@@ -602,6 +617,7 @@ date: roundData.date + 'T00:00:00',
                     {[...Array(9)].map((_, i) => (
                       <input
                         key={i}
+                        id={`putt-input-${i}`}
                         type="number"
                         inputMode="numeric"
                         pattern="[0-9]*"
@@ -618,6 +634,7 @@ date: roundData.date + 'T00:00:00',
                     {[...Array(9)].map((_, i) => (
                       <input
                         key={i + 9}
+                        id={`putt-input-${i + 9}`}
                         type="number"
                         inputMode="numeric"
                         pattern="[0-9]*"

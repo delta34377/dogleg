@@ -10,6 +10,7 @@ import { getInitials } from '../utils/avatarUtils'
 import ShareModal from './ShareModal'
 import DoglegScoreChip from './DoglegScoreChip'
 import AchievementBadges from './AchievementBadges'
+import ProfileStatsCard from './ProfileStatsCard'
 
 
 
@@ -828,6 +829,9 @@ function UserProfile() {
     </div>
   </div>
 </div>
+
+      {/* Stats digest — the profile is stat-forward, not just a feed */}
+      <ProfileStatsCard userId={profileUser?.id} />
 
       {/* Rounds Section - EXACT SAME AS MYROUNDS */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">

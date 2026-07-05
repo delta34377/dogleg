@@ -51,7 +51,7 @@ function DoglegScoreChip({ score, strokesVsUsual, isOwn = true, size = 'md' }) {
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setShowInfo(true) }}
-        className={`inline-flex items-center gap-1 rounded-full font-bold ${sizeClasses} ${tier.chip}`}
+        className={`inline-flex items-center gap-1 rounded-full font-bold whitespace-nowrap ${sizeClasses} ${tier.chip}`}
         title={subtitle ? `Dogleg Score — ${subtitle}` : "What's a Dogleg Score? Tap to find out"}
       >
         <span aria-hidden="true">🐶</span>
@@ -61,7 +61,13 @@ function DoglegScoreChip({ score, strokesVsUsual, isOwn = true, size = 'md' }) {
           {value}
           <span className="font-semibold opacity-60 text-[0.8em]">/10</span>
         </span>
-        {tier.label && <span className="font-semibold">· {tier.label}</span>}
+        {/* Tier label wraps small chips onto two rows on phones — the tier
+            color carries it there, and tapping opens the explainer */}
+        {tier.label && (
+          <span className={`font-semibold ${size === 'lg' ? '' : 'hidden sm:inline'}`}>
+            · {tier.label}
+          </span>
+        )}
       </button>
       {showInfo && (
         <DoglegScoreModal onClose={() => setShowInfo(false)} contextLine={subtitle} />

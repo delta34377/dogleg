@@ -61,9 +61,23 @@ course's median-rated tee = good estimate, course difficulty captured; (3) par
 at slope 113 = rough, unrated courses only. The handicap index includes
 estimated differentials — documented app behavior, not a GHIN substitute.
 Remaining tiers: Quick-Score rounds use raw totals; 18-hole hole-by-hole rounds
-get net-double-bogey adjusted gross; 9-hole rounds skip the adjustment and
-still need an index or manual handicap for the expected-differential term
-(first-ever nines stay pending; WHS retro-converts, ours stamps at post — v2).
+get net-double-bogey adjusted gross; 9-hole rounds skip the adjustment.
+
+**9-hole bootstrap + retro-conversion (July 6, 2026 — the v2 cut, shipped):**
+players with no handicap signal at all can now bootstrap purely from nines.
+While a player has fewer than 3 counting rounds, pending nines are paired up
+(oldest first) into *virtual* 18-hole differentials — the pre-2024 WHS method
+for establishing an index from 9-hole play — so six nines (54 holes, same as
+WHS) is enough to form an index. The moment any handicap signal exists (the
+bootstrap index, 18-hole rounds, or a manually entered handicap — a profiles
+trigger now fires on that too), still-pending nines are retro-converted
+individually via the expected-score method and the player's whole timeline is
+rescored (as-of baselines; achievements stay as stamped). The current index
+stands in for "index as of then" on retro-converted rounds — a full
+stats_layer.sql re-run remains the canonical recompute. Validated on the local
+harness: A/B state diff vs the previous SQL shows zero change for players who
+already had differentials; live-insert and manual-handicap trigger paths and
+idempotent re-runs all asserted.
 
 ---
 

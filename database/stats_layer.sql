@@ -284,7 +284,13 @@ $$;
 --   2. the course's median-rated tee (good estimate; course difficulty
 --      captured, tee choice unknown)
 --   3. par with slope 113 (rough; unrated courses only)
-CREATE OR REPLACE FUNCTION public.dogleg_round_differential(r public.rounds)
+-- The raw 9-hole differential (D9) for a nine-hole round — the half of the
+-- WHS 2024 conversion that needs no handicap. NULL when the round isn't a
+-- clean nine or has no usable ratings. Used three ways: converting nines at
+-- post time (D9 + expected differential), pairing pending nines to bootstrap
+-- an index for players with no handicap at all, and retro-converting those
+-- nines once an index exists.
+CREATE OR REPLACE FUNCTION public.dogleg_nine_differential(r public.rounds)
 RETURNS numeric
 LANGUAGE plpgsql STABLE
 SET search_path = public
@@ -295,9 +301,6 @@ DECLARE
   slope   numeric;
   rating  numeric;
   holes   integer;
-  sidx    jsonb;
-  idx     numeric;
-  adjusted numeric;
   scores  numeric[];
   pars    numeric[];
   filled_front int;
@@ -305,46 +308,16 @@ DECLARE
   nine    text;
   score9  numeric;
   par9    numeric;
-  d9      numeric;
 BEGIN
   IF r.total_score IS NULL THEN RETURN NULL; END IF;
 
   holes := public.dogleg_holes_played(to_jsonb(r.scores_by_hole), r.front9, r.back9, r.total_score);
+  IF holes IS DISTINCT FROM 9 THEN RETURN NULL; END IF;
 
   tee := to_jsonb(r.tee_data);
   IF tee IS NULL OR jsonb_typeof(tee) <> 'object' THEN tee := '{}'::jsonb; END IF;
 
-  IF holes = 18 THEN
-    IF r.total_score NOT BETWEEN 45 AND 160 THEN RETURN NULL; END IF;
-
-    -- Tier 1: the picked tee
-    slope  := public.dogleg_to_num(tee ->> 'slope');
-    rating := public.dogleg_to_num(tee ->> 'course_rating');
-    -- Tier 2: the course's median-rated tee
-    IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN
-      fallback := public.dogleg_course_default_tee(r.course_id);
-      slope  := public.dogleg_to_num(fallback ->> 'slope');
-      rating := public.dogleg_to_num(fallback ->> 'course_rating');
-    END IF;
-    -- Tier 3: par at neutral slope
-    IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN
-      slope := 113;
-      rating := coalesce(r.par, 72);
-    END IF;
-
-    SELECT to_jsonb(c.handicaps) INTO sidx FROM public.courses c WHERE c.course_id = r.course_id;
-    SELECT p.handicap_index INTO idx FROM public.profiles p WHERE p.id = r.user_id;
-
-    adjusted := public.dogleg_adjusted_gross(
-      to_jsonb(r.scores_by_hole), to_jsonb(r.course_pars), sidx,
-      r.total_score, idx, slope, rating, r.par);
-
-    RETURN round(((adjusted - rating) * 113.0 / slope)::numeric, 1);
-  END IF;
-
-  IF holes IS DISTINCT FROM 9 THEN RETURN NULL; END IF;
-
-  -- ---- 9-hole round: which nine was played, and what did it score? ----
+  -- ---- which nine was played, and what did it score? ----
   scores := public.dogleg_nums(to_jsonb(r.scores_by_hole));
   IF scores IS NOT NULL AND array_length(scores, 1) = 18 THEN
     SELECT count(*) FILTER (WHERE i <= 9 AND scores[i] IS NOT NULL),
@@ -404,13 +377,75 @@ BEGIN
     rating := coalesce(par9, coalesce(r.par, 72) / 2.0);
   END IF;
 
-  -- Expected differential for the unplayed nine needs an index; the manual
-  -- handicap stands in during cold start. Neither -> pending, like WHS.
+  -- Unrounded on purpose: callers round once, after adding their half
+  RETURN (score9 - rating) * 113.0 / slope;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.dogleg_round_differential(r public.rounds)
+RETURNS numeric
+LANGUAGE plpgsql STABLE
+SET search_path = public
+AS $$
+DECLARE
+  tee     jsonb;
+  fallback jsonb;
+  slope   numeric;
+  rating  numeric;
+  holes   integer;
+  sidx    jsonb;
+  idx     numeric;
+  adjusted numeric;
+  d9      numeric;
+BEGIN
+  IF r.total_score IS NULL THEN RETURN NULL; END IF;
+
+  holes := public.dogleg_holes_played(to_jsonb(r.scores_by_hole), r.front9, r.back9, r.total_score);
+
+  tee := to_jsonb(r.tee_data);
+  IF tee IS NULL OR jsonb_typeof(tee) <> 'object' THEN tee := '{}'::jsonb; END IF;
+
+  IF holes = 18 THEN
+    IF r.total_score NOT BETWEEN 45 AND 160 THEN RETURN NULL; END IF;
+
+    -- Tier 1: the picked tee
+    slope  := public.dogleg_to_num(tee ->> 'slope');
+    rating := public.dogleg_to_num(tee ->> 'course_rating');
+    -- Tier 2: the course's median-rated tee
+    IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN
+      fallback := public.dogleg_course_default_tee(r.course_id);
+      slope  := public.dogleg_to_num(fallback ->> 'slope');
+      rating := public.dogleg_to_num(fallback ->> 'course_rating');
+    END IF;
+    -- Tier 3: par at neutral slope
+    IF slope IS NULL OR slope < 55 OR slope > 155 OR rating IS NULL THEN
+      slope := 113;
+      rating := coalesce(r.par, 72);
+    END IF;
+
+    SELECT to_jsonb(c.handicaps) INTO sidx FROM public.courses c WHERE c.course_id = r.course_id;
+    SELECT p.handicap_index INTO idx FROM public.profiles p WHERE p.id = r.user_id;
+
+    adjusted := public.dogleg_adjusted_gross(
+      to_jsonb(r.scores_by_hole), to_jsonb(r.course_pars), sidx,
+      r.total_score, idx, slope, rating, r.par);
+
+    RETURN round(((adjusted - rating) * 113.0 / slope)::numeric, 1);
+  END IF;
+
+  IF holes IS DISTINCT FROM 9 THEN RETURN NULL; END IF;
+
+  -- ---- 9-hole round: D9 + expected differential for the unplayed nine ----
+  d9 := public.dogleg_nine_differential(r);
+  IF d9 IS NULL THEN RETURN NULL; END IF;
+
+  -- The expected half needs an index; the manual handicap stands in during
+  -- cold start. Neither -> pending, until the pairing bootstrap in
+  -- dogleg_recompute_handicap produces an index and retro-converts.
   SELECT coalesce(p.handicap_index, p.handicap) INTO idx
   FROM public.profiles p WHERE p.id = r.user_id;
   IF idx IS NULL THEN RETURN NULL; END IF;
 
-  d9 := (score9 - rating) * 113.0 / slope;
   RETURN round((d9 + 0.52 * idx + 1.2)::numeric, 1);
 END;
 $$;
@@ -426,6 +461,8 @@ DECLARE
   diffs numeric[];
   n int;
   new_index numeric;
+  nine_d9s numeric[];
+  i int;
 BEGIN
   SELECT array_agg(d.differential ORDER BY d.differential ASC)
   INTO diffs
@@ -440,6 +477,34 @@ BEGIN
   ) d;
 
   n := coalesce(array_length(diffs, 1), 0);
+
+  -- Bootstrap: fewer than 3 counting rounds, but pending nines on the card?
+  -- Pair them up (oldest first) into virtual 18-hole differentials — the
+  -- pre-2024 WHS method for establishing an index from 9-hole play. Once an
+  -- index exists the pending nines get converted for real (below), so the
+  -- virtual pairs drop out of later recomputes on their own.
+  IF n < 3 THEN
+    SELECT array_agg(s.d9 ORDER BY s.ord)
+    INTO nine_d9s
+    FROM (
+      SELECT public.dogleg_nine_differential(r) AS d9,
+             row_number() OVER (ORDER BY r.played_at ASC, r.created_at ASC) AS ord
+      FROM public.rounds r
+      WHERE r.user_id = p_user_id
+        AND r.differential IS NULL
+        AND (r.is_deleted IS NULL OR r.is_deleted = false)
+    ) s
+    WHERE s.d9 IS NOT NULL;
+
+    IF coalesce(array_length(nine_d9s, 1), 0) >= 2 THEN
+      diffs := coalesce(diffs, ARRAY[]::numeric[]);
+      FOR i IN 1 .. array_length(nine_d9s, 1) / 2 LOOP
+        diffs := diffs || round((nine_d9s[2*i - 1] + nine_d9s[2*i])::numeric, 1);
+      END LOOP;
+      SELECT array_agg(v ORDER BY v) INTO diffs FROM unnest(diffs) AS v;
+      n := coalesce(array_length(diffs, 1), 0);
+    END IF;
+  END IF;
 
   new_index := CASE
     WHEN n < 3  THEN NULL
@@ -461,6 +526,111 @@ BEGIN
   END IF;
 
   UPDATE public.profiles SET handicap_index = new_index WHERE id = p_user_id;
+
+  -- Any handicap signal (this index or a manual handicap) unlocks nines that
+  -- were posted before it existed. Self-guards against recursion and no-ops
+  -- when there's nothing to convert.
+  PERFORM public.dogleg_convert_pending_nines(p_user_id);
+END;
+$$;
+
+-- Retro-conversion: fill in differentials for nines posted before the player
+-- had any handicap signal, then rescore their whole timeline. The current
+-- index stands in for "index as of then" on those rounds — they predate any
+-- index, so there is no better value; a full stats_layer.sql re-run remains
+-- the canonical recompute. Conversions fire the after-change trigger (which
+-- recomputes the handicap, which calls back here), so a transaction-local
+-- flag keeps only the outermost invocation doing work.
+CREATE OR REPLACE FUNCTION public.dogleg_convert_pending_nines(p_user_id uuid)
+RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  idx numeric;
+  rec record;
+  r public.rounds;
+  d9 numeric;
+  converted int := 0;
+BEGIN
+  IF current_setting('dogleg.in_convert', true) = 'on' THEN RETURN 0; END IF;
+  PERFORM set_config('dogleg.in_convert', 'on', true);
+
+  SELECT coalesce(p.handicap_index, p.handicap) INTO idx
+  FROM public.profiles p WHERE p.id = p_user_id;
+
+  IF idx IS NOT NULL THEN
+    FOR rec IN
+      SELECT id FROM public.rounds
+      WHERE user_id = p_user_id
+        AND differential IS NULL
+        AND (is_deleted IS NULL OR is_deleted = false)
+      ORDER BY played_at ASC, created_at ASC
+    LOOP
+      SELECT * INTO r FROM public.rounds WHERE id = rec.id;
+      CONTINUE WHEN r.differential IS NOT NULL;
+      d9 := public.dogleg_nine_differential(r);
+      CONTINUE WHEN d9 IS NULL;
+      UPDATE public.rounds
+      SET differential = round((d9 + 0.52 * idx + 1.2)::numeric, 1)
+      WHERE id = rec.id;
+      converted := converted + 1;
+    END LOOP;
+
+    IF converted > 0 THEN
+      PERFORM public.dogleg_rescore_user(p_user_id);
+    END IF;
+  END IF;
+
+  PERFORM set_config('dogleg.in_convert', 'off', true);
+  RETURN converted;
+EXCEPTION WHEN OTHERS THEN
+  PERFORM set_config('dogleg.in_convert', 'off', true);
+  RAISE;
+END;
+$$;
+
+-- Recompute Dogleg Scores across a user's timeline (oldest first, baselines
+-- as of each round). Needed after retro-conversion: converted nines gain
+-- scores, and rounds after them see richer baselines. Achievements stay as
+-- stamped at post time, and these updates don't re-fire the handicap trigger
+-- (it watches is_deleted and differential only).
+CREATE OR REPLACE FUNCTION public.dogleg_rescore_user(p_user_id uuid)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  rec record;
+  baseline numeric;
+  ts timestamptz;
+  new_score numeric;
+  new_svu numeric;
+BEGIN
+  FOR rec IN
+    SELECT id, user_id, played_at, created_at, differential
+    FROM public.rounds
+    WHERE user_id = p_user_id
+      AND (is_deleted IS NULL OR is_deleted = false)
+    ORDER BY played_at ASC, created_at ASC
+  LOOP
+    ts := coalesce(rec.played_at, rec.created_at, now());
+    new_score := NULL;
+    new_svu := NULL;
+    IF rec.differential IS NOT NULL THEN
+      baseline := public.dogleg_baseline(rec.user_id, ts, rec.id);
+      IF baseline IS NOT NULL THEN
+        new_svu := round(baseline - rec.differential, 1);
+        new_score := greatest(0.0, least(10.0,
+          round(6.0 + 0.4 * (baseline - rec.differential), 1)));
+      END IF;
+    END IF;
+    UPDATE public.rounds
+    SET dogleg_score = new_score, strokes_vs_usual = new_svu
+    WHERE id = rec.id
+      AND (dogleg_score IS DISTINCT FROM new_score
+        OR strokes_vs_usual IS DISTINCT FROM new_svu);
+  END LOOP;
 END;
 $$;
 
@@ -733,6 +903,30 @@ DROP TRIGGER IF EXISTS trg_dogleg_round_after_change ON public.rounds;
 CREATE TRIGGER trg_dogleg_round_after_change
   AFTER INSERT OR DELETE OR UPDATE OF is_deleted, differential ON public.rounds
   FOR EACH ROW EXECUTE FUNCTION public.dogleg_round_after_change();
+
+-- Manual handicap set or changed in profile settings: recompute (which also
+-- retro-converts any pending nines and rescores). Recompute writes only
+-- handicap_index, so this UPDATE OF handicap trigger can't re-fire itself.
+CREATE OR REPLACE FUNCTION public.dogleg_profile_handicap_change()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.handicap IS DISTINCT FROM OLD.handicap THEN
+    PERFORM public.dogleg_recompute_handicap(NEW.id);
+  END IF;
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'dogleg_profile_handicap_change failed for %: %', NEW.id, SQLERRM;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_dogleg_profile_handicap ON public.profiles;
+CREATE TRIGGER trg_dogleg_profile_handicap
+  AFTER UPDATE OF handicap ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.dogleg_profile_handicap_change();
 
 
 -- ============================================================================
@@ -1022,7 +1216,10 @@ $$;
 REVOKE EXECUTE ON FUNCTION public.dogleg_baseline(uuid, timestamptz, uuid) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.dogleg_detect_achievements(uuid, uuid, timestamptz, timestamptz, numeric, numeric, text, integer, jsonb, jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.dogleg_recompute_handicap(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.dogleg_convert_pending_nines(uuid) FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.dogleg_rescore_user(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.dogleg_round_before_insert() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.dogleg_round_after_change() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.dogleg_profile_handicap_change() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.get_user_stats(uuid) FROM PUBLIC, anon;
 REVOKE EXECUTE ON FUNCTION public.get_course_page(text) FROM PUBLIC, anon;

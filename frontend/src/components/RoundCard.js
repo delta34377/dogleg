@@ -31,20 +31,28 @@ export const REACTION_EMOJIS = {
 }
 
 // Collapsed by default: the top three reactions with counts plus an
-// add button; the full emoji tray expands on demand.
+// add button; the full emoji tray expands on demand. Cards with fewer
+// than three reacted types are padded with starter emojis so there's
+// always something to one-tap.
+const QUICK_REACTIONS = ['fire', 'clap', 'laugh']
+
 function ReactionBar({ reactions, userReacted, onToggle }) {
   const [trayOpen, setTrayOpen] = useState(false)
 
   const active = Object.entries(reactions || {})
     .filter(([key, count]) => count > 0 && REACTION_EMOJIS[key])
     .sort((a, b) => b[1] - a[1])
-  const top = active.slice(0, 3)
+  const shown = active.slice(0, 3)
+  for (const key of QUICK_REACTIONS) {
+    if (shown.length >= 3) break
+    if (!shown.some(([k]) => k === key)) shown.push([key, 0])
+  }
   const overflow = active.slice(3).reduce((sum, [, count]) => sum + count, 0)
   const reacted = userReacted || []
 
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      {top.map(([key, count]) => (
+      {shown.map(([key, count]) => (
         <button
           key={key}
           onClick={() => onToggle(key)}
@@ -56,7 +64,9 @@ function ReactionBar({ reactions, userReacted, onToggle }) {
           }`}
         >
           <span className="text-base leading-none">{REACTION_EMOJIS[key]}</span>
-          <span className="text-xs font-semibold text-gray-700 tabular-nums">{count}</span>
+          {count > 0 && (
+            <span className="text-xs font-semibold text-gray-700 tabular-nums">{count}</span>
+          )}
         </button>
       ))}
 

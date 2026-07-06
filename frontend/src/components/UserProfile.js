@@ -370,16 +370,24 @@ function UserProfile() {
             )}
           </div>
 
-          {/* Stats */}
-          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t flex justify-around text-center">
-            <div>
-              <span className="font-bold text-base sm:text-lg tabular-nums">{profileStats.roundsCount}</span>
-              <span className="text-gray-600 ml-0.5 sm:ml-1 text-xs sm:text-sm">rounds</span>
+          {/* Stats — every cell is the same centered flex box, with number
+              and label kept in one inline run so they share a baseline */}
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t flex items-center justify-around text-center">
+            <div className="min-h-[44px] flex items-center justify-center">
+              <span>
+                <span className="font-bold text-base sm:text-lg tabular-nums">{profileStats.roundsCount}</span>
+                <span className="text-gray-600 ml-0.5 sm:ml-1 text-xs sm:text-sm">rounds</span>
+              </span>
             </div>
             {profileUser?.handicap_index !== null && profileUser?.handicap_index !== undefined && (
-              <div title="Handicap index — auto-calculated from posted rounds">
-                <span className="font-bold text-base sm:text-lg tabular-nums">{Number(profileUser.handicap_index).toFixed(1)}</span>
-                <span className="text-gray-600 ml-0.5 sm:ml-1 text-xs sm:text-sm">index</span>
+              <div
+                className="min-h-[44px] flex items-center justify-center"
+                title="Handicap index — auto-calculated from posted rounds"
+              >
+                <span>
+                  <span className="font-bold text-base sm:text-lg tabular-nums">{Number(profileUser.handicap_index).toFixed(1)}</span>
+                  <span className="text-gray-600 ml-0.5 sm:ml-1 text-xs sm:text-sm">index</span>
+                </span>
               </div>
             )}
             <button
@@ -388,10 +396,12 @@ function UserProfile() {
                 setFollowersList(data || [])
                 setShowFollowers(true)
               }}
-              className="hover:underline min-h-[44px]"
+              className="min-h-[44px] flex items-center justify-center hover:underline"
             >
-              <span className="font-bold text-base sm:text-lg tabular-nums">{profileStats.followersCount}</span>
-              <span className="text-gray-600 ml-0.5 sm:ml-1 text-xs sm:text-sm">followers</span>
+              <span>
+                <span className="font-bold text-base sm:text-lg tabular-nums">{profileStats.followersCount}</span>
+                <span className="text-gray-600 ml-0.5 sm:ml-1 text-xs sm:text-sm">followers</span>
+              </span>
             </button>
             <button
               onClick={async () => {
@@ -399,10 +409,12 @@ function UserProfile() {
                 setFollowingList(data || [])
                 setShowFollowing(true)
               }}
-              className="hover:underline min-h-[44px]"
+              className="min-h-[44px] flex items-center justify-center hover:underline"
             >
-              <span className="font-bold text-base sm:text-lg tabular-nums">{profileStats.followingCount}</span>
-              <span className="text-gray-600 ml-0.5 sm:ml-1 text-xs sm:text-sm">following</span>
+              <span>
+                <span className="font-bold text-base sm:text-lg tabular-nums">{profileStats.followingCount}</span>
+                <span className="text-gray-600 ml-0.5 sm:ml-1 text-xs sm:text-sm">following</span>
+              </span>
             </button>
           </div>
         </div>

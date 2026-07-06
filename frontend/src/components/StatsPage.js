@@ -179,6 +179,33 @@ function StatsPage() {
     return null
   }, [series])
 
+  // Plain-English trend: current index vs the index ~2 months ago (or the
+  // first one we have). Numbers tell, sentences sell.
+  const indexTrend = useMemo(() => {
+    const rolling = rollingHandicapSeries(series)
+    if (rolling.length < 3) return null
+    const current = rolling[rolling.length - 1]
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - 60)
+    let past = null
+    for (const p of rolling) {
+      if (new Date(p.date + 'T00:00:00') <= cutoff) past = p
+      else break
+    }
+    if (!past) past = rolling[0]
+    if (past.date === current.date) return null
+    const delta = current.index - past.index
+    if (Math.abs(delta) < 0.5) return null
+    const pastDate = new Date(past.date + 'T00:00:00')
+    const since = pastDate.toLocaleDateString('en-US',
+      pastDate.getFullYear() === new Date().getFullYear()
+        ? { month: 'long' }
+        : { month: 'long', year: 'numeric' })
+    return delta < 0
+      ? { text: `📉 Down ${Math.abs(delta).toFixed(1)} since ${since}`, improving: true }
+      : { text: `Up ${delta.toFixed(1)} since ${since}`, improving: false }
+  }, [series])
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-2 sm:p-4">
@@ -259,6 +286,13 @@ function StatsPage() {
                     <div className="text-5xl font-semibold text-gray-900 mt-1 tabular-nums">
                       {Number(handicapIndex).toFixed(1)}
                     </div>
+                    {indexTrend && (
+                      <div className={`text-sm font-medium mt-1.5 ${
+                        indexTrend.improving ? 'text-green-700' : 'text-gray-600'
+                      }`}>
+                        {indexTrend.text}
+                      </div>
+                    )}
                     <div className="text-xs text-gray-500 mt-2">
                       Auto-calculated from your best 8 of the last {Math.min(handicapRounds, 20)} rounds
                       (World Handicap System method)

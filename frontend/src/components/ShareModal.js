@@ -92,9 +92,60 @@ function ShareModal({ round, username, onClose }) {
     canvas.width = W
     canvas.height = H
     const ctx = canvas.getContext('2d')
-    
+
     ctx.scale(scale, scale)
-    
+
+    // Shared rounded-rect path (pills, scorecard cells, tiles)
+    const roundRect = (x, y, w, h, r) => {
+      ctx.beginPath()
+      ctx.moveTo(x + r, y)
+      ctx.lineTo(x + w - r, y)
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+      ctx.lineTo(x + w, y + h - r)
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+      ctx.lineTo(x + r, y + h)
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+      ctx.lineTo(x, y + r)
+      ctx.quadraticCurveTo(x, y, x + r, y)
+      ctx.closePath()
+    }
+
+    // Tier-colored Dogleg Score pill — same colors as the in-app chip.
+    // `ring` draws a white outline so the pill stays visible on any photo.
+    const drawDoglegPill = (x, y, score, { align = 'left', ring = false } = {}) => {
+      const val = Number(score)
+      const tier = val >= 9 ? { bg: '#fbbf24', fg: '#451a03' }
+        : val >= 8 ? { bg: '#047857', fg: '#ffffff' }
+        : val >= 6.5 ? { bg: '#d1fae5', fg: '#065f46' }
+        : { bg: '#f3f4f6', fg: '#4b5563' }
+      const label = `🐶 ${val.toFixed(1)}/10`
+      ctx.save()
+      ctx.font = 'bold 13px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'middle'
+      const padX = 9
+      const w = ctx.measureText(label).width + padX * 2
+      const h = 26
+      const px = align === 'right' ? x - w : align === 'center' ? x - w / 2 : x
+      ctx.shadowColor = 'rgba(0,0,0,0.2)'
+      ctx.shadowBlur = 6
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 1
+      ctx.fillStyle = tier.bg
+      roundRect(px, y, w, h, h / 2)
+      ctx.fill()
+      ctx.shadowColor = 'transparent'
+      ctx.shadowBlur = 0
+      if (ring) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.9)'
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+      }
+      ctx.fillStyle = tier.fg
+      ctx.fillText(label, px + padX, y + h / 2 + 1)
+      ctx.restore()
+    }
+
     // --- LAYOUT CONFIGURATION ---
     const photoH = 450 * 0.65 
     const scorecardH = 450 - photoH
@@ -247,8 +298,41 @@ try {
     const vsPar = calcVsPar()
     if (vsPar) {
       ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif'
-      ctx.fillStyle = vsPar.startsWith('-') ? '#4ade80' : vsPar.startsWith('+') ? '#fca5a5' : 'white'
-      ctx.fillText(`(${vsPar})`, 14 + scoreWidth + 15, scoreY + 42) 
+      // Over par is orange, matching the app's score semantics
+      ctx.fillStyle = vsPar.startsWith('-') ? '#4ade80' : vsPar.startsWith('+') ? '#fdba74' : 'white'
+      ctx.fillText(`(${vsPar})`, 14 + scoreWidth + 15, scoreY + 42)
+    }
+
+    // Dogleg Score pill — bottom-right, opposite the big score. This is the
+    // hook a non-user sees and asks about.
+    if (round.dogleg_score !== null && round.dogleg_score !== undefined) {
+      drawDoglegPill(360 - 14, scoreY + 25, round.dogleg_score, { align: 'right', ring: true })
+    }
+
+    // Top achievement stamped above the score — the brag line
+    const topAchievement = (round.achievements || [])[0]
+    if (topAchievement?.label) {
+      ctx.save()
+      ctx.font = '600 11px -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'middle'
+      const maxTextW = 260
+      const w = Math.min(ctx.measureText(topAchievement.label).width, maxTextW) + 16
+      const h = 22
+      const x = 14
+      const y = scoreY - 32
+      ctx.shadowColor = 'rgba(0,0,0,0.25)'
+      ctx.shadowBlur = 4
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 1
+      ctx.fillStyle = 'rgba(255, 251, 235, 0.95)'
+      roundRect(x, y, w, h, h / 2)
+      ctx.fill()
+      ctx.shadowColor = 'transparent'
+      ctx.shadowBlur = 0
+      ctx.fillStyle = '#92400e'
+      ctx.fillText(topAchievement.label, x + 8, y + h / 2 + 0.5, maxTextW)
+      ctx.restore()
     }
     
     // 3. SCORECARD SECTION
@@ -279,20 +363,6 @@ try {
       if (diff === 1) return { bg: '#ffcdd2', fg: '#333333' }
       if (diff === 2) return { bg: '#ef5350', fg: '#ffffff' }
       return { bg: '#c62828', fg: '#ffffff' }
-    }
-    
-    const roundRect = (x, y, w, h, r) => {
-      ctx.beginPath()
-      ctx.moveTo(x + r, y)
-      ctx.lineTo(x + w - r, y)
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r)
-      ctx.lineTo(x + w, y + h - r)
-      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
-      ctx.lineTo(x + r, y + h)
-      ctx.quadraticCurveTo(x, y + h, x, y + h - r)
-      ctx.lineTo(x, y + r)
-      ctx.quadraticCurveTo(x, y, x + r, y)
-      ctx.closePath()
     }
     
     if (hasHoles) {
@@ -354,35 +424,56 @@ try {
       ctx.textBaseline = 'top'
       
     } else {
-      // Fallback display: a box per nine that exists; total-only rounds skip
-      // the boxes (the big score on the photo already carries it)
-      const boxes = []
-      if (round.front9) boxes.push({ label: 'Front 9', value: round.front9 })
-      if (round.back9) boxes.push({ label: 'Back 9', value: round.back9 })
-      
-      if (boxes.length > 0) {
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'middle'
-        const centerY = photoH + scorecardH / 2
-        const xs = boxes.length === 2 ? [120, 240] : [180]
-        
-        boxes.forEach((box, i) => {
-          ctx.fillStyle = 'white'
-          roundRect(xs[i] - 40, centerY - 35, 80, 70, 12)
-          ctx.fill()
-          
-          ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif'
-          ctx.fillStyle = '#64748b'
-          ctx.fillText(box.label, xs[i], centerY - 15)
-          
-          ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif'
-          ctx.fillStyle = '#1e293b'
-          ctx.fillText(String(box.value), xs[i], centerY + 15)
+      // No hole-by-hole detail: fill the panel with a big stat row —
+      // Score · Vs par · Dogleg Score — instead of leaving it nearly empty
+      const hasDogleg = round.dogleg_score !== null && round.dogleg_score !== undefined
+      const tiles = [{ label: 'SCORE', value: String(round.total), color: '#0f172a' }]
+      if (vsPar) {
+        tiles.push({
+          label: 'VS PAR',
+          value: vsPar,
+          // Same semantics as the app: green under, orange over
+          color: vsPar.startsWith('-') ? '#16a34a' : vsPar.startsWith('+') ? '#ea580c' : '#0f172a'
         })
-        
-        ctx.textAlign = 'left'
-        ctx.textBaseline = 'top'
       }
+      const slots = tiles.length + (hasDogleg ? 1 : 0)
+      const step = 360 / slots
+      const hasNines = !!(round.front9 || round.back9)
+      const rowY = photoH + scorecardH / 2 + (hasNines ? -12 : 0)
+
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+
+      tiles.forEach((tile, i) => {
+        const cx = step * (i + 0.5)
+        ctx.font = '600 9px -apple-system, BlinkMacSystemFont, sans-serif'
+        ctx.fillStyle = '#64748b'
+        ctx.fillText(tile.label, cx, rowY - 20)
+        ctx.font = 'bold 30px -apple-system, BlinkMacSystemFont, sans-serif'
+        ctx.fillStyle = tile.color
+        ctx.fillText(tile.value, cx, rowY + 8)
+      })
+
+      if (hasDogleg) {
+        const cx = step * (slots - 0.5)
+        ctx.font = '600 9px -apple-system, BlinkMacSystemFont, sans-serif'
+        ctx.fillStyle = '#64748b'
+        ctx.fillText('DOGLEG SCORE', cx, rowY - 20)
+        drawDoglegPill(cx, rowY - 6, round.dogleg_score, { align: 'center' })
+      }
+
+      // Front/back subtotals for nine-totals-only rounds
+      if (hasNines) {
+        const parts = []
+        if (round.front9) parts.push(`Front 9: ${round.front9}`)
+        if (round.back9) parts.push(`Back 9: ${round.back9}`)
+        ctx.font = '600 12px -apple-system, BlinkMacSystemFont, sans-serif'
+        ctx.fillStyle = '#475569'
+        ctx.fillText(parts.join('  ·  '), 180, rowY + 40)
+      }
+
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
     }
     
     return canvas

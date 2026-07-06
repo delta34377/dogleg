@@ -1,10 +1,56 @@
 import { useState, useEffect } from 'react'
 import { ResponsiveContainer, LineChart, Line, Tooltip, ReferenceLine } from 'recharts'
 import { statsService } from '../services/statsService'
+import { supabase } from '../services/supabase'
+import { useAuth } from '../context/AuthContext'
 import DoglegScoreChip from './DoglegScoreChip'
 import DoglegScoreInfo from './DoglegScoreInfo'
 
 const GREEN = '#16a34a'
+
+// Roll per-round achievement stamps up into a trophy case: the best
+// "broke X", the biggest round-count milestone, and running tallies.
+// (first_round is skipped — everyone has it.)
+function computeTrophies(rows) {
+  let bestBroke = null
+  let maxRoundNum = 0
+  let pbCount = 0
+  let maxBirdies = 0
+  const prCourses = new Set()
+
+  for (const row of rows) {
+    for (const a of row.achievements || []) {
+      if (typeof a?.type !== 'string') continue
+      if (a.type.startsWith('broke_')) {
+        const t = parseInt(a.type.slice(6), 10)
+        if (t && (!bestBroke || t < bestBroke)) bestBroke = t
+      } else if (a.type === 'rounds_milestone') {
+        const n = parseInt(String(a.label || '').replace(/\D/g, ''), 10)
+        if (n > maxRoundNum) maxRoundNum = n
+      } else if (a.type === 'personal_best') {
+        pbCount += 1
+      } else if (a.type === 'course_pr' && row.course_id) {
+        prCourses.add(row.course_id)
+      } else if (a.type === 'most_birdies') {
+        const m = /\((\d+)\)/.exec(a.label || '')
+        if (m && Number(m[1]) > maxBirdies) maxBirdies = Number(m[1])
+      }
+    }
+  }
+
+  const out = []
+  if (bestBroke) out.push({ key: 'broke', label: `💯 Broke ${bestBroke}` })
+  if (maxBirdies > 0) out.push({ key: 'birdies', label: `🔥 ${maxBirdies} birdies in a round` })
+  if (maxRoundNum >= 10) out.push({ key: 'rounds', label: `📅 ${maxRoundNum}+ rounds logged` })
+  if (pbCount >= 2) out.push({ key: 'pbs', label: `🏆 ${pbCount} personal bests` })
+  if (prCourses.size > 0) {
+    out.push({
+      key: 'prs',
+      label: `⛳ PR${prCourses.size === 1 ? '' : 's'} at ${prCourses.size} ${prCourses.size === 1 ? 'course' : 'courses'}`,
+    })
+  }
+  return out
+}
 
 function Tile({ label, value, sub }) {
   return (
@@ -32,7 +78,9 @@ function SparkTooltip({ active, payload }) {
 // Compact stats digest for profile pages — the profile equivalent of the
 // Stats tab. Renders nothing until the user has rounds with stats.
 function ProfileStatsCard({ userId }) {
+  const { user: viewer } = useAuth()
   const [stats, setStats] = useState(null)
+  const [trophies, setTrophies] = useState([])
 
   useEffect(() => {
     let cancelled = false
@@ -44,6 +92,28 @@ function ProfileStatsCard({ userId }) {
     load()
     return () => { cancelled = true }
   }, [userId])
+
+  // Trophy case: aggregate the achievement stamps across this user's rounds.
+  // Visitors don't see milestones earned on private rounds; your own view does.
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      if (!userId) return
+      let query = supabase
+        .from('rounds')
+        .select('achievements, course_id')
+        .eq('user_id', userId)
+        .not('achievements', 'is', null)
+        .or('is_deleted.is.null,is_deleted.eq.false')
+      if (viewer?.id !== userId) {
+        query = query.or('is_private.is.null,is_private.eq.false')
+      }
+      const { data, error } = await query
+      if (!cancelled && !error && data) setTrophies(computeTrophies(data))
+    }
+    load()
+    return () => { cancelled = true }
+  }, [userId, viewer?.id])
 
   if (!stats || !stats.rounds_count || stats.rounds_count === 0) return null
 
@@ -80,6 +150,25 @@ function ProfileStatsCard({ userId }) {
             value={stats.best_dogleg_score !== null && stats.best_dogleg_score !== undefined
               ? `${Number(stats.best_dogleg_score).toFixed(1)}/10` : '—'} />
         </div>
+
+        {/* Trophy case — milestones live on the profile, not just on the
+            round where they happened */}
+        {trophies.length > 0 && (
+          <div className="mt-3">
+            <div className="text-xs text-gray-500 mb-1.5">Milestones</div>
+            <div className="flex flex-wrap gap-1.5">
+              {trophies.map((t, i) => (
+                <span
+                  key={t.key}
+                  className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 animate-badge-pop"
+                  style={{ animationDelay: `${0.1 + i * 0.06}s` }}
+                >
+                  {t.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {vsParData.length >= 3 && (
           <div className="mt-3">

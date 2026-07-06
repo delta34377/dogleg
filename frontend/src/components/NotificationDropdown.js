@@ -144,13 +144,13 @@ const NotificationDropdown = () => {
     />
     
     {/* Dropdown with fixed positioning on mobile */}
-    <div className="fixed sm:absolute top-16 sm:top-auto sm:mt-2 
+    <div className="fixed sm:absolute top-16 sm:top-auto sm:mt-2
       inset-x-2 sm:inset-x-auto sm:left-0 sm:right-auto
       sm:w-96
-      bg-white rounded-lg shadow-lg border border-gray-200 
-      z-50 
-      max-h-[50vh] sm:max-h-[70vh] 
-      overflow-hidden">
+      bg-white rounded-xl shadow-xl border border-gray-200
+      z-50
+      max-h-[50vh] sm:max-h-[70vh]
+      overflow-hidden animate-fade-in">
       
       <div className="p-3 border-b border-gray-200">
         <h3 className="font-semibold text-gray-900">Notifications</h3>
@@ -214,7 +214,7 @@ const NotificationDropdown = () => {
                     {notification.type === 'follow' && !followStatuses[notification.actor_id] && notification.actor_id !== user?.id && (
                       <button
                         onClick={(e) => handleFollowBack(notification.actor_id, e)}
-                        className="mt-1 text-xs bg-green-600 text-white px-3 py-1 rounded-full hover:bg-green-700"
+                        className="mt-1 text-xs bg-green-600 text-white px-3 py-1.5 rounded-full hover:bg-green-700"
                       >
                         Follow back
                       </button>

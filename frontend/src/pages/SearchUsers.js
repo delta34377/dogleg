@@ -116,7 +116,7 @@ function SearchUsers() {
 
   // Render user card
   const renderUserCard = (userItem) => (
-    <div key={userItem.id} className="bg-white rounded-lg p-4 flex items-center justify-between">
+    <div key={userItem.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between">
       <Link 
         to={`/profile/${userItem.username}`}
         className="flex items-center flex-1 min-w-0"
@@ -183,7 +183,8 @@ function SearchUsers() {
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => navigate(-1)}
-                className="p-1 -ml-1 rounded-lg hover:bg-gray-100 transition-colors"
+                className="p-2.5 -ml-2.5 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label="Go back"
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
@@ -200,7 +201,7 @@ function SearchUsers() {
                 value={searchTerm}
                 onChange={handleSearchChange}
                 placeholder="Search by username or name..."
-                className="w-full pl-10 pr-10 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full pl-10 pr-10 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 autoFocus
               />
               {searchTerm && (
@@ -235,7 +236,7 @@ function SearchUsers() {
               {usersToDisplay.length > 0 ? (
                 usersToDisplay.map(renderUserCard)
               ) : searchTerm && !loading ? (
-                <div className="text-center py-8 bg-white rounded-lg">
+                <div className="text-center py-8 bg-white rounded-xl shadow-sm border border-gray-100">
                   <p className="text-gray-500">
                     No users found matching "{searchTerm}"
                   </p>
@@ -244,7 +245,7 @@ function SearchUsers() {
                   </p>
                 </div>
               ) : !searchTerm && suggestedUsers.length === 0 ? (
-                <div className="text-center py-8 bg-white rounded-lg">
+                <div className="text-center py-8 bg-white rounded-xl shadow-sm border border-gray-100">
                   <p className="text-gray-500">
                     No suggested users at this time
                   </p>

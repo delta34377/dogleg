@@ -113,34 +113,45 @@ function MockStatsScreen() {
   )
 }
 
-// Slide 2: a feed-style round card with its Dogleg Score and achievement
+// Slide 2: a feed-style round card — mirrors the real RoundCard layout
+// (identity row, then the Score · Vs par · Dogleg Score stat strip)
 function MockRoundCard() {
   return (
     <MockAppFrame>
-      <div className="px-3 pt-1.5 pb-1">
+      <div className="px-3 pt-1.5 pb-0.5">
         <div className="flex items-center gap-1.5">
-          <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+          <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
             <span className="text-green-700 font-semibold text-[9px]">AF</span>
           </div>
-          <span className="text-xs text-gray-600">alex_fairway posted a round</span>
+          <div>
+            <p className="font-semibold text-[11px] text-gray-900 leading-tight">alex_fairway</p>
+            <p className="text-[9px] text-gray-500 leading-tight">Yesterday</p>
+          </div>
         </div>
       </div>
 
-      <div className="px-3 pb-1.5 border-b">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="font-bold text-sm">Pebble Creek Golf Club</h3>
-            <p className="text-gray-600 text-[11px]">Phoenix, AZ</p>
-            <p className="text-[10px] text-gray-500">6/7/2026 • Blue tees • 6,612y</p>
+      <div className="px-3 pt-1 pb-1.5">
+        <h3 className="font-bold text-sm leading-tight">Pebble Creek Golf Club</h3>
+        <p className="text-gray-500 text-[10px]">Phoenix, AZ • Blue tees • 6,612y</p>
+
+        {/* Stat strip — the card's anchor */}
+        <div className="mt-1.5 flex items-stretch rounded-lg bg-gray-50 px-2 py-1.5">
+          <div className="pr-2.5">
+            <p className="text-[7px] font-semibold uppercase tracking-wider text-gray-500">Score</p>
+            <p className="text-lg font-bold text-gray-900 leading-tight">79</p>
           </div>
-          <div className="text-right">
-            <div className="text-2xl font-bold leading-none">79</div>
-            <div className="text-base font-bold text-orange-600">+7</div>
-            <span className="inline-flex items-center gap-0.5 rounded-full font-bold whitespace-nowrap text-[9px] px-1.5 py-0.5 bg-amber-400 text-amber-950 mt-0.5">
+          <div className="border-l border-gray-200 px-2.5">
+            <p className="text-[7px] font-semibold uppercase tracking-wider text-gray-500">Vs par</p>
+            <p className="text-lg font-bold text-orange-600 leading-tight">+7</p>
+          </div>
+          <div className="border-l border-gray-200 pl-2.5 flex flex-col">
+            <p className="text-[7px] font-semibold uppercase tracking-wider text-gray-500">Dogleg Score</p>
+            <span className="mt-0.5 inline-flex items-center gap-0.5 self-start rounded-full font-bold whitespace-nowrap text-[9px] px-1.5 py-0.5 bg-amber-400 text-amber-950">
               🐶 9.1<span className="opacity-60 text-[8px]">/10</span>
             </span>
           </div>
         </div>
+
         <div className="mt-1">
           <span className="inline-flex items-center text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
             💯 First time breaking 80
@@ -148,8 +159,8 @@ function MockRoundCard() {
         </div>
       </div>
 
-      <div className="px-2 pt-1.5">
-        <div className="h-16 rounded-lg overflow-hidden">
+      <div className="px-2">
+        <div className="h-12 rounded-lg overflow-hidden">
           <img src={ROUND_PHOTO} alt="Golf green with red flag" className="w-full h-full object-cover object-[50%_58%]" />
         </div>
       </div>
@@ -166,8 +177,8 @@ function MockRoundCard() {
 
       {/* Caption, exact amber styling from the feed */}
       <div className="px-2 pt-1.5 pb-2.5">
-        <div className="bg-amber-50 border-l-4 border-amber-400 px-2 py-1.5 rounded">
-          <p className="text-[11px]">💬 Broke 80 for the first time!! 🍻⛳</p>
+        <div className="bg-amber-50 border-l-4 border-amber-300 px-2 py-1 rounded">
+          <p className="text-[10px]">💬 Broke 80 for the first time!! 🍻⛳</p>
         </div>
       </div>
     </MockAppFrame>
@@ -201,16 +212,23 @@ function MockComments() {
       </div>
 
       <div className="px-2 pb-3">
-        <div className="flex flex-wrap items-center gap-0.5 py-2 border-b">
-          {Object.entries(reactionEmojis).map(([key, emoji]) => (
+        {/* Collapsed reaction row, same as the real cards: top 3 + add */}
+        <div className="flex items-center gap-1 py-2 border-b">
+          {['fire', 'clap', 'laugh'].map((key) => (
             <span
               key={key}
-              className={`flex items-center gap-0.5 px-1 py-0.5 rounded-full ${mine.includes(key) ? 'bg-green-100' : ''}`}
+              className={`inline-flex items-center gap-0.5 px-1.5 py-1 rounded-full border ${
+                mine.includes(key) ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-transparent'
+              }`}
             >
-              <span className="text-sm">{emoji}</span>
-              {counts[key] > 0 && <span className="font-medium text-[10px]">{counts[key]}</span>}
+              <span className="text-sm leading-none">{reactionEmojis[key]}</span>
+              <span className="font-semibold text-[10px] text-gray-700">{counts[key]}</span>
             </span>
           ))}
+          <span className="text-[10px] text-gray-400">+11</span>
+          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-50 text-gray-400 text-[11px]">
+            ☺+
+          </span>
         </div>
 
         <div className="bg-gray-50 rounded-lg p-2 mt-2">
@@ -278,9 +296,19 @@ function MockShareCard() {
             <h4 className="text-sm font-bold leading-tight">Pebble Creek Golf Club</h4>
             <p className="text-[8px] opacity-80 mt-0.5">6/7/2026 • Phoenix, AZ</p>
           </div>
+          <div className="absolute bottom-10 left-2.5">
+            <span className="inline-flex items-center text-[8px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50/95 text-amber-800">
+              💯 First time breaking 80
+            </span>
+          </div>
           <div className="absolute bottom-1.5 left-2.5 flex items-end gap-1.5">
             <span className="text-5xl font-bold leading-none drop-shadow">79</span>
-            <span className="text-lg font-bold text-red-300 drop-shadow">(+7)</span>
+            <span className="text-lg font-bold text-orange-300 drop-shadow">(+7)</span>
+          </div>
+          <div className="absolute bottom-2.5 right-2.5">
+            <span className="inline-flex items-center gap-0.5 rounded-full font-bold text-[10px] px-1.5 py-0.5 bg-amber-400 text-amber-950 shadow">
+              🐶 9.1<span className="opacity-60 text-[9px]">/10</span>
+            </span>
           </div>
         </div>
         <div className="bg-gradient-to-b from-slate-100 to-slate-200 px-2 py-2 space-y-1.5">

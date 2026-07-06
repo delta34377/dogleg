@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import ModalShell from './ModalShell'
 
 // Utility function to intelligently display course/club names
 const getDisplayName = (round) => {
@@ -456,12 +457,17 @@ try {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl max-w-sm w-full max-h-[90vh] overflow-y-auto">
+    <ModalShell onClose={onClose}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">Share Round</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl leading-none">×</button>
+          <button
+            onClick={onClose}
+            className="-m-2 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 text-2xl leading-none"
+            aria-label="Close"
+          >
+            ×
+          </button>
         </div>
         
         {/* Preview */}
@@ -529,8 +535,7 @@ try {
             {navigator.share ? 'Share directly to Instagram, Messages, and more' : 'Download image to share'}
           </p>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   )
 }
 

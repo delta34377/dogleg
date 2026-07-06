@@ -396,12 +396,12 @@ date: roundData.date + 'T00:00:00',
   const holesVsPar = calculateHolesVsPar()
 
   return (
-    <div className="bg-white rounded-lg shadow-xl">
-      {/* Header */}
-      <div className="bg-green-700 text-white p-4 rounded-t-lg">
-        <h2 className="text-xl font-bold">Enter Score</h2>
-        <p className="text-green-100 text-sm mt-1">{course.course_name}</p>
-        <p className="text-green-100 text-sm">{course.club_name}</p>
+    <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+      {/* Header — neutral: the course name in ink, green saved for the save button */}
+      <div className="p-4 border-b border-gray-200">
+        <h2 className="text-xl font-bold text-gray-900">Enter Score</h2>
+        <p className="text-gray-600 text-sm mt-1">{course.course_name}</p>
+        {course.club_name && <p className="text-gray-500 text-sm">{course.club_name}</p>}
       </div>
 
       <div className="p-6">

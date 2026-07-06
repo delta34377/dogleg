@@ -10,7 +10,7 @@ function Tile({ label, value, sub }) {
   return (
     <div className="bg-gray-50 rounded-lg p-2.5 sm:p-3">
       <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-lg sm:text-xl font-semibold text-gray-900 mt-0.5">{value}</div>
+      <div className="text-lg sm:text-xl font-semibold text-gray-900 mt-0.5 tabular-nums">{value}</div>
       {sub && <div className="text-xs text-gray-500 mt-0.5 truncate">{sub}</div>}
     </div>
   )
@@ -55,7 +55,7 @@ function ProfileStatsCard({ userId }) {
   const homeCourse = (stats.top_courses || [])[0]
 
   return (
-    <div className="bg-white rounded-lg shadow-sm mb-3 sm:mb-4">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-3 sm:mb-4">
       <div className="p-3 sm:p-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-900 flex items-center gap-1.5">📈 Stats <DoglegScoreInfo /></h3>

@@ -1,77 +1,86 @@
 import { getDisplayName } from './courseNameUtils'
+import { formatDate, formatTimeAgo } from './dateFormat'
 
-// Calculate the vs par score
+// Canonical round-card helpers. These were copy-pasted into Feed, MyRounds,
+// SingleRound, and UserProfile ("EXACT SAME AS X" comments everywhere) while
+// this file held an older, unused color scheme. Now the cards import from
+// here and there is exactly one set of semantics.
+
+// Score-color semantics, one place:
+//   under par → green (good), even → neutral ink, over par → orange.
+// Red is reserved for double-bogey-or-worse cells inside the scorecard grid.
+export function getScoreColor(vsPar) {
+  if (!vsPar) return 'text-gray-700'
+  if (vsPar === 'E' || vsPar === 0) return 'text-gray-700'
+  if (typeof vsPar === 'string' && vsPar.startsWith('+')) return 'text-orange-600'
+  if (typeof vsPar === 'number' && vsPar > 0) return 'text-orange-600'
+  return 'text-green-600'
+}
+
+// Vs-par for a normalized round ({ total, holes, coursePars, front9, back9,
+// par }). Sums par for only the holes actually played, so nine-hole and
+// partial rounds read correctly.
 export function calculateVsPar(round) {
-  if (!round.total) return null
-  
-  const par = round.par || 72
-  const total = round.total
-  const diff = total - par
-  
+  if (!round.par && !round.coursePars) return null
+  if (round.total === null || round.total === undefined) return null
+
+  let parForHolesPlayed = round.par || 72
+
+  if (round.holes && round.holes.some(h => h)) {
+    const playedHoleIndices = []
+    round.holes.forEach((score, index) => {
+      if (score !== null && score !== '' && score !== undefined) {
+        playedHoleIndices.push(index)
+      }
+    })
+
+    if (round.coursePars && playedHoleIndices.length > 0) {
+      parForHolesPlayed = playedHoleIndices.reduce((sum, holeIndex) => {
+        return sum + parseInt(round.coursePars[holeIndex] || 4)
+      }, 0)
+    } else if (playedHoleIndices.length > 0) {
+      parForHolesPlayed = Math.round((round.par / 18) * playedHoleIndices.length)
+    }
+  } else if (round.front9 && !round.back9) {
+    if (round.coursePars) {
+      parForHolesPlayed = round.coursePars.slice(0, 9).reduce((sum, p) => sum + parseInt(p), 0)
+    } else {
+      parForHolesPlayed = Math.round(round.par / 2)
+    }
+  } else if (!round.front9 && round.back9) {
+    if (round.coursePars) {
+      parForHolesPlayed = round.coursePars.slice(9, 18).reduce((sum, p) => sum + parseInt(p), 0)
+    } else {
+      parForHolesPlayed = Math.round(round.par / 2)
+    }
+  }
+
+  const diff = round.total - parForHolesPlayed
   if (diff === 0) return 'E'
   if (diff > 0) return `+${diff}`
   return `${diff}`
 }
 
-// Format date for display
-export function formatDate(dateString) {
-  if (!dateString) return ''
-  
-  const date = new Date(dateString)
-  const today = new Date()
-  const yesterday = new Date(today)
-  yesterday.setDate(yesterday.getDate() - 1)
-  
-  // Check if today
-  if (date.toDateString() === today.toDateString()) {
-    return 'Today'
-  }
-  
-  // Check if yesterday
-  if (date.toDateString() === yesterday.toDateString()) {
-    return 'Yesterday'
-  }
-  
-  // Otherwise format as MMM DD
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric' 
-  })
-}
-
-// Format tee details for display
 export function formatTeeDetails(tee) {
-  if (!tee) return ''
-  
-  const parts = []
-  
-  // Add tee color/name
-  if (tee.TeeName) {
-    parts.push(tee.TeeName)
-  } else if (tee.TeeColor) {
-    parts.push(tee.TeeColor)
+  if (!tee) return null
+  let details = tee.tee_name || tee.tee_color || 'Tees'
+  details += ' tees'
+
+  const extraDetails = []
+  if (tee.total_length) {
+    extraDetails.push(`${tee.total_length}${tee.measure_unit || 'y'}`)
   }
-  
-  // Add slope/rating
-  if (tee.Slope && tee.CR) {
-    parts.push(`${tee.Slope}/${tee.CR}`)
+  if (tee.slope && tee.course_rating) {
+    extraDetails.push(`${tee.slope}/${tee.course_rating}`)
+  } else if (tee.slope) {
+    extraDetails.push(`Slope: ${tee.slope}`)
   }
-  
-  return parts.join(' • ')
+
+  if (extraDetails.length > 0) {
+    details += ` • ${extraDetails.join(' • ')}`
+  }
+
+  return details
 }
 
-// Get score color based on vs par
-export function getScoreColor(vsPar) {
-  if (!vsPar) return 'text-gray-500'
-  
-  if (vsPar === 'E') return 'text-gray-600'
-  
-  const num = parseInt(vsPar)
-  if (num < 0) return 'text-red-600'  // Under par
-  if (num > 0) return 'text-blue-600'  // Over par
-  
-  return 'text-gray-600'
-}
-
-// Export getDisplayName (re-export from courseNameUtils)
-export { getDisplayName }
+export { getDisplayName, formatDate, formatTimeAgo }

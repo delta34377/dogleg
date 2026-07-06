@@ -49,9 +49,9 @@ function ChartTooltip({ active, payload, label, rows, title }) {
 
 function StatTile({ label, value, sub }) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+    <div className="bg-white rounded-xl border border-gray-200 p-3 sm:p-4">
       <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-2xl font-semibold text-gray-900 mt-1">{value}</div>
+      <div className="text-2xl font-semibold text-gray-900 mt-1 tabular-nums">{value}</div>
       {sub && <div className="text-xs text-gray-500 mt-1">{sub}</div>}
     </div>
   )
@@ -59,10 +59,20 @@ function StatTile({ label, value, sub }) {
 
 function SectionCard({ title, subtitle, children }) {
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4">
       <h3 className="font-semibold text-gray-900">{title}</h3>
       {subtitle && <p className="text-xs text-gray-500 mt-0.5">{subtitle}</p>}
       <div className="mt-3">{children}</div>
+    </div>
+  )
+}
+
+// Slim neutral page header — the content is the hero, not a banner
+function PageHeader() {
+  return (
+    <div className="px-1 pb-3">
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-900">📈 My Stats</h1>
+      <p className="text-sm text-gray-500 mt-0.5">Your game, by the numbers</p>
     </div>
   )
 }
@@ -172,21 +182,16 @@ function StatsPage() {
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-2 sm:p-4">
-        <div className="bg-green-700 text-white p-6 rounded-t-lg">
-          <h1 className="text-3xl font-bold">📈 My Stats</h1>
-          <p className="mt-2">Your game, by the numbers</p>
+        <PageHeader />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 animate-pulse">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="h-3 bg-gray-200 rounded w-16 mb-3"></div>
+              <div className="h-7 bg-gray-200 rounded w-12"></div>
+            </div>
+          ))}
         </div>
-        <div className="bg-white border-x border-b border-gray-200 rounded-b-lg p-3 sm:p-6 bg-gray-50">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 animate-pulse">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="h-3 bg-gray-200 rounded w-16 mb-3"></div>
-                <div className="h-7 bg-gray-200 rounded w-12"></div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 h-64 bg-white border border-gray-200 rounded-lg animate-pulse"></div>
-        </div>
+        <div className="mt-4 h-64 bg-white border border-gray-200 rounded-xl animate-pulse"></div>
       </div>
     )
   }
@@ -195,10 +200,8 @@ function StatsPage() {
   if (error) {
     return (
       <div className="max-w-4xl mx-auto p-2 sm:p-4">
-        <div className="bg-green-700 text-white p-6 rounded-t-lg">
-          <h1 className="text-3xl font-bold">📈 My Stats</h1>
-        </div>
-        <div className="bg-white border-x border-b border-gray-200 rounded-b-lg p-8 text-center">
+        <PageHeader />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
           <div className="text-5xl mb-3">🔧</div>
           <h2 className="text-lg font-semibold text-gray-800 mb-1">Stats aren't available yet</h2>
           <p className="text-gray-500 text-sm">
@@ -216,11 +219,8 @@ function StatsPage() {
   if (roundsCount === 0) {
     return (
       <div className="max-w-4xl mx-auto p-2 sm:p-4">
-        <div className="bg-green-700 text-white p-6 rounded-t-lg">
-          <h1 className="text-3xl font-bold">📈 My Stats</h1>
-          <p className="mt-2">Your game, by the numbers</p>
-        </div>
-        <div className="bg-white border-x border-b border-gray-200 rounded-b-lg p-12 text-center">
+        <PageHeader />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <div className="text-6xl mb-4">🏌️</div>
           <h2 className="text-xl font-semibold text-gray-700 mb-2">No rounds yet</h2>
           <p className="text-gray-500 mb-6">
@@ -246,22 +246,17 @@ function StatsPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-2 sm:p-4">
-      <div className="bg-green-700 text-white p-6 rounded-t-lg">
-        <h1 className="text-3xl font-bold">📈 My Stats</h1>
-        <p className="mt-2">Your game, by the numbers</p>
-      </div>
-
-      <div className="bg-white border-x border-b border-gray-200 rounded-b-lg">
-        <div className="p-3 sm:p-6 bg-gray-50 space-y-3 sm:space-y-4">
+      <PageHeader />
+      <div className="space-y-3 sm:space-y-4">
 
           {/* Hero: handicap index */}
-          <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
               <div>
                 <div className="text-sm text-gray-500">Handicap index</div>
                 {handicapIndex !== null && handicapIndex !== undefined ? (
                   <>
-                    <div className="text-5xl font-semibold text-gray-900 mt-1">
+                    <div className="text-5xl font-semibold text-gray-900 mt-1 tabular-nums">
                       {Number(handicapIndex).toFixed(1)}
                     </div>
                     <div className="text-xs text-gray-500 mt-2">
@@ -436,7 +431,7 @@ function StatsPage() {
 
             </SectionCard>
           ) : (
-            <div className="bg-white rounded-lg border border-dashed border-gray-300 p-4 text-sm text-gray-500 text-center">
+            <div className="bg-white rounded-xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 text-center">
               Enter a round hole-by-hole to unlock par 3/4/5 averages, birdie counts,
               and the most accurate handicap.
             </div>
@@ -516,7 +511,6 @@ function StatsPage() {
             </SectionCard>
           )}
 
-        </div>
       </div>
     </div>
   )

@@ -321,15 +321,15 @@ function CourseSearch() {
 
 
   return (
-    <div className="max-w-4xl mx-auto p-4">
-      {/* Header */}
-      <div className="bg-green-700 text-white p-6 rounded-t-lg">
-        <h1 className="text-3xl font-bold">⛳ Course Search</h1>
-        <p className="mt-2">Search from over 22,000 golf courses in the United States</p>
+    <div className="max-w-4xl mx-auto p-2 sm:p-4">
+      {/* Header — slim and neutral, content is the hero */}
+      <div className="px-1 pb-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">⛳ Add a Round</h1>
+        <p className="text-sm text-gray-500 mt-0.5">Search from over 22,000 golf courses in the United States</p>
       </div>
 
       {/* Search Tabs */}
-      <div className="bg-white border-x border-gray-200">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="flex border-b">
           <button 
             onClick={() => switchTab('name')} 

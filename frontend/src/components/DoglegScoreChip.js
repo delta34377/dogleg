@@ -51,13 +51,13 @@ function DoglegScoreChip({ score, strokesVsUsual, isOwn = true, size = 'md' }) {
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); setShowInfo(true) }}
-        className={`inline-flex items-center gap-1 rounded-full font-bold whitespace-nowrap ${sizeClasses} ${tier.chip}`}
+        className={`relative inline-flex items-center gap-1 rounded-full font-bold whitespace-nowrap before:absolute before:-inset-2 before:content-[''] ${sizeClasses} ${tier.chip}`}
         title={subtitle ? `Dogleg Score — ${subtitle}` : "What's a Dogleg Score? Tap to find out"}
       >
         <span aria-hidden="true">🐶</span>
         {/* The "/10" denominator is load-bearing: it stops the number reading
             as a handicap (golf's other one-decimal number) */}
-        <span>
+        <span className="tabular-nums">
           {value}
           <span className="font-semibold opacity-60 text-[0.8em]">/10</span>
         </span>

@@ -20,7 +20,7 @@ function Nine({ label, totalLabel, holes, pars, offset, subtotal }) {
       <div className="bg-gray-50 px-2 py-1 rounded mb-2">
         <div className="text-xs font-semibold text-gray-600">{label}</div>
       </div>
-      <div className="grid grid-cols-10 gap-1 text-center text-xs">
+      <div className="grid grid-cols-10 gap-1 text-center text-xs tabular-nums">
         <div className="contents">
           {[...Array(9)].map((_, i) => (
             <div key={`hole-${i}`} className="text-gray-600 font-medium">

@@ -16,3 +16,13 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Motion is decorative here — honor the OS-level setting */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade-in,
+  .animate-modal-pop,
+  .animate-badge-pop {
+    animation: none;
+  }
+}

@@ -1,22 +1,17 @@
 import { useState } from 'react'
+import ModalShell from './ModalShell'
 
 // The Dogleg Score explainer modal. Opened by tapping any Dogleg Score chip
 // anywhere on the site, or the little "?" on stats surfaces.
 export function DoglegScoreModal({ onClose, contextLine }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={(e) => { e.stopPropagation(); onClose() }}
-    >
-      <div
-        className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5 text-left"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ModalShell onClose={onClose}>
+      <div className="p-5">
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-bold text-gray-900">🐶 The Dogleg Score</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+            className="-m-2 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 text-xl leading-none"
             aria-label="Close"
           >
             ×
@@ -64,11 +59,12 @@ export function DoglegScoreModal({ onClose, contextLine }) {
           </p>
         </div>
       </div>
-    </div>
+    </ModalShell>
   )
 }
 
-// Little "?" trigger for stats surfaces (chips themselves are also tappable)
+// Little "?" trigger for stats surfaces (chips themselves are also tappable).
+// Visually 16px, but the padded hit area is comfortably tappable.
 function DoglegScoreInfo() {
   const [open, setOpen] = useState(false)
 
@@ -76,7 +72,7 @@ function DoglegScoreInfo() {
     <>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen(true) }}
-        className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-200 text-gray-600 text-[10px] font-bold hover:bg-gray-300 align-middle"
+        className="relative inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-200 text-gray-600 text-[10px] font-bold hover:bg-gray-300 align-middle before:absolute before:-inset-3 before:content-['']"
         title="What's a Dogleg Score?"
         aria-label="What's a Dogleg Score?"
       >

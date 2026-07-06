@@ -296,7 +296,7 @@ function MockShareCard() {
             <h4 className="text-sm font-bold leading-tight">Pebble Creek Golf Club</h4>
             <p className="text-[8px] opacity-80 mt-0.5">6/7/2026 • Phoenix, AZ</p>
           </div>
-          <div className="absolute bottom-10 left-2.5">
+          <div className="absolute bottom-[60px] left-2.5">
             <span className="inline-flex items-center text-[8px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-50/95 text-amber-800">
               💯 First time breaking 80
             </span>

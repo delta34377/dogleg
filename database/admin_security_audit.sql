@@ -21,6 +21,11 @@
 -- therefore defense-in-depth only, which is correct.
 --
 -- ----------------------------------------------------------------------------
+-- RESOLVED 2026-07-07: database/admin_stats_engine.sql redefines is_admin()
+-- to read profiles.is_admin (seeding the flag from auth.users by email
+-- first), so both definitions now derive from the same column. The paragraph
+-- below is kept for history.
+-- ----------------------------------------------------------------------------
 -- OPEN ITEM (verified 2026-06-10: profiles.is_admin = TRUE for the admin
 -- account, so both definitions currently agree — no action required) —
 -- two different definitions of "admin" exist (reconcile to avoid a latent

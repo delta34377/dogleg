@@ -1,6 +1,5 @@
 import { supabase } from './supabase'
 
-const DEFAULTS = { mode: 'following', discoveryRatio: 0, feedLimit: 10 }
 let cache = null
 
 function normalize(raw) {

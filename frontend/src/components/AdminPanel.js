@@ -44,8 +44,9 @@ function AdminPanel() {
       }
     }
     loadSettings()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  
+
   // Check if user is admin
   useEffect(() => {
     if (!user || user.email !== ADMIN_EMAIL) {

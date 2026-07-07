@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { isAdmin } from '../../utils/admin';
-import { BarChart3, Sliders, Home, TrendingUp, Users, FileText, Shield } from 'lucide-react';
+import { BarChart3, Sliders, Home, Shield, Gauge } from 'lucide-react';
 
 const AdminHub = () => {
   const navigate = useNavigate();
@@ -22,6 +22,7 @@ const AdminHub = () => {
     const path = location.pathname;
     if (path === '/admin') return 'overview';
     if (path.includes('/admin/analytics')) return 'analytics';
+    if (path.includes('/admin/stats-engine')) return 'stats-engine';
     if (path.includes('/admin/feed-algorithm')) return 'feed';
     if (path.includes('/admin/moderation')) return 'moderation';
     return 'overview';
@@ -73,10 +74,22 @@ const AdminHub = () => {
             </button>
             
             <button
+              onClick={() => navigate('/admin/stats-engine')}
+              className={`px-4 py-3 border-b-2 font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'stats-engine'
+                  ? 'border-green-600 text-green-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <Gauge className="w-4 h-4" />
+              <span className="hidden sm:inline">Stats Engine</span>
+            </button>
+
+            <button
               onClick={() => navigate('/admin/feed-algorithm')}
               className={`px-4 py-3 border-b-2 font-medium transition-colors flex items-center gap-2 whitespace-nowrap ${
-                activeTab === 'feed' 
-                  ? 'border-green-600 text-green-600' 
+                activeTab === 'feed'
+                  ? 'border-green-600 text-green-600'
                   : 'border-transparent text-gray-600 hover:text-gray-900'
               }`}
             >

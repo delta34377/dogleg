@@ -68,6 +68,7 @@ useEffect(() => {
   // Fetch data based on active tab
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, currentPage, itemsPerPage, sortBy, sortOrder]);
 
   // Also refetch when search is cleared - ADD THIS
@@ -75,6 +76,7 @@ useEffect(() => {
     if (searchTerm === '') {
       fetchData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm]);
 
   const fetchData = async () => {
@@ -91,6 +93,8 @@ useEffect(() => {
           break;
         case 'rounds':
           await fetchRounds(offset);
+          break;
+        default:
           break;
       }
     } catch (error) {

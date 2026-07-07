@@ -9,11 +9,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, PieChart, Pie, Cell
 } from 'recharts';
-import { 
-  TrendingUp, TrendingDown, Users, Activity, 
-  MessageSquare, Heart, Camera, Target,
-  Calendar, Clock, BarChart3, PieChartIcon
-} from 'lucide-react';
+import { Users, Activity, Heart, Target } from 'lucide-react';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -28,7 +24,6 @@ const AdminDashboard = () => {
   const [topRounds, setTopRounds] = useState([]);
   const [emojiBreakdown, setEmojiBreakdown] = useState([]);
 const [selectedPeriod, setSelectedPeriod] = useState(30);
-const [customDate, setCustomDate] = useState('');
 const [dateRange, setDateRange] = useState({
   from: '',
   to: ''
@@ -50,6 +45,7 @@ const [selectedTab, setSelectedTab] = useState('overview');
   if (!useCustomDate) {
     loadDashboardData();
   }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [selectedPeriod]);
 
   const loadDashboardData = async () => {
@@ -132,12 +128,6 @@ const [selectedTab, setSelectedTab] = useState('overview');
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num?.toString() || '0';
-  };
-
-  // Calculate percentage change
-  const calculateChange = (current, previous) => {
-    if (!previous || previous === 0) return 0;
-    return ((current - previous) / previous * 100).toFixed(1);
   };
 
   // Emoji mapping

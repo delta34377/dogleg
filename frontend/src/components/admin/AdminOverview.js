@@ -2,9 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
-import { 
+import {
   BarChart3, Sliders, Users, Activity, Target, Heart,
-  TrendingUp, Calendar, Award, Globe
+  TrendingUp, Calendar, Award, Globe, Gauge
 } from 'lucide-react';
 
 const AdminOverview = () => {
@@ -44,10 +44,10 @@ const AdminOverview = () => {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Section */}
-      <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg p-6 text-white">
-        <h2 className="text-2xl font-bold mb-2">Welcome to Admin Dashboard</h2>
-        <p className="opacity-90">
+      {/* Welcome Section — neutral ink, same as the rest of the app */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-1">Welcome to Admin Dashboard</h2>
+        <p className="text-gray-600">
           Monitor your app's performance, manage user engagement, and control feed algorithms all in one place.
         </p>
       </div>
@@ -146,6 +146,37 @@ const AdminOverview = () => {
             <div className="flex items-center text-sm text-gray-600">
               <Target className="w-4 h-4 mr-2 text-red-500" />
               Popular content thresholds
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Engine Tool */}
+        <div
+          onClick={() => navigate('/admin/stats-engine')}
+          className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer p-6 border border-gray-200"
+        >
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 bg-amber-100 rounded-lg">
+              <Gauge className="w-6 h-6 text-amber-600" />
+            </div>
+            <span className="text-sm text-gray-500">Inspect →</span>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Stats Engine</h3>
+          <p className="text-gray-600 mb-4">
+            Health of the handicap &amp; Dogleg Score layer, per-user diagnostics, and retention cohorts.
+          </p>
+          <div className="space-y-2">
+            <div className="flex items-center text-sm text-gray-600">
+              <Activity className="w-4 h-4 mr-2 text-green-500" />
+              Pending rounds &amp; score distribution
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              <Users className="w-4 h-4 mr-2 text-blue-500" />
+              "Why no handicap?" user lookup
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              <TrendingUp className="w-4 h-4 mr-2 text-purple-500" />
+              Weekly retention cohorts
             </div>
           </div>
         </div>

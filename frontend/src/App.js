@@ -24,6 +24,7 @@ import { isAdmin } from './utils/admin'
 import AdminHub from './components/admin/AdminHub'
 import AdminOverview from './components/admin/AdminOverview'
 import AdminDashboard from './components/admin/AdminDashboard'
+import AdminStatsEngine from './components/admin/AdminStatsEngine'
 import ModerationDashboard from './components/admin/ModerationDashboard'
 import NotificationDropdown from './components/NotificationDropdown'
 import IOSInstallPrompt from './components/IOSInstallPrompt';
@@ -618,7 +619,10 @@ function App() {
             
             {/* Analytics dashboard */}
             <Route path="analytics" element={<AdminDashboard />} />
-            
+
+            {/* Stats engine observability + user diagnostics */}
+            <Route path="stats-engine" element={<AdminStatsEngine />} />
+
             {/* Your existing feed algorithm controls */}
             <Route path="feed-algorithm" element={<AdminPanel />} />
               <Route path="moderation" element={<ModerationDashboard />} /> 

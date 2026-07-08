@@ -5,6 +5,7 @@ import { notificationsService } from '../services/notificationsService';
 import { followService } from '../services/followService';
 import { useAuth } from '../context/AuthContext';
 import { getInitials } from '../utils/avatarUtils';
+import { formatTimeAgo } from '../utils/dateFormat';
 
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -44,7 +45,10 @@ const NotificationDropdown = () => {
   const loadNotifications = async () => {
     setLoading(true);
     const { data } = await notificationsService.getNotifications();
-    setNotifications(data || []);
+    // A round/comment notification whose round no longer exists has nowhere
+    // to go — don't show a dead entry
+    const usable = (data || []).filter(n => !(n.round_id && !n.round));
+    setNotifications(usable);
     
     // Get follow statuses for follow notifications
     const followNotifs = data?.filter(n => n.type === 'follow') || [];
@@ -71,13 +75,17 @@ const NotificationDropdown = () => {
 
   const handleNotificationClick = (notification) => {
     setIsOpen(false);
-    
+
     if (notification.type === 'follow') {
       // Navigate to the follower's profile
-      navigate(`/profile/${notification.actor?.username}`);
-    } else if (notification.round_id && notification.round?.short_code) {
-      // Navigate to the round
-      navigate(`/rounds/${notification.round.short_code}`, { state: { from: 'notifications' } });
+      if (notification.actor?.username) {
+        navigate(`/profile/${notification.actor.username}`);
+      }
+    } else if (notification.round_id) {
+      // Navigate to the round; the route accepts a UUID when a round
+      // predates short codes
+      navigate(`/rounds/${notification.round?.short_code || notification.round_id}`,
+        { state: { from: 'notifications' } });
     }
   };
 
@@ -85,21 +93,6 @@ const NotificationDropdown = () => {
     e.stopPropagation(); // Prevent navigation
     await followService.followUser(actorId);
     setFollowStatuses(prev => ({ ...prev, [actorId]: true }));
-  };
-
-  const formatTime = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 30) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
   };
 
   const getNotificationIcon = (type) => {
@@ -202,10 +195,18 @@ const NotificationDropdown = () => {
                       {notification.type === 'reaction' && 'reacted to your round'}
                       {notification.type === 'comment' && 'commented on your round'}
                     </p>
-                    
+
+                    {/* What they said (newer comment notifications carry the comment) */}
+                    {notification.type === 'comment' && notification.comment?.content
+                      && !notification.comment.is_deleted && (
+                      <p className="text-xs text-gray-600 mt-0.5 truncate italic">
+                        “{notification.comment.content}”
+                      </p>
+                    )}
+
                     {/* Round info for reactions/comments */}
                     {notification.round && (
-                      <p className="text-xs text-gray-500 mt-0.5 truncate">
+                      <p className="text-xs text-gray-500 mt-0.5 truncate tabular-nums">
                         {notification.round.course_name} • {notification.round.total_score}
                       </p>
                     )}
@@ -221,7 +222,7 @@ const NotificationDropdown = () => {
                     )}
                     
                     <p className="text-xs text-gray-400 mt-1">
-                      {formatTime(notification.created_at)}
+                      {formatTimeAgo(notification.created_at)}
                     </p>
                   </div>
                 </div>

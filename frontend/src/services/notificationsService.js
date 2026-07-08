@@ -22,6 +22,10 @@ export const notificationsService = {
           short_code,
           course_name,
           total_score
+        ),
+        comment:comments!notifications_comment_id_fkey(
+          content,
+          is_deleted
         )
       `)
       .eq('user_id', (await supabase.auth.getUser()).data.user?.id)

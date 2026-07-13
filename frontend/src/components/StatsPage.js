@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext'
 import { statsService, rollingHandicapSeries } from '../services/statsService'
 import DoglegScoreChip, { formatStrokesVsUsual } from './DoglegScoreChip'
 import DoglegScoreInfo from './DoglegScoreInfo'
+import getDisplayName from '../utils/courseNameUtils'
 
 // Chart palette (validated): brand green for the primary series,
 // sky for the handicap index line on the two-series chart.
@@ -28,6 +29,12 @@ const formatChartDate = (d) => {
   if (!d) return ''
   const date = new Date(d + 'T00:00:00')
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+const formatFullDate = (d) => {
+  if (!d) return ''
+  const date = new Date(d + 'T00:00:00')
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function ChartTooltip({ active, payload, label, rows, title }) {
@@ -342,7 +349,10 @@ function StatsPage() {
                 : '—'} />
             <StatTile label="Best round"
               value={best ? best.total_score : '—'}
-              sub={best ? `${best.course_name || best.club_name || ''} · ${formatChartDate(String(best.played_at).slice(0, 10))}` : null} />
+              sub={best ? [
+                (best.course_name || best.club_name) ? getDisplayName(best) : null,
+                formatFullDate(String(best.played_at).slice(0, 10))
+              ].filter(Boolean).join(' · ') : null} />
           </div>
 
           {/* Score trend */}
@@ -528,7 +538,7 @@ function StatsPage() {
                     className="w-full flex items-center justify-between py-2.5 text-left hover:bg-gray-50 rounded px-2 -mx-2"
                   >
                     <div>
-                      <div className="font-medium text-gray-900">{c.course_name || c.club_name}</div>
+                      <div className="font-medium text-gray-900">{getDisplayName(c)}</div>
                       <div className="text-xs text-gray-500">{c.rounds} {c.rounds === 1 ? 'round' : 'rounds'}</div>
                     </div>
                     <div className="text-right">

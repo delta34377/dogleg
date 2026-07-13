@@ -5,6 +5,7 @@ import { supabase } from '../services/supabase'
 import { useAuth } from '../context/AuthContext'
 import DoglegScoreChip from './DoglegScoreChip'
 import DoglegScoreInfo from './DoglegScoreInfo'
+import getDisplayName from '../utils/courseNameUtils'
 
 const GREEN = '#16a34a'
 
@@ -141,7 +142,7 @@ function ProfileStatsCard({ userId }) {
           <Tile label="Scoring average" value={stats.avg_score ?? '—'}
             sub={stats.avg_last10 ? `${stats.avg_last10} last 10` : null} />
           <Tile label="Best round" value={best ? best.total_score : '—'}
-            sub={best ? (best.course_name || best.club_name) : null} />
+            sub={best && (best.course_name || best.club_name) ? getDisplayName(best) : null} />
           <Tile label="Avg vs par"
             value={stats.avg_vs_par !== null && stats.avg_vs_par !== undefined
               ? (stats.avg_vs_par > 0 ? `+${stats.avg_vs_par}` : `${stats.avg_vs_par}`)
@@ -191,7 +192,7 @@ function ProfileStatsCard({ userId }) {
         {homeCourse && homeCourse.rounds > 1 && (
           <div className="mt-3 text-xs text-gray-500">
             Most played: <span className="font-medium text-gray-700">
-              {homeCourse.course_name || homeCourse.club_name}</span> · {homeCourse.rounds} rounds
+              {getDisplayName(homeCourse)}</span> · {homeCourse.rounds} rounds
             {homeCourse.best_score ? ` · best ${homeCourse.best_score}` : ''}
           </div>
         )}

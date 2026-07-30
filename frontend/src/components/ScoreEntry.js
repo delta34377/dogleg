@@ -3,6 +3,7 @@ import { supabase } from '../services/supabase'
 import { roundsService } from '../services/roundsService'
 import imageCompression from 'browser-image-compression'
 import { useAuth } from '../context/AuthContext'
+import getDisplayName from '../utils/courseNameUtils'
 
 function ScoreEntry({ course, onComplete, onCancel }) {
     const { user } = useAuth() // Add this line
@@ -394,14 +395,17 @@ date: roundData.date + 'T00:00:00',
 
   const vsPar = calculateVsPar()
   const holesVsPar = calculateHolesVsPar()
+  const courseLabel = getDisplayName(course)
 
   return (
     <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
       {/* Header — neutral: the course name in ink, green saved for the save button */}
       <div className="p-4 border-b border-gray-200">
         <h2 className="text-xl font-bold text-gray-900">Enter Score</h2>
-        <p className="text-gray-600 text-sm mt-1">{course.course_name}</p>
-        {course.club_name && <p className="text-gray-500 text-sm">{course.club_name}</p>}
+        <p className="text-gray-600 text-sm mt-1">{courseLabel}</p>
+        {course.club_name && course.club_name !== courseLabel && (
+          <p className="text-gray-500 text-sm">{course.club_name}</p>
+        )}
       </div>
 
       <div className="p-6">

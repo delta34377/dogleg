@@ -5,6 +5,7 @@ import { statsService } from '../services/statsService'
 import DoglegScoreChip from './DoglegScoreChip'
 import { getInitials } from '../utils/avatarUtils'
 import { formatDate } from '../utils/dateFormat'
+import getDisplayName from '../utils/courseNameUtils'
 
 function PlayerRow({ entry, rank, isMe, navigate }) {
   return (
@@ -104,6 +105,10 @@ function CoursePage() {
   }
 
   const c = page.course
+  const courseTitle = getDisplayName(c)
+  // When the title falls back to the club name, don't repeat it below
+  const subtitle = [c.club_name, c.city, c.state]
+    .filter(Boolean).filter(part => part !== courseTitle).join(' · ')
   const leaderboard = page.leaderboard || []
   const recent = page.recent_rounds || []
 
@@ -113,10 +118,8 @@ function CoursePage() {
 
         {/* Course header — neutral card, dark ink */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 sm:p-6 animate-fade-up">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">⛳ {c.course_name}</h1>
-          <p className="mt-1 text-gray-600">
-            {[c.club_name, c.city, c.state].filter(Boolean).join(' · ')}
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">⛳ {courseTitle}</h1>
+          {subtitle && <p className="mt-1 text-gray-600">{subtitle}</p>}
           <p className="mt-1 text-gray-500 text-sm">
             {c.num_holes || 18} holes{c.total_par ? ` · Par ${c.total_par}` : ''}
           </p>

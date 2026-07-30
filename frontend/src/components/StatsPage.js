@@ -31,12 +31,29 @@ const formatChartDate = (d) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-// Dates arrive as YYYY-MM-DD strings; ticks only carry the year once a
-// chart spans more than one calendar year ("Jul 15 '24" vs "Jul 15").
-const dateTickFormatter = (data) => {
+// Dates arrive as YYYY-MM-DD strings. Single-year charts tick per round
+// ("Jul 15"); once a chart spans calendar years the axis ticks at month
+// starts instead ("Aug '26") — the tooltip still carries the exact day.
+const dateAxisProps = (data) => {
   const years = new Set(data.filter(p => p.date).map(p => String(p.date).slice(0, 4)))
-  if (years.size <= 1) return formatChartDate
-  return (d) => (d ? `${formatChartDate(d)} '${String(d).slice(2, 4)}` : '')
+  if (years.size <= 1) return { tickFormatter: formatChartDate }
+  const ticks = []
+  let prevMonth = ''
+  for (const p of data) {
+    const month = String(p.date).slice(0, 7)
+    if (p.date && month !== prevMonth) {
+      ticks.push(p.date)
+      prevMonth = month
+    }
+  }
+  return {
+    ticks,
+    tickFormatter: (d) => {
+      if (!d) return ''
+      const date = new Date(d + 'T00:00:00')
+      return `${date.toLocaleDateString('en-US', { month: 'short' })} '${String(d).slice(2, 4)}`
+    }
+  }
 }
 
 const formatFullDate = (d) => {
@@ -370,7 +387,7 @@ function StatsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={vsParData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
                     <CartesianGrid stroke={GRID} vertical={false} />
-                    <XAxis dataKey="date" tickFormatter={dateTickFormatter(vsParData)} tick={TICK}
+                    <XAxis dataKey="date" {...dateAxisProps(vsParData)} tick={TICK}
                       axisLine={{ stroke: AXIS }} tickLine={false} minTickGap={40} />
                     <YAxis tick={TICK} axisLine={false} tickLine={false} width={46} />
                     <ReferenceLine y={0} stroke="#9ca3af" strokeWidth={1} />
@@ -405,7 +422,7 @@ function StatsPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={handicapData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
                     <CartesianGrid stroke={GRID} vertical={false} />
-                    <XAxis dataKey="date" tickFormatter={dateTickFormatter(handicapData)} tick={TICK}
+                    <XAxis dataKey="date" {...dateAxisProps(handicapData)} tick={TICK}
                       axisLine={{ stroke: AXIS }} tickLine={false} minTickGap={40} />
                     <YAxis tick={TICK} axisLine={false} tickLine={false} width={46} />
                     <Tooltip content={<ChartTooltip rows={(p) => [
@@ -512,7 +529,7 @@ function StatsPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={puttsData} margin={{ top: 8, right: 12, left: -8, bottom: 0 }}>
                         <CartesianGrid stroke={GRID} vertical={false} />
-                        <XAxis dataKey="date" tickFormatter={dateTickFormatter(puttsData)} tick={TICK}
+                        <XAxis dataKey="date" {...dateAxisProps(puttsData)} tick={TICK}
                           axisLine={{ stroke: AXIS }} tickLine={false} minTickGap={40} />
                         <YAxis tick={TICK} axisLine={false} tickLine={false} width={34}
                           domain={['dataMin - 2', 'dataMax + 2']} allowDecimals={false} />

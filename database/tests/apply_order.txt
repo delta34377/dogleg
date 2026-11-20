@@ -1,0 +1,22 @@
+# Production SQL, in the order run.sh applies it on top of
+# supabase_shim.sql + mock_schema.sql. Paths are relative to the repo root.
+# Blank lines and lines starting with # are ignored.
+#
+# Keep this in the same order the founder runs the files in the Supabase SQL
+# editor. A new migration goes at the end (or where it must run).
+
+# WHS differentials, handicap index, Dogleg Score, achievements, stats RPCs
+database/stats_layer.sql
+
+# Feed RPCs (exported from production)
+database/feed_algorithm.sql
+
+# SECURITY DEFINER notification trigger + dropping the open INSERT policies
+database/notifications_hardening.sql
+
+# is_admin() reads profiles.is_admin; admin stats-engine RPCs (needs stats_layer)
+database/admin_stats_engine.sql
+
+# Read-only diagnostic SELECTs (catalog queries). It changes nothing, but it
+# does contain executable statements, so applying it proves they still run.
+database/admin_security_audit.sql

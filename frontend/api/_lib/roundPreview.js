@@ -193,7 +193,14 @@ function renderPage({ title, description, url, image, imageIsDefault, noindex })
 `
 }
 
-// Preview page for a round that get_public_round returned
+// Preview page for a round that get_public_round returned.
+//
+// Round pages are for the people a golfer shares the link with, not for
+// search results under the golfer's name, so search engines are asked not to
+// index them (noindex here, and an X-Robots-Tag header on /rounds/... in
+// vercel.json for the app page itself). noindex only keeps a page out of
+// search results: link-preview bots still read the Open Graph and Twitter
+// tags, so chat apps keep showing the preview.
 function buildRoundPreviewHtml({ payload, host, code }) {
   const safeSiteHost = safeHost(host)
   const round = (payload && payload.round) || {}
@@ -210,7 +217,7 @@ function buildRoundPreviewHtml({ payload, host, code }) {
     url,
     image: photo || `https://${safeSiteHost}/og-image.png`,
     imageIsDefault: !photo,
-    noindex: false,
+    noindex: true,
   })
 }
 

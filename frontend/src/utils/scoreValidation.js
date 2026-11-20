@@ -202,6 +202,9 @@ export function validateRound(entry, { today = localDateString() } = {}) {
     scores.forEach((s, i) => {
       if (s !== null && (!isWholeNumber(s) || s < H.min || s > H.max)) bad.push(i + 1)
     })
+    // The database also limits each nine's sum (front9 / back9), so nine
+    // holes of 14 (126) are refused even though every hole is within limits
+    const bigNine = [['front 9', front9], ['back 9', back9]].find(([, v]) => v !== null && v > N.max)
     if (bad.length > 0) {
       errors.push(`${listHoles(bad)}: each hole score must be a whole number from ${H.min} to ${H.max}.`)
     } else if (entry.filled === 0 || total === null) {
@@ -210,6 +213,8 @@ export function validateRound(entry, { today = localDateString() } = {}) {
       errors.push(`Your total must be at least ${T.min}. Enter the rest of your holes.`)
     } else if (total > T.max) {
       errors.push(`Your total must be ${T.max} or less.`)
+    } else if (bigNine) {
+      errors.push(`Your ${bigNine[0]} adds up to ${bigNine[1]}, but each nine must be ${N.max} strokes or less. Check your hole scores.`)
     }
   } else {
     const nineChecks = [['Front 9', front9], ['Back 9', back9]]

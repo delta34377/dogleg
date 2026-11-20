@@ -9,12 +9,21 @@ import imageCompression from 'browser-image-compression'
 //
 // browser-image-compression only keeps EXIF when asked to (preserveExif),
 // and we never ask.
+//
+// useWebWorker must be false, and said out loud (leaving it out means true).
+// In worker mode the library starts a Web Worker that downloads its own code
+// from cdn.jsdelivr.net (its default libURL) and hands that code the ORIGINAL
+// photo, GPS data included. That would tell a third party the golfer's IP
+// address on every upload and run code we don't ship on the untouched
+// picture. On the main thread it uses only the copy bundled with the app; it
+// still re-encodes through a canvas, so the metadata is still removed. The
+// cost is a short pause while a big photo is processed.
 export const ROUND_PHOTO_OPTIONS = {
   maxSizeMB: 1,             // plenty for a feed photo and the share card
   maxWidthOrHeight: 2048,   // longest edge in pixels
   fileType: 'image/jpeg',   // one predictable format (and file extension)
   initialQuality: 0.85,
-  useWebWorker: true,       // keeps the page responsive while it works
+  useWebWorker: false,      // no code fetched from a CDN (see above)
 }
 
 // Takes the File the golfer picked and resolves to a new, clean JPEG File.

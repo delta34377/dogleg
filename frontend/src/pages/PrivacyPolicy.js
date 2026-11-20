@@ -171,10 +171,16 @@ function PrivacyPolicy() {
             <p className="text-gray-700 mb-4">
               Dogleg is a social app. Other signed-in Dogleg users can see your profile (username, name, profile picture and the other details you add, such as your location, handicap and bio), the rounds you post with their scores, captions and photos, your golf statistics, who you follow and who follows you, and the comments and reactions you post. Other users can also find you by searching for your username or name.
             </p>
+            <p className="text-gray-700 mb-4">
+              If your account has a phone number, it is kept with your sign-in details, not in your profile, and is not shown to other users. Your newsletter choice is not shown to other users in the app.
+            </p>
 
             <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">3.2 Anyone With a Round's Link</h3>
             <p className="text-gray-700 mb-4">
               Each round has its own web page (for example, the link you get from the Share button). Anyone who has that link can open the page, even without a Dogleg account. It shows the round (course, date, score, scorecard and photo), your username, name and profile picture, how many reactions it has, and its comments with each commenter's username, name and profile picture. When a round's link is shared in a messaging or social app, that app may show a preview with the score, course and photo.
+            </p>
+            <p className="text-gray-700 mb-4">
+              We ask search engines not to list round pages in their search results, and the major search engines respect that request. It doesn't make a round private, though: anyone who has the link can still open the page and pass the link on, including anyone who finds it where it has been posted publicly.
             </p>
             <p className="text-gray-700 mb-4">
               Photos you upload (round photos and profile pictures) are stored at public web addresses, so anyone who has a photo's address can view it.
@@ -182,7 +188,7 @@ function PrivacyPolicy() {
 
             <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">3.3 Photo Location Data Is Removed</h3>
             <p className="text-gray-700 mb-4">
-              Photos taken on phones and cameras often contain hidden information (called EXIF metadata), such as the GPS location where the photo was taken. Before a round photo or profile picture is uploaded, the app re-saves it on your device, which removes this information.
+              Photos taken on phones and cameras often contain hidden information (called EXIF metadata), such as the GPS location where the photo was taken. Before a round photo or profile picture is uploaded, the app re-saves it on your device, which removes this information. This is done in your browser by code that is part of the Dogleg app (nothing is downloaded from another company to do it), and the original photo is never uploaded.
             </p>
 
             <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">3.4 Service Providers</h3>

@@ -53,6 +53,22 @@ it('only promises what exists: email deletion within 30 days, no settings or pus
   expect(text).toMatch(/We don't send push notifications/)
 })
 
+it('section 3 matches what the app does with phone numbers, shared links and photos', () => {
+  renderPage()
+  const text = document.body.textContent
+  // DEPLOY-1: createProfile no longer copies the phone number into the profile
+  expect(text).toMatch(/phone number, it is kept with your sign-in details, not in your profile, and is not shown to other users/)
+  expect(text).toMatch(/newsletter choice is not shown to other users in the app/)
+  // DEPLOY-2: round pages send noindex, but anyone with the link can open them
+  expect(text).toMatch(/Anyone who has that link can open the page/)
+  expect(text).toMatch(/ask search engines not to list round pages/)
+  expect(text).toMatch(/doesn't make a round private/)
+  // DEPLOY-3: photos are cleaned in the browser with the app's own code
+  expect(text).toMatch(/re-saves it on your device, which removes this information/)
+  expect(text).toMatch(/nothing is downloaded from another company to do it/)
+  expect(text).not.toMatch(/jsdelivr/i)
+})
+
 it('Back goes to the home page when there is no earlier page (opened in a new tab)', () => {
   window.history.replaceState({ idx: 0 }, '')
   renderPage()

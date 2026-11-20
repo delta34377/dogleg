@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import ModalShell from './ModalShell'
 import { useAuth } from '../context/AuthContext'
-import { calculateVsPar } from '../utils/roundHelpers'
+import { calculateVsPar, cardFor } from '../utils/roundHelpers'
 
 // Utility function to intelligently display course/club names
 const getDisplayName = (round) => {
@@ -352,10 +352,12 @@ try {
     
     // Scorecard logic — draw only the nines that were played
     const hasHoles = holesArr && holesArr.some(h => h !== '' && h !== null)
-    const pars = round.coursePars || Array(18).fill(4)
+    // 18 pars (null where the card has none; a nine-hole course's card is
+    // read again for holes 10-18), the same card the round cards use
+    const pars = cardFor(round.coursePars) || Array(18).fill(null)
     
     const getScoreColor = (score, par) => {
-      if (!score) return { bg: '#ffffff', fg: '#334155' }
+      if (!score || par === null || par === undefined) return { bg: '#ffffff', fg: '#334155' }
       const diff = parseInt(score) - parseInt(par)
       if (diff <= -2) return { bg: '#0d7d0d', fg: '#ffffff' }
       if (diff === -1) return { bg: '#4caf50', fg: '#ffffff' }
@@ -393,9 +395,10 @@ try {
         ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
         ctx.fillStyle = '#94a3b8'
         for (let i = 0; i < 9; i++) {
-          ctx.fillText(String(pars[nine.offset + i]), startX + i * (cellW + gap) + cellW/2, y)
+          ctx.fillText(String(pars[nine.offset + i] ?? '-'), startX + i * (cellW + gap) + cellW/2, y)
         }
-        const ninePar = pars.slice(nine.offset, nine.offset + 9).reduce((a, b) => a + parseInt(b), 0)
+        const ninePars = pars.slice(nine.offset, nine.offset + 9)
+        const ninePar = ninePars.every(p => p !== null) ? ninePars.reduce((a, b) => a + b, 0) : '-'
         ctx.fillText(String(ninePar), startX + 9 * (cellW + gap) + cellW/2, y)
         
         y += 20

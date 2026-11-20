@@ -2,6 +2,7 @@ import {
   getScoreColor,
   calculateVsPar,
   parForRound,
+  cardFor,
   ninesFromPar,
   NINE_PAR_MAX,
   formatTeeDetails,
@@ -253,4 +254,24 @@ test('re-exports the shared name and date helpers rather than copies of them', (
   expect(getDisplayName).toBe(courseNameGetDisplayName)
   expect(formatDate).toBe(dateFormatFormatDate)
   expect(formatTimeAgo).toBe(dateFormatFormatTimeAgo)
+})
+
+
+describe('cardFor: the 18 pars the share image draws', () => {
+  test('a nine-hole card padded with nulls is read again for holes 10-18', () => {
+    const nine = [4, 4, 3, 5, 4, 4, 3, 5, 4]
+    expect(cardFor([...nine, ...Array(9).fill(null)])).toEqual([...nine, ...nine])
+    expect(cardFor(nine)).toEqual([...nine, ...nine])
+  })
+
+  test('an 18-hole card is kept as it is, with null for holes it has no par for', () => {
+    const card = [4, 4, 3, 5, 4, 4, 3, 5, 4, 4, 5, 3, 4, 4, 'x', 5, 3, 4]
+    expect(cardFor(card)).toEqual([4, 4, 3, 5, 4, 4, 3, 5, 4, 4, 5, 3, 4, 4, null, 5, 3, 4])
+  })
+
+  test('no card at all gives null (the image then draws "-" pars)', () => {
+    expect(cardFor(null)).toBeNull()
+    expect(cardFor(undefined)).toBeNull()
+    expect(cardFor(Array(18).fill(null))).toBeNull()
+  })
 })

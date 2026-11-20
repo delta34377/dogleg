@@ -45,7 +45,7 @@ const sum = (numbers) => numbers.reduce((total, n) => total + n, 0)
 // there is no scorecard at all. A nine-hole course's card (pars for holes
 // 1-9 only, either 9 long or padded with nulls) is read again for holes
 // 10-18: an 18 there is the same nine played twice.
-function cardFor(coursePars) {
+export function cardFor(coursePars) {
   if (!Array.isArray(coursePars)) return null
   const card = Array.from({ length: 18 }, (_, i) => toPar(coursePars[i]))
   if (card.every(p => p === null)) return null

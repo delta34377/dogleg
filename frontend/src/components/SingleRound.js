@@ -227,12 +227,13 @@ function SingleRound() {
 
     showMine(shouldHave)
 
-    const { error, superseded } = await roundsService.saveReaction(roundId, reaction, shouldHave)
+    const { error, superseded, exists } = await roundsService.saveReaction(roundId, reaction, shouldHave)
 
     if (error) {
       console.error('Failed to save reaction:', error)
-      // Put the card back, unless a later tap on this reaction now owns it
-      if (!superseded) showMine(!shouldHave)
+      // Put the card back to what the database holds, unless a later tap on
+      // this reaction now owns it
+      if (!superseded) showMine(exists ?? !shouldHave)
     }
   }
 

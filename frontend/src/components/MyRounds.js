@@ -253,15 +253,16 @@ const MyRounds = forwardRef((props, ref) => {
     showMine(shouldHave)
 
     // THEN save to database (no need to update state again on success)
-    const { error, superseded } = await roundsService.saveReaction(roundId, reaction, shouldHave)
+    const { error, superseded, exists } = await roundsService.saveReaction(roundId, reaction, shouldHave)
 
     // Only revert if error
     if (error) {
-      // Undo the optimistic update on this one round, unless a later tap on
-      // the same reaction now owns it. (Reloading the whole list here used
-      // to cut it back to the first 10 rounds.)
+      // Undo the optimistic update on this one round (back to what the
+      // database holds), unless a later tap on the same reaction now owns it.
+      // (Reloading the whole list here used to cut it back to the first 10
+      // rounds.)
       console.error('Failed to save reaction:', error)
-      if (!superseded) showMine(!shouldHave)
+      if (!superseded) showMine(exists ?? !shouldHave)
     }
   }
 

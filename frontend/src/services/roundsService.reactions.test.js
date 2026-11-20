@@ -2,7 +2,7 @@ import { roundsService } from './roundsService'
 
 // saveReaction against a tiny in-memory "reactions" table. Every query is
 // recorded, and a test can hold a reply back (mockDb.hold) to control timing.
-const mockDb = { rows: [], calls: [], nextError: null, insertError: null, hold: null }
+const mockDb = { rows: [], calls: [], nextError: null, failures: [], insertError: null, deleteError: null, hold: null }
 
 jest.mock('./supabase', () => {
   const makeQuery = (table) => {
@@ -13,6 +13,7 @@ jest.mock('./supabase', () => {
 
     const run = async (mode) => {
       if (mockDb.hold) await mockDb.hold
+      if (mockDb.failures.length > 0) return { data: null, error: mockDb.failures.shift() }
       if (mockDb.nextError) {
         const error = mockDb.nextError
         mockDb.nextError = null
@@ -25,6 +26,7 @@ jest.mock('./supabase', () => {
         return { data: mode === 'single' ? row : [row], error: null }
       }
       if (call.action === 'delete') {
+        if (mockDb.deleteError) return { data: null, error: mockDb.deleteError }
         mockDb.rows = mockDb.rows.filter((row) => !matches(row))
         return { data: null, error: null }
       }
@@ -68,7 +70,9 @@ beforeEach(() => {
   mockDb.rows = []
   mockDb.calls = []
   mockDb.nextError = null
+  mockDb.failures = []
   mockDb.insertError = null
+  mockDb.deleteError = null
   mockDb.hold = null
 })
 
@@ -198,5 +202,63 @@ describe('saveReaction ordering', () => {
     expect((await failed).error).toEqual({ message: 'offline' })
     expect((await next).error).toBeNull()
     expect(myFires()).toHaveLength(1)
+  })
+})
+
+describe('saveReaction says whether the reaction is there afterwards (exists)', () => {
+  test('after a save: what was asked for', async () => {
+    expect((await roundsService.saveReaction('r1', 'fire', true)).exists).toBe(true)
+    expect((await roundsService.saveReaction('r1', 'fire', false)).exists).toBe(false)
+    // A toggle reports what it did
+    expect((await roundsService.saveReaction('r1', 'fire')).exists).toBe(true)
+  })
+
+  test('after a failed save: what the card showed before the tap', async () => {
+    mockDb.failures = [{ message: 'offline' }]
+    const added = await roundsService.saveReaction('r1', 'fire', true)
+    expect(added.error).toEqual({ message: 'offline' })
+    expect(added.exists).toBe(false)
+
+    mockDb.rows = [{ id: 'old', ...reaction() }]
+    mockDb.failures = [{ message: 'offline' }]
+    const removed = await roundsService.saveReaction('r1', 'fire', false)
+    expect(removed.exists).toBe(true)
+  })
+
+  test('two quick taps that both fail: back to how it was before the first', async () => {
+    // Offline on the course: tap fire on, then off again, before either answers
+    const gate = deferred()
+    mockDb.hold = gate.promise
+    mockDb.failures = [{ message: 'offline' }, { message: 'offline' }]
+    const on = roundsService.saveReaction('r1', 'fire', true)
+    const off = roundsService.saveReaction('r1', 'fire', false)
+    mockDb.hold = null
+    gate.resolve()
+
+    const [first, second] = await Promise.all([on, off])
+    expect(first).toMatchObject({ superseded: true, exists: false })
+    // The card must show "not reacted", which is what the database holds.
+    // (Going back to "the opposite of the last tap" would show it reacted.)
+    expect(second).toMatchObject({ superseded: false, exists: false })
+    expect(second.error).toEqual({ message: 'offline' })
+    expect(myFires()).toHaveLength(0)
+  })
+
+  test('the first tap saved and the second failed: what the first tap saved', async () => {
+    // The first call's lookup and insert succeed; the second call's delete fails
+    mockDb.deleteError = { message: 'offline' }
+    const on = roundsService.saveReaction('r1', 'fire', true)
+    const off = roundsService.saveReaction('r1', 'fire', false)
+
+    const [first, second] = await Promise.all([on, off])
+    expect(first).toMatchObject({ error: null, superseded: true, exists: true })
+    expect(second.error).toEqual({ message: 'offline' })
+    expect(second).toMatchObject({ superseded: false, exists: true })
+    expect(myFires()).toHaveLength(1)
+  })
+
+  test('a failed toggle cannot say', async () => {
+    mockDb.failures = [{ message: 'offline' }]
+    expect((await roundsService.saveReaction('r1', 'fire')).exists).toBeUndefined()
   })
 })

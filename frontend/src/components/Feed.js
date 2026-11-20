@@ -463,12 +463,13 @@ const Feed = forwardRef(({ active = true }, ref) => {
     // Optimistically update UI immediately; on success it already matches
     showMine(shouldHave)
 
-    const { error, superseded } = await roundsService.saveReaction(roundId, reaction, shouldHave)
+    const { error, superseded, exists } = await roundsService.saveReaction(roundId, reaction, shouldHave)
 
     if (error) {
       console.error('Failed to save reaction:', error)
-      // Put the card back, unless a later tap on this reaction now owns it
-      if (!superseded) showMine(!shouldHave)
+      // Put the card back to what the database holds, unless a later tap on
+      // this reaction now owns it
+      if (!superseded) showMine(exists ?? !shouldHave)
     }
   }
 
@@ -576,9 +577,9 @@ const Feed = forwardRef(({ active = true }, ref) => {
                 holes: round.scores_by_hole || round.holes,
                 coursePars: round.course_pars || round.coursePars
               }
-  
+
               const profile = round.profiles
-  
+
               return (
                 <RoundCard
                   key={round.id}

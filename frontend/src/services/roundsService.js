@@ -326,17 +326,24 @@ export const roundsService = {
   // gone, simply succeeds.
   //
   // Calls for the same round and reaction run one after another, so the last
-  // tap always wins. The reply is { data, error, removed, superseded }:
+  // tap always wins. The reply is { data, error, removed, exists, superseded }:
   // superseded is true when a later call for the same reaction was made
-  // meanwhile, so the caller should leave the card to that call.
+  // meanwhile, so the caller should leave the card to that call. exists is
+  // whether the reaction is there now, as far as this tab knows, so a
+  // caller whose save failed can put the card back to that. (After two
+  // quick taps that both failed, the card goes back to how it was before
+  // the first, not to the state the first tap asked for.)
   //
   // Leaving shouldExist out keeps the old toggle behaviour. (The database
   // work is writeReaction, at the end of this file.)
   saveReaction: (roundId, reactionType, shouldExist) => {
     const key = `${roundId}:${reactionType}`
-    const previous = reactionWrites.get(key) || Promise.resolve()
+    const previous = reactionWrites.get(key) || Promise.resolve(null)
     // writeReaction never rejects, so the queue can't get stuck
-    const write = previous.then(() => writeReaction(roundId, reactionType, shouldExist))
+    const write = previous.then(async (earlier) => {
+      const result = await writeReaction(roundId, reactionType, shouldExist)
+      return { ...result, exists: reactionExistsAfter(result, earlier, shouldExist) }
+    })
     reactionWrites.set(key, write)
     return write.then((result) => {
       const superseded = reactionWrites.get(key) !== write
@@ -637,6 +644,17 @@ getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRat
 
 // The reaction write still running (or queued) for each "roundId:type"
 const reactionWrites = new Map()
+
+// Whether the reaction exists once a write has finished, as far as this tab
+// knows: what the write made it, or, if the write failed, what the call
+// queued before it left. For the first call in the queue that is what its
+// card showed, the opposite of what it asked for. undefined when unknown (a
+// failed toggle).
+function reactionExistsAfter(result, earlier, shouldExist) {
+  if (!result.error) return !result.removed
+  if (earlier) return earlier.exists
+  return shouldExist === undefined ? undefined : !shouldExist
+}
 
 // Unique-violation: with a unique index on reactions, a second tab or a
 // double tap can lose the race to insert the same reaction. It exists, which

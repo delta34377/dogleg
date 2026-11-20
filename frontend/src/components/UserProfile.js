@@ -308,14 +308,15 @@ function UserProfile() {
 
     showMine(shouldHave)
 
-    const { error, superseded } = await roundsService.saveReaction(roundId, reaction, shouldHave)
+    const { error, superseded, exists } = await roundsService.saveReaction(roundId, reaction, shouldHave)
 
     if (error) {
-      // Undo the optimistic update on this one round, unless a later tap on
-      // the same reaction now owns it. (Reloading the whole list here used
-      // to cut it back to the first 10 rounds and lose the scroll position.)
+      // Undo the optimistic update on this one round (back to what the
+      // database holds), unless a later tap on the same reaction now owns it.
+      // (Reloading the whole list here used to cut it back to the first 10
+      // rounds and lose the scroll position.)
       console.error('Failed to save reaction:', error)
-      if (!superseded) showMine(!shouldHave)
+      if (!superseded) showMine(exists ?? !shouldHave)
     }
   }
 

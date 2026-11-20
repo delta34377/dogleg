@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor, act, isInaccessible } from '@testing-library/react'
 import App, { importWithRecovery, isStaleChunkError } from './App'
 import { roundsService } from './services/roundsService'
 
@@ -143,6 +143,13 @@ const card = (courseName) => {
   return cards[0]
 }
 const findCard = (courseName) => waitFor(() => card(courseName))
+// The Feed's own card for a round while the Feed is hidden behind another page
+const hiddenFeedCard = (courseName) => {
+  const cards = screen.getAllByRole('article', { hidden: true })
+    .filter((article) => isInaccessible(article) && within(article).queryByText(courseName))
+  if (cards.length !== 1) throw new Error(`Expected one hidden Feed card for ${courseName}, found ${cards.length}`)
+  return cards[0]
+}
 const isMine = (button) => button.className.includes('bg-green-50')
 const myReactions = () => mockDb.reactions.filter((r) => r.user_id === 'me')
 
@@ -212,6 +219,9 @@ describe('the Feed after visiting other pages (SHELL-1)', () => {
     expect(await screen.findByRole('heading', { name: 'friend' })).toBeInTheDocument()
     fireEvent.click(within(await findCard('Friendly Links')).getByTitle('fire'))
     await waitFor(() => expect(myReactions()).toHaveLength(1))
+    // The reaction was made on the profile's card: the Feed's, hidden behind
+    // it, still shows the round as it was
+    expect(isMine(within(hiddenFeedCard('Friendly Links')).getByTitle('fire'))).toBe(false)
 
     // Back to the Feed with the header's back arrow
     fireEvent.click(screen.getByRole('button', { name: 'Go back' }))
@@ -254,6 +264,30 @@ describe('the Feed after visiting other pages (SHELL-1)', () => {
     await act(() => save.mock.results[0].value)
     expect(myReactions()).toHaveLength(1)
     expect(isMine(feedFire())).toBe(true)
+  })
+})
+
+describe('reactions with no signal (SHELL-1)', () => {
+  test('two quick taps that both fail leave the card as the database has it', async () => {
+    mockDb.follows = [{ follower_id: 'me', following_id: 'friend' }]
+    render(<App />)
+    expect(await findCard('Friendly Links')).toBeInTheDocument()
+
+    // Fire on, then off again, before either save has answered; both fail
+    mockDb.failures.reactions = [{ message: 'offline' }, { message: 'offline' }]
+    const save = jest.spyOn(roundsService, 'saveReaction')
+    const feedFire = () => within(card('Friendly Links')).getByTitle('fire')
+    fireEvent.click(feedFire())
+    fireEvent.click(feedFire())
+    expect(save.mock.calls).toEqual([['round-friend', 'fire', true], ['round-friend', 'fire', false]])
+
+    await act(() => Promise.all(save.mock.results.map((result) => result.value)))
+    expect(mockDb.failures.reactions).toHaveLength(0)
+    expect(myReactions()).toHaveLength(0)
+    // Not reacted, like the database. (Putting it back to "the opposite of
+    // the last tap" showed it reacted.)
+    expect(isMine(feedFire())).toBe(false)
+    expect(feedFire()).not.toHaveTextContent('1')
   })
 })
 

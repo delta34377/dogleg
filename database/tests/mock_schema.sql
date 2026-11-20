@@ -23,7 +23,7 @@
 --
 -- Column-type variants: run.sh passes psql variables so the suite can also
 -- run against the other plausible production types:
---   MOCK_SCORES_TYPE    rounds.scores_by_hole / course_pars  (default integer[]; try jsonb, json)
+--   MOCK_SCORES_TYPE    rounds.scores_by_hole / course_pars  (default integer[]; try jsonb, json, text[])
 --   MOCK_PLAYED_AT_TYPE rounds.played_at                     (default timestamptz; try date, timestamp)
 -- ============================================================================
 

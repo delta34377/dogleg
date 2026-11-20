@@ -50,8 +50,9 @@ SELECT tests.assert_eq((SELECT achievements FROM public.rounds WHERE id = :'r1')
   'achievements are made by the server (the object label is gone)');
 SELECT tests.assert_eq((SELECT par FROM public.rounds WHERE id = :'r1'), 72,
   'par comes from public.courses (client said 99)');
-SELECT tests.assert_eq((SELECT to_jsonb(course_pars) FROM public.rounds WHERE id = :'r1'),
-  '[4,4,3,5,4,4,3,5,4,4,4,3,5,4,4,3,5,4]'::jsonb,
+-- compared as numbers: with MOCK_SCORES_TYPE='text[]' the column holds "4", not 4
+SELECT tests.assert_eq((SELECT public.dogleg_nums(to_jsonb(course_pars)) FROM public.rounds WHERE id = :'r1'),
+  ARRAY[4,4,3,5,4,4,3,5,4,4,4,3,5,4,4,3,5,4]::numeric[],
   'course_pars come from public.courses (client sent all 10s)');
 SELECT tests.assert_eq((SELECT tee_data ->> 'tee_name' FROM public.rounds WHERE id = :'r1'), 'Forged',
   'tee_data is kept as sent: it is display-only');

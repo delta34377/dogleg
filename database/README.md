@@ -160,7 +160,8 @@ select public.get_public_round('PASTE_A_CODE') -> 'round' ->> 'id';
 select tgname, tgenabled from pg_trigger
 where tgrelid = 'public.profiles'::regclass and tgname = 'trg_dogleg_guard_profile_columns';
 
--- 8. Must be 0: no phone numbers left in profiles
+-- 8. Must be 0: no phone numbers left in profiles. (An error saying column
+--    "phone" does not exist is fine too: then there was nothing to clear.)
 select count(*) from public.profiles where phone is not null;
 ```
 

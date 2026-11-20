@@ -56,7 +56,7 @@ that file and marks it FAIL, and the failing `file:line` and message are printed
 | `DATABASE_URL` | Admin connection. Default `postgres://postgres@localhost:54329/postgres`. Must be a superuser. |
 | `KEEP_DB=1` | Keep the databases and print their URLs, so you can inspect them with `psql <url>`. |
 | `VERBOSE=1` | Show all output, including NOTICEs and query results. |
-| `MOCK_SCORES_TYPE=jsonb` | Make `rounds.scores_by_hole` and `course_pars` `jsonb` (or `json`) instead of `integer[]`. |
+| `MOCK_SCORES_TYPE=jsonb` | Make `rounds.scores_by_hole` and `course_pars` `jsonb` (or `json`, or `'text[]'`) instead of `integer[]`. |
 | `MOCK_PLAYED_AT_TYPE=date` | Make `rounds.played_at` a `date` (or `timestamp`) instead of `timestamptz`. |
 
 Production's real types for these columns are unknown (`database/README.md`
@@ -64,7 +64,7 @@ shows the founder how to look them up). Before shipping SQL that reads them,
 run the suite in each variant:
 
 ```bash
-for s in 'integer[]' jsonb json; do for p in timestamptz date timestamp; do
+for s in 'integer[]' jsonb json 'text[]'; do for p in timestamptz date timestamp; do
   MOCK_SCORES_TYPE=$s MOCK_PLAYED_AT_TYPE=$p database/tests/run.sh || echo "FAILED: $s / $p"
 done; done
 ```
@@ -82,9 +82,9 @@ into `json`.
 ## Running it in GitHub Actions
 
 Only the `psql` client is needed, and it is preinstalled on `ubuntu-latest`.
-The `database` job in `.github/workflows/ci.yml` runs the suite on every push,
-once with the default types and once per alternate type. A minimal job looks
-like this:
+The `database` job in `.github/workflows/ci.yml` runs the suite on every push
+and pull request, three times: with the default types, with `jsonb` /
+`date`, and with `json` / `timestamp`. A minimal job looks like this:
 
 ```yaml
 name: sql-tests

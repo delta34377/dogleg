@@ -216,3 +216,22 @@ SELECT tests.assert_eq((SELECT total_putts FROM public.rounds WHERE id = :'legac
   'stats_backfill.sql fills in total_putts on the legacy round');
 SELECT tests.assert_eq((SELECT total_score FROM public.rounds WHERE id = :'legacy'), 4,
   'nothing changed the legacy round''s total');
+
+
+-- ----------------------------------------------------------------------------
+-- F. The repair helper (repair_nine_hole_totals.sql) on the legacy round
+--    itself: it UPDATEs that row and re-scores from its date, which used to
+--    abort with the CHECK. Alice's scores still match Bob's.
+-- ----------------------------------------------------------------------------
+\ir ../repair_nine_hole_totals.sql
+
+SELECT (public.dogleg_set_holes_declared(:'legacy', 9) ->> 'holes_declared')::int AS legacy_declared \gset
+SELECT tests.assert_eq(:legacy_declared, 9,
+  'dogleg_set_holes_declared works on a legacy out-of-range round');
+SELECT tests.assert_eq(pg_temp.scores_of(:'alice'), pg_temp.scores_of(:'bob'),
+  'dogleg_set_holes_declared: Alice''s rounds were re-scored like Bob''s');
+SELECT tests.assert_eq(pg_temp.first_round_dates(:'alice'), ARRAY['2026-06-01']::date[],
+  'dogleg_set_holes_declared: exactly one "First round" badge');
+SELECT tests.assert_eq((SELECT handicap_index FROM public.profiles WHERE id = :'alice'),
+  public.dogleg_index_as_of(:'alice', NULL, NULL, NULL),
+  'dogleg_set_holes_declared: the stored index matches Alice''s rounds');

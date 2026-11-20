@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../services/supabase'
 import ScoreEntry from './ScoreEntry'
+import PostRoundModal from './PostRoundModal'
 import { getDisplayName } from '../utils/courseNameUtils'
 
 function CourseSearch() {
@@ -13,6 +14,8 @@ function CourseSearch() {
   const [locationStatus, setLocationStatus] = useState('')
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [showScoreEntry, setShowScoreEntry] = useState(false)
+  // The round just saved (with its server-computed stats) for the payoff screen
+  const [postedRound, setPostedRound] = useState(null)
 
   const switchTab = (tab) => {
     setActiveTab(tab)
@@ -525,7 +528,8 @@ function CourseSearch() {
         onComplete={(round) => {
           setShowScoreEntry(false)
           setSelectedCourse(null)
-          alert('Round saved! Check "My Rounds" to view.')
+          // Show the payoff: Dogleg Score, badges, handicap, Share
+          setPostedRound(round)
         }}
         onCancel={() => {
           setShowScoreEntry(false)
@@ -536,6 +540,11 @@ function CourseSearch() {
   </div>
 )}
 
+      {/* After saving: View round and Done navigate away; closing stays here
+          so the golfer can add another round */}
+      {postedRound && (
+        <PostRoundModal round={postedRound} onClose={() => setPostedRound(null)} />
+      )}
     </div>
   )
 }

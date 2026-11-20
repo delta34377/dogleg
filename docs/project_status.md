@@ -1,238 +1,220 @@
-# Project Status - Dogleg
+# Project status
 
-## Last Updated: [10/27/25]
+Last updated: 2026-11-20
 
-## ✅ Completed
-- ✅ Created Supabase project
-- ✅ Ran database schema
-- ✅ Imported CSV data (16k clubs, 22k courses, 94k tees)
-- ✅ React app created with Create React App
-- ✅ Tailwind CSS configured
-- ✅ Course search component (all 3 methods working)
-- ✅ Score entry component with full features
-- ✅ My Rounds page with:
-  - Instagram-style card layout
-  - Emoji reactions (8 types) - saves to database
-  - Comments system with character limits - saves to database
-  - Color-coded scorecards
-  - Smart course/club name display
-  - Proper date handling
-  - Delete functionality
-- ✅ Navigation between Add Round and My Rounds
-- ✅ Rounds saving to Supabase database
-- ✅ Photo upload to Supabase Storage (5MB limit)
-- ✅ Reactions and comments working with database
-- ✅ Temporary reaction tracking via localStorage (until auth)
-- ✅ Authentication system (Supabase Auth)
-  - Email/password login
-  - Google OAuth login  
-  - Password reset flow
-  - Protected routes
-- ✅ Feed page with social features
-- ✅ User profiles with stats
-- ✅ Navigation without infinite loading issues
-- ✅ Foreign key constraints fixed (profiles table)
-- ✅ User profile pages with full round display
-- ✅ Follow/unfollow functionality 
-- ✅ Follower/following lists with modals
-- ✅ Comments showing usernames (fixed RPC functions)
-- ✅ Database foreign keys properly configured (profiles table)
-- ✅ Notifications table RLS policies
-- ✅ Smart Blended Feed with discovery content
-- ✅ Discovery indicators on feed cards
-- ✅ Deployed to Vercel (production environment)
-- ✅ Git/GitHub repository setup with auto-deploy
-- ✅ Mobile PWA fully functional
-- ✅ **Production-ready authentication system** 
-  - Smart tab focus handling with token expiry awareness
-  - Fixed stale closure bug in event handlers using userRef pattern
-  - Robust expires_at parsing for cross-Supabase-version compatibility
-  - Single-guard architecture (removed duplicate guards from AuthenticatedApp)
-  - Optimized refocus logic - only refreshes when token expires <30s
-  - No false logouts on mobile tab switches
-  - No full-page refreshes on quick tab switches
-  - Ctrl+R works without infinite loading
-  - Handles iOS Safari back/forward cache
-  - Fixed React useMemo dependencies for rechecking state
-  - ✅ **Shareable Round URLs**
-  - Short code system (6-character alphanumeric codes)
-  - SingleRound component at route `/rounds/:shortCode`
-  - Share button functionality with native share API
-  - Automatic short code generation for new rounds
-  - Database column `short_code` with unique constraint
-  - Service method `getRoundByShortCode` in roundsService
-  - ✅ **Admin Panel for Feed Algorithm**
-  - Adjustable discovery ratio
-  - Mode selection (mixed/following/discover only)
-  - Scoring weight controls
-  - Settings persist in localStorage
-- ✅ **3-dots menu system** - Expandable menus for future options
-- ✅ **Consistent round counting** - All pages use actual rounds table
-- ✅ **Fixed profile stats** - Accurate follower/following counts
-- ✅ **Admin Analytics Dashboard (Phase 1)**
-  - Multi-tab analytics dashboard at `/admin/*`
-  - Activity tracking via PostgreSQL triggers
-  - User growth and retention metrics
-  - Engagement analytics with time series charts
-  - Top performing content identification
-  - Custom date range selection
-  - Retroactive data analysis of all existing content
-  - User segmentation (power_user, active, casual, dormant)
-  - Session tracking and page view analytics
-  - Admin hub with navigation between tools
-  - ✅ **Content Moderation Dashboard (Admin Phase 2)**
-  - Full moderation panel at `/admin/moderation`
-  - User management with sortable columns
-  - Content deletion (rounds, comments, user's all content)
-  - Soft delete system (content marked deleted but retained)
-  - Search and filter across users, comments, rounds
-  - Pagination with customizable page sizes
-  - Delete confirmations with modals
-  - Admin-only access (markgreenfield1@gmail.com)
-  - SQL RPC functions for all moderation actions
-  - Follower count auto-updating via database triggers
-  - Fixed feed to exclude soft-deleted content
-  - 3-dot dropdown menus for user actions
-  - Clear search functionality with visible button
-  - Force page reload after deletions to clear caches
-  - RPC functions exclude soft-deleted content from feeds
-  - Force page reload after deletions to ensure cache clearing
-  - Admin guard preventing deployment errors with early returns
-  - ✅ **Notifications System**
-  - Bell icon in header with red dot indicator for new notifications
-  - Dropdown showing last 30 days of activity
-  - Notification types: comments, reactions, follows
-  - Follow back buttons inline in notifications
-  - Mobile-optimized dropdown with overlay for easy dismissal
-  - Auto-marks as read when opened (updates last_notifications_check)
-  - Database triggers auto-create notifications on actions
-  - 30-second polling for new notification check
-  - Navigate to rounds/profiles from notifications
+## Where things stand
 
-- ✅ **Profile Navigation Improvements**
-  - Fixed comment expansion state resetting on navigation
-  - Added key={location.pathname} to UserProfile for fresh instances
-  - Comments stay expanded when clicking usernames
+- **Production:** dogleg.io, on Vercel and Supabase. Merging to `master`
+  deploys it. `master` is at the July 30, 2026 stats fixes (PR #6).
+- **November 2026 hardening pass:** committed on 2026-11-20 on a branch, not
+  yet on `master`. Before it goes live: run its SQL in the order
+  [database/README.md](../database/README.md) gives ("Run order for this
+  release"), do the checks listed there, and only then merge the frontend.
+  The new app sends `holes_declared` and calls `get_public_round`, which the
+  SQL adds. One piece is already in production: the founder installed the
+  `trg_dogleg_guard_profile_columns` stopgap on 2026-11-20.
 
-- ✅ **Consistent Loading States**
-  - Skeleton loaders across all pages (Feed, UserProfile)
-  - Profile page skeleton includes header and rounds
-  - Better visual feedback during data loading
+## Shipped
 
+This list was checked against the code on 2026-11-20. How it works is in
+[ai_context.md](ai_context.md).
 
-## 🔄 Currently Working On
-- Live in production at vercel app URL
-- Monitoring user engagement with discovery content
+### Accounts
+- Email/password and Google sign-in (Supabase Auth), and password reset. An
+  expired or used reset link now offers a new one.
+- New Google users pick a username before using the app.
+- After signing in you go back to the page you started from, including
+  shared round links and Google sign-in.
+- Switching tabs on a phone doesn't log you out. The session is refreshed
+  only when it's about to expire.
 
-## ✅ Stats layer SHIPPED to production (7/5/2026)
-- **"Strava for Golf" foundation live** — see `docs/stats_pivot_plan.md`
-  - ✅ Database migration applied 7/5/2026 (stats_layer + stats_layer_hardening
-    in Supabase migrations; idempotent, safe to re-run), all rounds backfilled
-  - ✅ 9-hole rounds earn differentials via the WHS 2024 expected-differential
-    method (45 of the first 72 production rounds were 9-hole)
-  - ✅ Branch merged to master 7/5/2026 → Vercel production deploy
-  - Auto handicap index (WHS), per-round differentials, backfilled for all rounds
-  - Dogleg Score (0.0–10.0) chips on every round card
-  - Achievements/PR badges stamped at post time
-  - New Stats tab (4th nav tab) with trends and breakdowns (Recharts)
-  - Course pages with leaderboards at /courses/:courseId
-  - Score entry: last-used tee preselect, handicap hint, optional putts tracking
-  - Positioning/brand flip NOT included — deliberately deferred (see plan doc)
+### Posting rounds
+- Course search across 22,000+ US courses by name, by location
+  (city/state/zip) or nearby (within 15 miles).
+- Score entry:
+  - Quick Score with an 18/9-holes switch and front/back nine, or hole by
+    hole with optional putts.
+  - The tee you used last at that course is picked for you.
+  - Photo and caption.
+- Score limits are checked in the browser and again in the database.
+  Saving is retry-safe, so a lost reply never posts a round twice.
+- Photos are re-encoded to JPEG before upload, which removes GPS and other
+  EXIF data. If an upload fails, you can try again or post without the photo.
+- After posting, a summary shows the Dogleg Score, strokes vs your usual,
+  badges, handicap progress, and Share / View round buttons.
+- My Rounds. You can delete your own round, and that also removes its photo.
 
-## Next Steps
-- Add user discovery ("Find Golfers to Follow")
-- Add following/followers functionality
-- Push notifications
-- Offline support (PWA)
+### Stats (shipped July 5–6, 2026)
+- Automatic WHS-style handicap index: best 8 of the last 20 differentials.
+  Nine-hole rounds count through the WHS 2024 expected-score method, and
+  pairs of nines can bootstrap a first index.
+- Dogleg Score (0.0–10.0) and achievement badges on every round card.
+- A Stats tab (the fourth tab) with trends, splits, putting and most-played
+  courses.
+- Course pages with a leaderboard at `/courses/:courseId`.
+- The brand flipped to "The Strava for golf" on the landing page, title,
+  meta tags and manifest. Background:
+  [stats_pivot_plan.md](stats_pivot_plan.md).
 
-## 🎯 Current Decisions
+### Social
+- The feed is chronological. An admin sets one mode for everyone
+  (following, mixed or discover), and discovery rounds show why they appear.
+- Follow and unfollow, follower/following lists, user search.
+- Emoji reactions (8 types) and comments (up to 280 characters; you can
+  delete your own).
+- In-app notifications for comments, reactions and follows:
+  - a bell with a red dot, the last 30 days, and follow-back buttons;
+  - the app checks every 30 seconds;
+  - database triggers create them, with duplicates removed since July 2026.
+- Profiles: edit your own (avatar, bio, manual handicap), and view other
+  golfers' profiles.
+- Round pages with short links (`/rounds/ABC123`) and a share sheet with a
+  share-card image. Since November 2026, shared links open for signed-out
+  visitors and give a proper link preview.
 
-### 📊 Feed Algorithm Details
-- **Function**: `get_feed_with_discovery` (PostgreSQL RPC)
-- **Mix**: 70% following, 30% discovery
-- **Discovery Sources**: 
-  - Rounds from courses/clubs user has played
-  - Popular rounds (high engagement)
-- **Ranking**: Time-decay scoring with engagement weight
-- **No user location required** - uses course locations instead
-### 🔊 Feed Algorithm Details
-- **Function**: `get_feed_with_discovery` (PostgreSQL RPC)
-- **Mix**: Adjustable via admin panel (default 70% following, 30% discovery)
-- **Discovery Sources**: 
-  - Rounds from courses/clubs user has played
-  - Popular rounds (adjustable thresholds via admin)
-- **Ranking**: Adjustable weights via admin panel
-- **Modes**: mixed, following-only, discovery-only
-- **Admin Panel**: `/admin` route for algorithm tweaking
+### Admin (for accounts with `profiles.is_admin`)
+- `/admin`: overview.
+- `/admin/analytics`: growth, activity, engagement, top rounds and emoji
+  breakdown. Its RPCs live only in production.
+- `/admin/stats-engine`: engine health, a per-user "why no handicap?"
+  diagnostic, retention cohorts.
+- `/admin/feed-algorithm`: feed mode and page size, saved in `app_settings`.
+- `/admin/moderation`: users, rounds and comments. You can hide a round or
+  comment, remove all of a user's content, and ban or unban a user.
 
-## Authentication Architecture
-- **Smart Refocus Logic**: Only refreshes session when token expires within 30 seconds
-- **userRef Pattern**: Prevents stale closures in event handlers
-- **Robust Parsing**: Handles expires_at as both UNIX timestamp and ISO string
-- **Single Guard Pattern**: ProtectedRoute is the only authentication guard
-- **Event Selection**: visibilitychange + pageshow (not focus - fires too often)
+### Infrastructure
+- Analytics: Google Analytics with Consent Mode v2 and an on/off switch on
+  the Privacy page, plus Vercel Web Analytics.
+- Errors: an error boundary with Reload / Go home, and optional Sentry (when
+  `REACT_APP_SENTRY_DSN` is set).
+- Unit tests, link-preview function tests, a local Postgres harness for the
+  SQL, and GitHub Actions CI on every push.
 
-## 📊 Analytics Implementation Details
-- **Tech Stack**: Recharts for visualizations, Supabase RPC functions
-- **Performance**: All metrics calculated via SQL, minimal frontend processing
-- **Tracking Method**: Database triggers (no JavaScript tracking needed)
-- **Data Retention**: All historical data preserved
-- **Admin Access**: Restricted to markgreenfield1@gmail.com via RLS policies
+## November 2026 hardening pass (2026-11-20)
 
+These come from the branch's commit messages (`git log 76adfc1..`):
 
-### Navigation: 3 Tabs
-- Feed, Add Round, My Rounds
-- Removed Profile tab (access via username in header)
+- **Test harness:** a local Postgres harness for `database/*.sql`, with
+  Supabase's roles, `auth.uid()` and default grants. It applies every file
+  twice.
+- **App shell:**
+  - One shell for every signed-in page, with the tabs in the URL, so Back,
+    refresh and links behave.
+  - Safer auth flows: you return to the page you started from, password
+    reset checks for real errors, and the username gate covers every page.
+  - Code splitting cut the main bundle from 321 kB to 155 kB (gzipped).
+  - An error boundary, plus optional Sentry.
+  - `isAdmin(profile)` reads `profiles.is_admin`, the hard-coded admin
+    email is gone, and Ban/Unban works again in moderation.
+- **Public round page and link previews:**
+  - Shared links work signed out, read-only, through `get_public_round`.
+  - The share text is honest: "I shot" only for your own round.
+  - A Vercel function serves Open Graph tags to preview bots.
+- **Lists:** the Feed, My Rounds and profiles no longer fetch a page twice
+  or skip one. A failed load shows Retry. Other people's private rounds
+  are hidden on profiles.
+- **Stats engine:**
+  - Stats can't be forged: the insert trigger ignores client-sent stats and
+    reads ratings and pars from the database.
+  - `holes_declared` (9/18), and score limits (SQLSTATE `23514`).
+  - Posting an older round, deleting, hiding or editing one re-scores the
+    golfer's later rounds.
+  - Faster: a normal post went from 479 ms to about 40 ms for a 300-round
+    golfer on the harness.
+  - `stats_layer.sql` is now safe to re-run and never rewrites history. The
+    full recompute moved to `stats_backfill.sql`, and
+    `repair_nine_hole_totals.sql` fixes nine-hole rounds that were scored as
+    18 holes.
+- **Score entry:** the 9/18 switch, the limits, retry-safe saves, photo
+  re-encoding that strips EXIF/GPS, "Try again / Post without photo", and
+  the post-round summary instead of an alert.
+- **Images:** icons and logos at their real sizes. Before, a first-time
+  visitor downloaded about 7 MB of 2048 px originals. Added a maskable
+  icon, an Apple touch icon and a link-preview image.
+- **Privacy:** Google Analytics Consent Mode v2 with the Privacy-page
+  switch. The Privacy Policy and Terms were rewritten to describe only what
+  exists.
+- **Security SQL** (`security_hardening.sql`):
+  - Closes the hole that let any user make themselves an admin, lift a ban
+    or set their own handicap index.
+  - Computed round columns are server-only.
+  - Policies for own rows only, no posting while banned, and hiding private
+    or banned users' rounds.
+  - `get_public_round`.
+  - Keeps the production stopgap trigger as a second lock.
+- **Tests and CI:** real unit tests for the helpers that PRs #3–#6 kept
+  fixing, and `.github/workflows/ci.yml`.
+- **Clean-up:** removed `analyticsService.js` (never imported),
+  `store.js`, `reportWebVitals.js` and template files, and uninstalled
+  zustand, web-vitals, react-icons and html2canvas.
 
-### Image Quality Settings
-- <3MB: No compression
-- 3-5MB: Light compression (0.95 quality)
-- >5MB: Target 4.9MB (not 1.25MB)
+## Corrections to earlier versions of these docs
 
-## 🚀 Deployment Readiness
-**Status: READY FOR BETA**
-- All core features functional
-- No blocking bugs
-- Performance optimized
+- **"Soft delete pattern with is_deleted flags (never hard delete)":**
+  wrong. A user's own rounds and comments are hard-deleted
+  (`roundsService.deleteRound` and `deleteComment`). Only moderators hide
+  content with `is_deleted`.
+- **"Session tracking and page view analytics" (admin analytics):** never
+  shipped. `analyticsService.js` was never imported and is now deleted.
+  Analytics is Google Analytics (Consent Mode v2) plus Vercel Web Analytics.
+- **"Moderation actions logged for audit trail":** unverified. Nothing in git
+  writes `moderation_log`, and the moderation RPCs live only in production.
+- **"Smart blended feed, 70% following / 30% discovery, 0.6·recency + ...":**
+  out of date. The live feed is chronological
+  (`get_feed_chronological_mixed`), and the scored blend is legacy and
+  unused. The admin discovery-ratio slider has no effect.
+- **Feed settings "stored in localStorage":** they're global, in
+  `app_settings`. localStorage is only a fallback copy.
+- **Admin "restricted by email":** admin is `profiles.is_admin`, and the
+  hard-coded email was removed.
+- **"Auth not yet implemented", "works offline", "offline-first":** auth is
+  live. There is no service worker, so nothing works offline.
+- **"Rounds can be public or private", "users control who can follow
+  them":** the database hides private rounds, but the app has no control to
+  make a round private. There are no follow approvals.
+- **"De-emphasize the Strava angle":** superseded in July 2026. Dogleg is
+  stats-first.
+- **Older tech claims:**
+  - Vite, Zustand, Workbox: wrong. The app uses Create React App, has no
+    state library and no service worker.
+  - "3-tab navigation": there are 4 tabs.
+  - The reactions column is called `reaction_type`, not `emoji`.
+  - Photos are re-encoded to at most 1 MB, not "target 4.9 MB".
+  - `database/schema.sql`, `schema-social.sql`, `admin/index.html` and
+    `npm run import` don't exist.
 
+## Known gaps
 
-## Tech Notes
-- Pars stored as array in database
-- Using Supabase for all data storage
-- Photos stored in 'round-photos' bucket
-- Reactions table uses 'emoji' column
-- Comments table uses 'content' column
-- Using profiles table (not users) for foreign keys
-- Photos in 'round-photos' bucket
-- All user data properly associated via auth
-- No more localStorage - everything in database
-### Authentication Technical Notes
-- **Token Expiry Tracking**: sessionExpRef stores expires_at, checked on refocus
-- **Stale Closure Prevention**: userRef.current always has current user state
-- **Cross-Version Compatibility**: Handles both number and string expires_at formats
-- **Performance**: No unnecessary getSession() calls on quick tab switches
-- **React Best Practices**: Proper useMemo dependencies, cleanup in useEffect
-- **Mobile Optimization**: Visibility API + pageshow for all browser scenarios
-- Notifications use last_notifications_check in profiles table
-- Component key pattern for same-component navigation (UserProfile)
-- Soft delete pattern with is_deleted flags (never hard delete)
-- Notification dropdown: fixed positioning mobile, absolute desktop
+- **The production base schema is not in git:** the tables, most policies
+  and about 19 RPCs. How to pull it is in
+  [database/README.md](../database/README.md) ("Put the real production
+  schema in git").
+- **Production-only checks still to do by hand** (database/README.md, "Still
+  to check by hand in production"):
+  - whether `get_my_rounds_with_everything` is `SECURITY DEFINER`;
+  - that each admin analytics RPC checks `is_admin()`;
+  - the storage bucket policies.
+- **Moderation:** whether there's an audit trail is unknown (see above).
+  Banned users' comments still show inside the signed-in app; "Delete All
+  Content" removes them.
+- **No in-app control** to make a round private.
+- **Feed:** the discovery-ratio slider does nothing, and the popular
+  threshold isn't saved (see the header of `database/feed_algorithm.sql`).
+- **Notifications** are in-app only (no push), and nothing works offline.
+- **No in-app account deletion.** The Privacy Policy describes the manual
+  request.
+- **Google Ads:** the Search account still needs its stats-first restructure
+  (the checklist at the top of [google_ads.md](google_ads.md)).
 
+## Next steps
 
-## ❌ Blockers
-- None currently
-
-## 📝 Notes for Next Session
-- Need to build React components
-
-## Supabase Details
-- Project URL: [saved in .env]
-- Project Name: dogleg
-- Project URL: https://egnnjhlbnlhvudgopzvq.supabase.co
-- Auth configured with Google OAuth
-### Supabase Auth Configuration
-- Session expiry tracked and refreshed intelligently
-- Handles different expires_at formats across Supabase versions
-- Auth state listener as primary source of truth
-- Google OAuth configured with select_account prompt
-- Password reset flow with proper redirects
+1. Run the November SQL in production and do its checks
+   ([database/README.md](../database/README.md)), then merge this branch to
+   `master`.
+2. Put the production schema in git, then do the production-only checks
+   above.
+3. Restructure the Google Ads Search account
+   ([google_ads.md](google_ads.md)).
+4. Feed upgrades that `database/feed_algorithm.sql` lists as approved but not
+   built: adaptive per-user discovery backfill, and stat-aware discovery
+   ranking.

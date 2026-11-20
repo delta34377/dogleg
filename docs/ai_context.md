@@ -1,407 +1,358 @@
-# 🤖 AI Context Document - Dogleg Project
+# Dogleg: technical briefing
 
-## Quick Project Summary
-I'm building **Dogleg** (dogleg.io) - a social golf scorecard app. Think "Instagram for golf" where users follow friends, react/comment on each other's rounds, and post their own scores. Mobile-first PWA.
+The one technical briefing for AI assistants and developers. Read it before
+changing code or SQL. Last checked against the code on 2026-11-20.
 
-**Positioning (June 2026):** Lead with the social side (follow/react/comment on friends' rounds). De-emphasize the stat-tracking/"Strava" angle in user-facing copy and ads — see `/docs/google_ads.md` and `/docs/feature_ideas.md`.
+Related docs: [readme.md](readme.md) (human overview),
+[project_status.md](project_status.md) (what's shipped, gaps, next steps),
+[../database/README.md](../database/README.md) (how to run the SQL, checks,
+rollback), [stats_pivot_plan.md](stats_pivot_plan.md) (stats design and
+history).
 
-## Current Status
-- ✅ Database schema ready (Supabase)
-- ✅ 22,563 golf courses imported to Supabase
-- ✅ Import scripts working
-- ✅ React app created with Create React App
-- ✅ Course search component working (all 3 methods)
-- ✅ Score entry with photo uploads
-- ✅ My Rounds page with database integration
-- ✅ Reactions and comments saving to database
-- ✅ User authentication
-- ✅ **Notifications System** - Bell icon with dropdown showing comments, reactions, follows
-  - Red dot indicator for new notifications
-  - Last 30 days of activity shown
-  - Follow back buttons inline
-  - Mobile-optimized dropdown positioning
-  - Auto-marks as read when opened
-  - Database triggers creating notifications automatically
-  
-- ✅ **Profile Navigation Fix** - Comments no longer collapse when clicking usernames
-  - Used key={location.pathname} on UserProfile component
-  - Ensures fresh component instance on profile changes
-  
-- ✅ **Consistent Loading States** - Skeleton loaders across all pages
-  - Profile page now uses same skeleton pattern as Feed
-  - Better visual feedback during data loading
+## What Dogleg is
 
-### Recently Fixed
-- ✅ Infinite loading on tab switch (useRef solution in AuthContext)
-- ✅ Login after logout bug (proper SIGNED_IN event handling)
-- ✅ Image over-compression (now targets 4.9MB, not 1.25MB)
-- ✅ Feed styling matches MyRounds exactly
-- ✅ Removed redundant Profile tab from navigation
-- ✅ Refresh (Ctrl+R) infinite loading (Supabase getSession hanging - using auth listener)
-- ✅ User profile navigation from Feed working
-- ✅ User profile pages with MyRounds-style display
-- ✅ Follow/unfollow system working
-- ✅ Comments showing as Anonymous (fixed get_feed_with_everything and get_my_rounds_with_everything RPCs)
-- ✅ Foreign key constraints (notifications, follows tables now properly reference profiles)
-- ✅ Navigation on user profiles (mobile working, desktop pending)
-- ✅ Infinite loading on tab switch (useRef solution in AuthContext)
-- ✅ Login after logout bug (proper SIGNED_IN event handling)
-- ✅ Navigation on user profiles (mobile and desktop working)
-- ✅ **Smart Blended Feed implemented** - 70/30 mix of following/discovery content
-- ✅ **Discovery content with indicators** - Shows why users see suggested rounds
-- ✅ **Deployed to Vercel** - Live at https://dogleg-eta.vercel.app/
-- ✅ **Mobile tab focus authentication completely resolved**
-  - Smart refocus logic with token expiry awareness (only refreshes when <30s to expiry)
-  - Fixed stale closure bug using userRef for event handlers
-  - Robust expires_at parsing handles both string and number formats from different Supabase versions
-  - Removed duplicate auth guards in AuthenticatedApp (single-guard pattern)
-  - Fixed React useMemo dependencies for rechecking state
-  - No more false logouts, infinite loading, or unnecessary refreshes on tab switches
-  - ✅ **Individual Round Pages with Short URLs** - Each round now has a shareable URL
-  - Added 6-character short codes (e.g., `/rounds/K7FX9M` instead of UUIDs)
-  - Created SingleRound component that displays rounds exactly like Feed
-  - Share button now generates working shareable links
-  - Database trigger auto-generates unique short codes for all rounds
-  - ✅ **Feed algorithm admin panel** - Adjustable algorithm parameters without code changes
-- ✅ **Discovery mode filtering** - Fixed SQL function parameter mismatch ('discover' vs 'discovery')
-- ✅ **Round count consistency** - All pages now count from actual rounds table
-- ✅ **3-dots menu for rounds** - Replaced delete button with expandable menu
-- ✅ **Profile stats accuracy** - Fixed follower/following counts using followService
-- ✅ **Content Moderation System Complete**
-  - Admin dashboard at `/admin/moderation` 
-  - Soft delete system for rounds and comments
-  - User content management (delete all content from user)
-  - Fixed feed functions to exclude soft-deleted content
-  - Follower counts auto-update via database triggers
-  - Search/filter/sort across all content types
-  - Pagination and bulk operations
-  
-### Key Technical Decisions
-1. **userRef Pattern**: Event handlers in useEffect with [] deps use refs to avoid stale closures
-2. **Smart Refocus**: Only refresh when `tokenExpiry - now <= 30 seconds` OR no user
-3. **Robust Parsing**: Handle both `expires_at` as number (UNIX) and string (ISO)
-4. **Single Guard**: ProtectedRoute is the ONLY place that redirects to /login
-5. **Event Sources**: Use visibilitychange and pageshow, but NOT focus (fires too often)
-6. **Component Keys for Navigation**: Use location.pathname as key when navigating between same component types (prevents state persistence issues)
-7. **Notification Dropdown Positioning**: Fixed positioning on mobile, absolute on desktop for proper alignment
-8. **Soft Delete Pattern**: is_deleted flags with RPC functions filtering them out, not actual DELETE operations
+Dogleg (dogleg.io) is a mobile-first web app for golfers. You post a round in
+about 30 seconds, and the database works out a WHS-style handicap index, a
+0.0–10.0 **Dogleg Score** (how good the round was for *you*), and achievement
+badges. Friends follow each other and react to and comment on rounds in a feed.
 
+**Positioning: stats-first, "The Strava for golf" (since July 2026).** The
+landing page headline is "Strava for golf. Track every round. Watch your
+handicap drop." (`frontend/src/pages/LandingPage.js`), and the title, meta tags
+and manifest say "The Strava for Golf". Social stays as the growth loop: the
+pivot changed what leads the message, it didn't remove the feed. User-facing
+copy should lead with stats. The "social-first, de-emphasize Strava" text in
+`google_ads.md` and `feature_ideas.md` is from June 2026 and is superseded
+(both files say so at the top).
 
-# Feed Strategy Decision
-**Latest Feed Implementation
-**Smart Blended Feed Algorithm:**
-- Single "For You" feed with intelligent content mixing
-- 70% following content, 30% discovery content
-- Discovery sources:
-  - 📍 Near courses you've played (same course/club)
-  - 🔥 Popular rounds (3+ reactions or 2+ comments)
-- Scoring algorithm: `0.6 * recency + 0.3 * engagement + 0.1 * affinity`
-- Waterfall fill: When following content is sparse, discovery fills the gap
-- SQL RPC function: `get_feed_with_discovery`
-- No empty feeds for new users
+## Working with the founder
 
-## Admin Panel (Mark Only)
-- **Access**: `/admin` route (only for markgreenfield1@gmail.com)
-- **Adjustable Parameters**:
-  - Discovery ratio (0-100%)
-  - Feed mode (mixed/following/discover)
-  - Popular thresholds (reactions/comments)
-  - Scoring weights (recency/engagement/affinity)
-  - Near-you radius
-- **Settings Storage**: localStorage (device-specific)
-- **Apply & Refresh**: Instant feed algorithm updates
-## Admin Features (Mark Only)
-- **Analytics Dashboard**: `/admin` - User growth, engagement metrics
-- **Feed Algorithm Control**: `/admin` - Adjust discovery ratio and weights  
-- **Content Moderation**: `/admin/moderation` - User and content management
-  - Search/filter/sort users by activity
-  - Delete individual rounds/comments
-  - Delete all content from a user
-  - View user statistics
-  - Soft delete system (content hidden but retained)
-  - **Soft Delete System**:
-  - Content marked as is_deleted=true but retained in database
-  - Feed functions exclude soft-deleted content automatically
-  - Moderation actions logged for audit trail
-  - Force page refresh after deletions to clear caches
+- The founder is not a professional developer. Give step-by-step
+  instructions with exact file paths and full commands, and explain what each
+  step does.
+- SQL changes reach production only when the founder pastes a file into the
+  Supabase SQL editor. Write SQL files that are safe to paste twice (see
+  [Changing SQL](#changing-sql)).
+- Never ask for keys or passwords in chat, and never put them in the repo.
 
-## Tech Stack
-- **Database:** Supabase (PostgreSQL) - COMPLETED
-- **Frontend:** React (Create React App) + Tailwind CSS - IN PROGRESS
-- **Auth:** Supabase Auth (not yet implemented)
-- **Hosting:** Vercel (not yet deployed)
-- **State:** Zustand - INSTALLED
+## Stack
 
-## Database Structure
-```sql
--- 16,367 clubs → 22,563 courses → 94,648 tees
-clubs (ClubID, ClubName, City, State, Latitude, Longitude...)
-courses (CourseID, ClubID, CourseName, NumHoles, Par1-18, Hcp1-18...)
-tees (TeeID, CourseID, TeeName, TeeColor, Slope, CR, Length1-18...)
+- **Frontend:** React 19, React Router 6, Create React App (`react-scripts`
+  5), Tailwind CSS 3, Recharts 3 (Stats tab, admin charts), lucide-react
+  (admin icons), `browser-image-compression`. No state library: auth state
+  comes from `AuthContext`, and pages fetch their own data through
+  `src/services/`.
+- **Backend:** Supabase: Postgres, Auth (email/password and Google OAuth),
+  Storage. There is no app server of our own.
+- **Hosting:** Vercel. `frontend/` holds `vercel.json` and the one serverless
+  function (`frontend/api/og/round.js`). Vercel Web Analytics
+  (`<Analytics />` in `App.js`).
+- **Analytics:** Google Analytics with Consent Mode v2 (see
+  [Analytics and error reporting](#analytics-and-error-reporting)).
+- **PWA:** a web manifest and an iOS "Add to Home Screen" prompt
+  (`IOSInstallPrompt.js`). There is **no service worker**, so nothing works
+  offline.
 
--- User data
-users → rounds → reactions, comments
-users → follows → feed generation
+## Repo layout
 
--- Moderation tables
-moderation_log (audit trail for all admin actions)
-rounds/comments (is_deleted soft delete flags)
-
--- Auto-updating triggers
-update_follow_counts() - maintains follower_count in profiles
-
-
-### Important Database Notes
-- Using `profiles` table for all user data (NOT `users` table)
-- All foreign keys must reference `profiles` table
-- RPC functions need to join profiles for user data:
-  - `get_feed_with_everything` - joins profiles for comments
-  - `get_my_rounds_with_everything` - joins profiles for comments
-- Notifications table has trigger on follows table
-
-## File Structure
 ```
-dogleg/
-├── config/app-config.js    # Central config (change name here)
-├── database/               # SQL schemas
-├── scripts/               # Import scripts
-├── admin/                # Admin dashboard
-├── frontend/             # React app (TO BUILD)
-└── data/                # CSV files (clubs.csv, courses.csv, tees.csv)
+frontend/                  React app; also the Vercel project
+  src/App.js               routes
+  src/components/          pages and UI (AppShell, Feed, ScoreEntry, ...)
+  src/components/admin/    admin pages
+  src/pages/               LandingPage, SearchUsers, PrivacyPolicy, TermsOfService
+  src/services/            Supabase calls (roundsService, statsService, ...)
+  src/context/AuthContext.js
+  src/utils/               pure helpers, most with *.test.js next to them
+  api/og/round.js          Vercel function: link previews for shared rounds
+  api/_lib/                its helpers and tests ("_" folders are not endpoints)
+  vercel.json              bot rewrite for link previews + SPA catch-all
+database/                  SQL run by hand in Supabase; README.md explains how
+database/tests/            local Postgres test harness (run.sh)
+scripts/import-golf-data.js  one-off CSV import of clubs/courses/tees
+.github/workflows/ci.yml   CI
+config/, prototypes/       early config file and HTML prototype; the app does not use them
 ```
 
-## NEW File Structure With React
-```
-dogleg/
-├── frontend/          # ← Your React app
-│   ├── public/
-│   ├── src/
-│   │   ├── components/   # Reusable components
-│   │   ├── pages/       # Full page components
-│   │   ├── services/    # API/Supabase calls
-│   │   ├── hooks/       # Custom React hooks
-│   │   └── App.js       # Main app
-│   └── .env            # Environment variables
-├── scripts/           # Your import scripts (keep these)
-├── prototypes/        # Your HTML prototypes (reference)
-└── docs/
+## Routes
 
-## Key Features to Build
-1. **Score Entry:** Quick posting after round (course search → tee selection → score input → post)
-2. **Social Feed:** Follow friends, see their rounds
-3. **Reactions:** Emoji reactions (🔥👏💪🎯⛳😂)
-4. **Course Search:** 22k courses with location-based search
+Defined in `frontend/src/App.js`. Everything except login, password reset,
+legal and admin pages renders inside one layout route (`AppLayout`), which
+picks the frame:
 
-## Current Task
-[Describe what you need help with]
+| Path | Page | Notes |
+|---|---|---|
+| `/` | Feed (signed in), `LandingPage` (signed out) | `AppShell` keeps the Feed mounted (hidden) on other tabs, so Back returns to the same scroll spot |
+| `/add` | `CourseSearch` then `ScoreEntry`, then `PostRoundModal` | Add Round tab |
+| `/stats` | `StatsPage` | `get_user_stats` RPC |
+| `/my-rounds` | `MyRounds` | `get_my_rounds_with_everything` RPC |
+| `/profile` | `Profile` | your own profile: edit details, avatar, manual handicap |
+| `/profile/:username` | `UserProfile` | someone else's profile, follow button |
+| `/courses/:courseId` | `CoursePage` | leaderboard, `get_course_page` RPC |
+| `/search-users` | `SearchUsers` | find golfers to follow |
+| `/rounds/:roundId` | `SingleRound` | short code or round id. Signed in: inside `AppShell`. Signed out: `PublicShell` with read-only data from `get_public_round` |
+| `/login` | `AuthScreen` | returns you to the page you came from |
+| `/reset-password` | `ResetPassword` | |
+| `/terms`, `/privacy` | legal pages | the Privacy page has the analytics on/off switch |
+| `/admin/*` | `AdminHub`: overview, `analytics`, `stats-engine`, `feed-algorithm`, `moderation` | outside the shell; `ProtectedRoute` + `AdminGate` |
 
-## Important Context
-- Mobile-first design (bottom nav, big buttons)
-- Most users will use after playing golf
-- Quick score entry is critical (<30 seconds)
-- Privacy: rounds can be public/private
-- CSV data can be re-uploaded anytime (admin feature)
+- The four tabs (Feed, Add Round, Stats, My Rounds) are URLs, defined in
+  `AppShell.js`. Re-tapping Feed refreshes it, and re-tapping My Rounds
+  scrolls to the top.
+- When signed out, the signed-in-only paths send you to `/login` and back
+  again afterwards. Any other unknown path goes to `/`. Signed in, an unknown
+  path shows "Page not found" inside the shell.
+- `ProtectedRoute` is the only place that redirects to `/login`. It also shows
+  `UsernameSetup` to signed-in users without a username (new Google users).
+- Pages are code-split with `React.lazy`. If a chunk is missing after a
+  deploy, `lazyPage()` reloads the page once.
 
-## Environment Variables Needed
+## Data model highlights
+
+The base schema (tables, most RLS policies, about 19 RPCs) lives **only in
+production**, not in git. `database/tests/mock_schema.sql` is a
+reconstruction, not a copy. The parts below are the ones the code relies on.
+
+- **Course data:** `clubs` → `courses` → `tees`, imported from CSV
+  (`scripts/import-golf-data.js`). The IDs are **text**. Courses have hole
+  pars and stroke indexes, and tees have slope and course rating. The app
+  says "22,000+ courses in the United States". Course search uses name,
+  location (city/state/zip) and nearby (geolocation, 15 miles, via the
+  `search_golf_courses` RPC).
+- **`profiles`:** one row per auth user (use it, not `users`). Rounds,
+  comments and notifications reference it, and the app joins through
+  `profiles!rounds_user_id_fkey` and similar. `handicap` is the golfer's own
+  manual entry and the app writes it. `handicap_index` is computed by the
+  stats engine and is server-only. `is_admin` and `is_banned` are also
+  server-only. `last_notifications_check` drives the notification dot.
+- **`rounds`:** written by the app: course/club/tee fields, `tee_id`,
+  `tee_data` (display only), `played_at`, `total_score`, `front9`, `back9`,
+  `scores_by_hole`, `course_pars`, `par`, `caption`, `photo_url`,
+  `holes_declared` (9 or 18), `stats_by_hole` (putts) and `total_putts`.
+  **Server-only:** `holes_played`, `differential`, `dogleg_score`,
+  `strokes_vs_usual`, `achievements`, `short_code`, `is_deleted`. Also
+  `is_private`, which RLS enforces, but the app has no control to set it yet.
+- **`reactions`** (`reaction_type`: fire, clap, dart, goat, vomit, clown,
+  skull, laugh), **`comments`** (`content`, at most 280 characters;
+  `is_deleted`), **`follows`** (`follower_id`, `following_id`),
+  **`notifications`** (written only by triggers; see
+  `database/notifications_hardening.sql`), and **`app_settings`** (key
+  `'feed'`: the global feed mode).
+- **Storage:** `round-photos` (public; files at `{userId}/{roundId}.jpg`) and
+  `profile-pictures`.
+- **Deleting:** a user's own rounds and comments are **hard-deleted**
+  (`roundsService.deleteRound` also removes the round's photo).
+  `deleteComment` hard-deletes too. Moderators **hide** rounds and comments
+  with `is_deleted` through the admin RPCs, and every reader filters out
+  hidden content. The admin RPCs live only in production. Whether they write
+  an audit trail (`moderation_log`) is **unverified**: nothing in git writes
+  it, except the test mock's own guess.
+
+## Security model
+
+The browser uses the public anon key plus the signed-in user's JWT, and talks
+straight to Supabase. **Row Level Security, column grants and RPCs are the
+only security boundary.** Anything the UI hides can still be called directly,
+so check every rule in the database too.
+
+`database/security_hardening.sql` (November 2026):
+
+- **Column grants.** The app may write every column of `profiles`, `rounds`
+  and `comments` except a server-only list: `profiles.is_admin`, `is_banned`
+  and `handicap_index` (plus follower/following counts and ban details where
+  those exist), the computed round columns listed above, and `is_deleted`
+  plus the moderation columns. The stats engine and admin RPCs still write
+  them because they run as `SECURITY DEFINER`.
+- **Second lock:** trigger `trg_dogleg_guard_profile_columns` blocks API-role
+  changes to `is_admin`, `is_banned` and `handicap_index`, even if a later
+  `GRANT ALL` brings the table-wide write right back.
+- **RESTRICTIVE policies** (`dogleg_guard_*`) on `profiles`, `rounds`,
+  `reactions`, `comments` and `follows`: you can only write your own rows,
+  and banned users can't post. A banned user can still delete their own
+  things.
+- **Privacy:** other people's private rounds and rounds by banned users are
+  hidden on every API read (`dogleg_guard_rounds_select_privacy`) and in the
+  live feed RPC. You always see your own.
+- **`get_public_round(p_code)`:** the one function signed-out visitors call.
+  It returns only a public round, with its author, reaction counts and
+  comments.
+- The internal `dogleg_*` helpers are not callable from the app.
+  Notifications can't be edited through the API.
+
+**Admin check:** `profiles.is_admin`. On the server, `public.is_admin()`
+(`database/admin_stats_engine.sql`) reads it, and every `*_admin` RPC should
+start with `IF NOT is_admin() THEN RAISE EXCEPTION`. In the frontend, use
+`isAdmin(profile)` from `src/utils/admin.js`, which only hides and shows UI.
+Never hard-code an email address to mean "admin".
+
+## Stats engine
+
+Lives in `database/stats_layer.sql`, which does all the computing in Postgres
+triggers. It reads ratings from `public.tees` and pars from `public.courses`,
+never from what the client sent.
+
+- **Differential:** `(adjusted gross − course rating) × 113 / slope`.
+  Hole-by-hole rounds get the net-double-bogey adjustment. Ratings are used in
+  tiers: the picked tee, then the course's median-rated tee, then par at slope
+  113. A differential below −10 is treated as a data-entry mistake and not
+  counted.
+- **Handicap index:** WHS best 8 of the last 20 differentials, with the
+  official small-sample table. It needs 3 counting rounds and is capped at
+  54.0.
+- **9-hole rounds:** `rounds.holes_declared` (the app's 9/18 switch) decides
+  how a bare total is read. A nine is combined with an expected differential
+  for the unplayed nine (WHS 2024). Before a golfer has an index, pending
+  nines are paired into 18-hole differentials.
+- **Dogleg Score:** `6.0 + 0.4 × (baseline − differential)`, clamped to
+  0.0–10.0. The baseline is the median of your last 20 differentials, not
+  your index. It always shows as "x.x/10".
+- **Achievements:** first round, personal bests, breaking 100/90/80/70,
+  course PR, most birdies, round-count milestones. Stamped at post time.
+- **Score limits:** total 9–200, each hole 1–20, each nine 1–120, and no date
+  more than a day in the future. A broken limit raises SQLSTATE `23514` with a
+  readable message. `src/utils/scoreValidation.js` checks the same limits in
+  the browser.
+- **Recompute later rounds:** posting an older round, deleting, hiding or
+  restoring one, or editing a score re-scores that golfer's later rounds, as
+  if they had been posted in date order. The ordering key is always
+  `(played_at, created_at, id)`.
+- **RPCs:** `get_user_stats(uuid)` (Stats tab) and `get_course_page(text)`.
+- **One-off scripts:** `database/stats_backfill.sql` rewrites every user's
+  history, so run it only deliberately (read its warning).
+  `database/repair_nine_hole_totals.sql` lists nine-hole rounds that the old
+  engine scored as 18 holes, and fixes them one at a time.
+
+## Feed
+
+The live feed is `get_feed_chronological_mixed` (`database/feed_algorithm.sql`;
+the frontend calls it from `roundsService.getFeedWithDiscovery`). It is
+chronological. The admin Feed Algorithm panel sets a global `mode`
+(`following`, `mixed` or `discover`) and `feedLimit` in `app_settings`.
+Discovery rounds are filtered in by mode, not mixed in by quota. The
+discovery-ratio slider currently **does nothing** (the live function ignores
+the parameter), and the popular threshold isn't saved. The older scored blends
+in that file (`get_feed_with_discovery`, ...) are legacy and unused. Read the
+file's header before you touch it.
+
+## Changing SQL
+
+1. Put the change in a file in `database/`: one transaction
+   (`BEGIN`/`COMMIT`), and safe to re-run.
+2. Add it to `database/tests/apply_order.txt` in the order the founder will
+   run it, and add a `test_*.sql`. The harness applies every file twice, to
+   prove it is safe to re-run.
+3. Run `database/tests/run.sh`.
+4. The founder pastes the file into the Supabase SQL editor. The run order,
+   post-run checks and rollback steps are in
+   [database/README.md](../database/README.md). Link to that file rather than
+   repeating it.
+
+Rules worth knowing:
+
+- **New columns:** `profiles`, `rounds` and `comments` use per-column grants.
+  If the app must write a new column, re-run `security_hardening.sql` or
+  grant that column. Otherwise the app gets "permission denied for column".
+- **New `dogleg_*` functions** are callable from the app until
+  `security_hardening.sql` is re-run.
+- Make a function `SECURITY DEFINER` only if it checks the caller
+  (`auth.uid()` or `is_admin()`), and pin its `search_path`.
+- Production's base schema is not in git. `database/README.md` explains how
+  to pull it with the Supabase CLI (or `pg_dump`). Until then, the harness
+  guesses, and its README lists the known differences.
+
+## Testing and CI
+
 ```bash
-SUPABASE_URL=https://xxxxx.supabase.co
-SUPABASE_ANON_KEY=eyJ... (public)
-SUPABASE_SERVICE_KEY=eyJ... (secret, for imports)
+cd frontend && npm test                          # Jest unit tests (watch mode; add -- --watchAll=false for one run)
+cd frontend && node --test "api/**/*.test.js"    # link-preview function tests
+database/tests/run.sh                            # SQL tests on a local PostgreSQL 16
 ```
 
-## If You Need to See Code
-Key files to reference:
-- `/config/app-config.js` - App configuration
-- `/database/schema.sql` - Database structure  
-- `/scripts/import-golf-data.js` - CSV import logic
-- `/docs/README.md` - Full documentation
+`frontend/.env.test` gives Jest dummy Supabase settings. These are not
+secrets. The harness's setup and options are in
+[database/tests/README.md](../database/tests/README.md).
 
-## Design Principles
-- **Fast:** <30 second score entry
-- **Social:** Feed, follows, reactions
-- **Mobile:** Touch-first, works offline
-- **Flexible:** Can rebrand easily (change in config)
+`.github/workflows/ci.yml` runs on every push and pull request:
 
----
+- **frontend:** Node 22, `npm ci`, ESLint (it fails on errors only), the unit
+  tests in the `America/Los_Angeles` time zone, the function tests, and a
+  production build.
+- **database:** a `postgres:16` service and `run.sh`, run twice (the second
+  time with the alternate column types).
 
-**What I typically need help with:**
-- React component development
-- Supabase queries
-- UI/UX for mobile
-- Performance optimization for 22k courses
-- Social feed algorithms
-- I am a novice using VSCode, so I generally need step-by-step instruction
+## Link previews
 
-**Current blockers:**
-[List any current issues]
+Preview bots don't run JavaScript. So `frontend/vercel.json` rewrites
+`/rounds/:code` to `/api/og/round?code=:code`, but only for known bot user
+agents (facebookexternalhit, Twitterbot, Slackbot, WhatsApp, ...). People get
+the normal app. `api/og/round.js` reads `get_public_round` over the Supabase
+REST API and answers with Open Graph and Twitter tags for that round. On any
+problem it falls back to the generic Dogleg preview, always with status 200.
+The pure helpers are in `api/_lib/roundPreview.js`. Its course-name rules copy
+`src/utils/courseNameUtils.js`, so keep the two in step.
 
-**Next steps:**
-[What you're trying to accomplish]
+## Analytics and error reporting
 
-# LATEST UPDATE:
+- **Google Analytics** with Consent Mode v2 is set up in
+  `frontend/public/index.html`. Analytics and advertising cookies are off by
+  default in the EEA, UK and Switzerland, and on elsewhere. The visitor's
+  choice is stored in localStorage under `dogleg_analytics_optout` (`'1'` =
+  off everywhere, `'0'` = analytics on), and the Privacy page's switch
+  (`src/utils/analyticsConsent.js`) updates it. Both files use that key, so
+  change them together.
+- **Vercel Web Analytics:** `<Analytics />` in `App.js`.
+- There is no first-party event or page-view tracking. The old
+  `analyticsService.js` was never imported and has been deleted.
+- **Errors:** `ErrorBoundary` wraps the whole app (`src/index.js`) and each
+  page in the shell, and shows Reload / Go home. **Sentry** is optional. It
+  loads lazily only when `REACT_APP_SENTRY_DSN` is set
+  (`src/utils/monitoring.js`), with no PII, no replay and no tracing, and
+  tags reports with the user id only.
 
-# AI Context - Dogleg Project
+## Environment variables
 
-## About Me (The Developer)
-- **Experience Level**: Beginner/Novice in coding
-- **Development Environment**: VSCode on Windows (PowerShell terminal)
-- **Learning Style**: Need step-by-step instructions with exact file paths
-- **Working Directory**: `C:\Users\markg\OneDrive\Desktop\dogleg`
+Names only. Put real values in `frontend/.env.local` (git-ignored) for local
+work and in Vercel's project settings for deploys.
 
-## Project Status
-**Current Phase**: Building frontend components
-**Completed**: ✅ Database setup, ✅ Data import (16k clubs, 22k courses, 94k tees)
+| Name | Used by | Required |
+|---|---|---|
+| `REACT_APP_SUPABASE_URL` | `src/services/supabase.js`, `api/_lib/roundPreview.js` | yes |
+| `REACT_APP_SUPABASE_ANON_KEY` | same | yes (public key) |
+| `REACT_APP_SENTRY_DSN` | `src/utils/monitoring.js` | no; Sentry is off without it |
+| `REACT_APP_VERCEL_ENV`, `REACT_APP_VERCEL_GIT_COMMIT_SHA` | `src/utils/monitoring.js` (Sentry environment and release) | no; Vercel provides them |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` | `scripts/import-golf-data.js` (in `scripts/.env`) | only for the course import |
 
-## Tech Stack
-- **Database**: Supabase (PostgreSQL) - COMPLETED
-- **Frontend**: Vanilla JavaScript (React coming later)  
-- **IDs**: Using TEXT type (some IDs are 20+ digits)
-- **Hosting**: Will use Vercel
-- **Development**: Node.js v20.11.0, npm
+The service key bypasses RLS. Never use it in the frontend.
 
-## Database Structure
-```sql
-clubs (16,367 records) - TEXT IDs
-  └── courses (22,563 records) - TEXT IDs  
-      └── tees (94,648 records) - TEXT IDs
-          └── hole_lengths[], slopes, ratings
+## Conventions and gotchas
 
-users → rounds → reactions/comments (social features ready)
-```
-
-## What I Need From AI
-1. **Always provide exact file paths** where code should be saved
-2. **Include full terminal commands** with proper Windows/PowerShell syntax
-3. **Explain what each code block does** in simple terms
-4. **Show me where to click** in VSCode or Supabase dashboard
-5. **Warn me about common errors** before they happen
-6. **Test code snippets** before major implementations
-
-## Current Working Directory Structure
-```
-C:\Users\markg\OneDrive\Desktop\dogleg\
-├── config/
-│   └── app-config.js
-├── database/
-│   └── [SQL files]
-├── scripts/
-│   ├── import-golf-data.js ✅ WORKING
-│   ├── package.json
-│   └── .env (contains Supabase keys)
-├── data/
-│   └── [CSV files - imported successfully]
-└── docs/
-    ├── README.md
-    └── AI_CONTEXT.md (this file)
-```
-
-## Known Issues/Gotchas
-- IDs are TEXT not numbers (too large for BIGINT)
-- Some clubs have multiple courses
-- Tees CSV had duplicates (handled in import)
-- Need `"type": "module"` in package.json for ES6 imports
-
-## Next Priority
-Building course search with:
-1. Search by club name
-2. Search by location (city/state or zip)
-3. Find nearest courses (15 mile radius)
-4. Handle clubs with multiple courses
-
-## Key Context for Search Implementation
-- Must be FAST with 22k courses
-- Mobile-first design
-- Location search is critical
-- Some clubs have multiple courses (one-to-many relationship)
-
-## Example of Good AI Response Format
-```
-Step 1: Create this file
-Path: C:\Users\markg\OneDrive\Desktop\dogleg\[exact-path]\filename.js
-
-[code block with comments]
-
-Step 2: Run this command
-In PowerShell:
-> cd C:\Users\markg\OneDrive\Desktop\dogleg
-> [exact command]
-
-What this does: [simple explanation]
-```
-
-### ✅ AUTHENTICATION COMPLETE & PRODUCTION-READY
-- Supabase Auth fully integrated with email/password and Google OAuth
-- Password reset flow functional
-- **Smart session management:**
-  - Token expiry tracking prevents unnecessary refreshes
-  - Only refreshes when token expires within 30 seconds
-  - Handles both UNIX timestamp and ISO string expires_at formats
-  - userRef pattern prevents stale closures in event handlers
-- **Mobile-optimized:**
-  - No false logouts on tab switches
-  - No full-page refreshes on quick tab switches
-  - Handles iOS Safari back/forward cache
-  - Visibility API for modern browsers
-- **Single-guard architecture:**
-  - ProtectedRoute is sole auth guard
-  - No duplicate checks causing race conditions
-  - Smart loading states: `loading || (!user && rechecking)`
-
-
-### Current Architecture
-```
-Frontend (React)
-├── AuthContext (manages auth state)
-├── ProtectedRoute (guards pages)
-├── AuthScreen (login/signup)
-└── Components use useAuth() hook
-
-Database
-├── auth.users (Supabase managed)
-├── profiles (our user data)
-│   └── Foreign keys: rounds, reactions, comments
-└── RLS policies enabled
-```
-
-## Auth Implementation Notes
-- Using auth state listener as primary source (more reliable than getSession)
-- getSession() can hang due to Supabase localStorage issues
-- Profile loading is non-blocking for better UX
-- Loading state managed independently from profile fetch
-- **Event handlers use userRef.current to avoid stale closures**
-- **expires_at parsing handles both number (UNIX) and string (ISO) formats**
-- **rechecking state properly included in useMemo dependencies**
-
-
-### Fixed Issues
-- Infinite loading on tab switch - FIXED (userRef for current state)
-- Refresh (Ctrl+R) infinite loading - FIXED (rechecking in useMemo deps)
-- User profile navigation - FIXED
-- Foreign key constraints pointing to wrong table - FIXED  
-- Email login not navigating - FIXED
-- Password reset hanging - FIXED with timeout workaround
-- Date timezone issues - FIXED
-- Tab focus false logouts - FIXED (smart refocus with token expiry check)
-- Unnecessary refreshes on tab switch - FIXED (only refreshes near expiry)
-- Stale closure in event handlers - FIXED (userRef pattern)
-- Different Supabase expires_at formats - FIXED (robust parsing)
-- Double auth guards causing races - FIXED (single-guard pattern)
-
-
-### Environment Variables
-```bash
-REACT_APP_SUPABASE_URL=https://egnnjhlbnlhvudgopzvq.supabase.co
-REACT_APP_SUPABASE_ANON_KEY=eyJ... (in .env)
-```
-
-### Auth Flow
-1. User signs up → profile created automatically
-2. User logs in → AuthContext manages session
-3. Protected routes check auth status
-4. All database operations use authenticated user ID
-
-### Ready for Production
-- All core features working
-- Authentication secure
-- Database relationships correct
-- Ready to deploy to Vercel
+- **Never send server-computed columns** (`holes_played`, `differential`,
+  `dogleg_score`, `strokes_vs_usual`, `achievements`, `short_code`,
+  `is_deleted`). The database refuses them. `saveRound` sends only what the
+  golfer entered, and reads the computed values back from the inserted row.
+- **Error codes the app handles:**
+  - `23514`: a score limit; show the database's message.
+  - `23505`: a duplicate. `saveRound` sends a client-made round id, so a
+    retry that hits `23505` counts as success.
+  - `PGRST204`: an unknown column. Retry once without `holes_declared`.
+- **Photos** are always re-encoded to JPEG in the browser
+  (`src/utils/roundPhoto.js`: at most 1 MB and 2048 px), which strips
+  EXIF/GPS data. Never upload the original file.
+- **Dates:** use `src/utils/dateFormat.js`. `new Date('2026-07-04')` shows
+  the day before for anyone west of Greenwich. For course names, use
+  `getDisplayName` (`src/utils/courseNameUtils.js`).
+- **Auth (`AuthContext.js`):** the `onAuthStateChange` listener is the source
+  of truth. Event handlers read `userRef.current`, not a stale `user`.
+  `rechecking` must stay in the `useMemo` dependency list. On
+  `visibilitychange`/`pageshow` (never `focus`), the session is refreshed
+  only when the token expires within 30 seconds.
+- **After login:** use `src/utils/safeRedirect.js`. It accepts only in-app
+  paths, and Google sign-in comes back to `/` and then finishes the trip.
+- **Detail pages** (`/profile/:username`, `/courses/:courseId`,
+  `/rounds/:roundId`) are wrapped in `RemountOnPathChange`, so moving from
+  one profile to another never shows stale data.
+- **Infinite scroll** (Feed, My Rounds, profiles) keeps "loading", the next
+  offset and "has more" in refs, and shows Retry after a failed page. Copy
+  that pattern for any new list.
+- **Comments in code** are plain English and explain *why*. Keep that style.
+  The founder reads them.

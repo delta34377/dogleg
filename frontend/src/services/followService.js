@@ -3,6 +3,23 @@
 // "Multiple GoTrueClient instances detected"), with its own token-refresh timer.
 import { supabase } from './supabase'
 
+// Tell the rest of the app that the signed-in user followed or unfollowed
+// someone. The Feed listens for 'feedRefresh': it stays mounted (hidden)
+// while the user is on other pages, so without this a new follow made on the
+// search page or a profile would not show up in it. detail says who changed,
+// so a Feed that is on screen can just update those cards.
+function announceFollowChange(targetUserId, following) {
+  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return
+  try {
+    window.dispatchEvent(new CustomEvent('feedRefresh', {
+      detail: { reason: 'follow', userId: targetUserId, following }
+    }))
+  } catch (error) {
+    // e.g. no CustomEvent in a very old browser: the follow itself was saved,
+    // so never report it as failed
+    console.error('Could not announce the follow change:', error)
+  }
+}
 
 export const followService = {
   // Check if current user follows target user
@@ -42,6 +59,7 @@ followUser: async (targetUserId) => {
 
   if (existing) {
     console.log('Already following this user')
+    announceFollowChange(targetUserId, true)
     return { data: existing, error: null }
   }
 
@@ -57,6 +75,7 @@ followUser: async (targetUserId) => {
     .select()
     .single()
 
+  if (!error) announceFollowChange(targetUserId, true)
   return { data, error }
 },
 
@@ -71,6 +90,7 @@ followUser: async (targetUserId) => {
       .eq('follower_id', user.id)
       .eq('following_id', targetUserId)
 
+    if (!error) announceFollowChange(targetUserId, false)
     return { error }
   },
 
@@ -232,17 +252,25 @@ followUser: async (targetUserId) => {
     }
     },
 
-  // Get follow status for multiple users at once (batch operation)
+  // Get follow status for multiple users at once (batch operation).
+  // { [userId]: true/false }. If the lookup fails the answer is {} (no one
+  // listed, which every caller reads as "not following"), so a caller that
+  // already shows a status can tell "unknown" from "not following".
   getFollowStatuses: async (targetUserIds) => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return {}
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('follows')
       .select('following_id')
       .eq('follower_id', user.id)
       .in('following_id', targetUserIds)
-    
+
+    if (error) {
+      console.error('Error checking follow statuses:', error)
+      return {}
+    }
+
     const followingSet = new Set(data?.map(r => r.following_id) || [])
     return targetUserIds.reduce((acc, id) => {
       acc[id] = followingSet.has(id)

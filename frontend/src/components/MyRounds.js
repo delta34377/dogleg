@@ -8,6 +8,7 @@ import AvatarUpload from '../components/AvatarUpload'
 import ShareModal from './ShareModal'
 import RoundCard from './RoundCard'
 import UserListModal from './UserListModal'
+import { withMyReaction } from '../utils/reactions'
 
 const MyRounds = forwardRef((props, ref) => {
   const { user, profile } = useAuth()
@@ -238,49 +239,29 @@ const MyRounds = forwardRef((props, ref) => {
 
   // In toggleReaction - update UI FIRST
   const toggleReaction = async (roundId, reaction) => {
-    // Remember just this round's reactions in case the save fails
-    const before = rounds.find(round => round.id === roundId)
+    const round = rounds.find(r => r.id === roundId)
+    if (!round) return
 
-    // Optimistically update UI immediately
-    setRounds(prevRounds =>
-      prevRounds.map(round => {
-        if (round.id === roundId) {
-          const hasReacted = round.userReacted.includes(reaction)
-          const newReactions = { ...round.reactions }
-          const newUserReacted = [...round.userReacted]
-
-          if (hasReacted) {
-            newReactions[reaction] = Math.max(0, newReactions[reaction] - 1)
-            const index = newUserReacted.indexOf(reaction)
-            if (index > -1) newUserReacted.splice(index, 1)
-          } else {
-            newReactions[reaction] = (newReactions[reaction] || 0) + 1
-            newUserReacted.push(reaction)
-          }
-
-          return { ...round, reactions: newReactions, userReacted: newUserReacted }
-        }
-        return round
-      })
+    // Save exactly what the user tapped for (the opposite of what this card
+    // shows), never "toggle whatever the database holds"
+    const shouldHave = !(round.userReacted || []).includes(reaction)
+    const showMine = (has) => setRounds(prevRounds =>
+      prevRounds.map(r => (r.id === roundId ? withMyReaction(r, reaction, has) : r))
     )
 
+    // Optimistically update UI immediately
+    showMine(shouldHave)
+
     // THEN save to database (no need to update state again on success)
-    const { error } = await roundsService.saveReaction(roundId, reaction)
+    const { error, superseded } = await roundsService.saveReaction(roundId, reaction, shouldHave)
 
     // Only revert if error
     if (error) {
-      // Undo the optimistic update on this one round. (Reloading the whole
-      // list here used to cut it back to the first 10 rounds.)
+      // Undo the optimistic update on this one round, unless a later tap on
+      // the same reaction now owns it. (Reloading the whole list here used
+      // to cut it back to the first 10 rounds.)
       console.error('Failed to save reaction:', error)
-      if (before) {
-        setRounds(prevRounds =>
-          prevRounds.map(round =>
-            round.id === roundId
-              ? { ...round, reactions: before.reactions, userReacted: before.userReacted }
-              : round
-          )
-        )
-      }
+      if (!superseded) showMine(!shouldHave)
     }
   }
 

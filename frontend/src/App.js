@@ -31,30 +31,61 @@ import { Analytics } from '@vercel/analytics/react'
 // After a new deploy, a phone that still has the old app open may ask for a
 // page file that no longer exists. lazyPage() then reloads once to pick up the
 // new version; if that still fails, the error screen offers "Reload".
+//
+// A phone with no signal (out on the course) fails the same download for a
+// different reason. Reloading then would swap the running app for the
+// browser's "no connection" page (and the installed iPhone app has no reload
+// button), so instead the page keeps its spinner and tries again once the
+// phone is back online.
 const CHUNK_RELOAD_KEY = 'dogleg-chunk-reload'
 
-function lazyPage(importPage) {
-  return lazy(() =>
-    importPage().then(
-      (module) => {
-        try { sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch { /* storage unavailable */ }
-        return module
-      },
-      (error) => {
-        let alreadyReloaded = true
-        try {
-          alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY) === '1'
-          if (!alreadyReloaded) sessionStorage.setItem(CHUNK_RELOAD_KEY, '1')
-        } catch { /* storage unavailable: don't risk a reload loop */ }
-
-        if (!alreadyReloaded) {
-          window.location.reload()
-          return new Promise(() => {}) // never resolves; the page is reloading
-        }
-        throw error
-      }
-    )
+// The errors a missing page file gives (webpack's, and the browsers' own for
+// native imports). Anything else is a real bug: show the error screen.
+export const isStaleChunkError = (error) =>
+  /ChunkLoadError|Loading (CSS )?chunk|dynamically imported module/i.test(
+    `${error?.name || ''} ${error?.message || ''}`
   )
+
+const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false
+
+const waitUntilOnline = () =>
+  new Promise((resolve) => window.addEventListener('online', resolve, { once: true }))
+
+// importPage() with the recovery described above. `reload` is only replaced
+// by tests.
+export function importWithRecovery(importPage, reload = () => window.location.reload()) {
+  const loaded = (module) => {
+    try { sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch { /* storage unavailable */ }
+    return module
+  }
+
+  const failed = (error) => {
+    if (!isOffline() && isStaleChunkError(error)) {
+      let alreadyReloaded = true
+      try {
+        alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY) === '1'
+        if (!alreadyReloaded) sessionStorage.setItem(CHUNK_RELOAD_KEY, '1')
+      } catch { /* storage unavailable: don't risk a reload loop */ }
+
+      if (!alreadyReloaded) {
+        reload()
+        return new Promise(() => {}) // never resolves; the page is reloading
+      }
+    }
+    throw error // the inline error screen shows, with its Reload button
+  }
+
+  return importPage().then(loaded, (error) => {
+    if (isOffline()) {
+      // Keep the spinner; try once more when the connection comes back
+      return waitUntilOnline().then(() => importPage()).then(loaded, failed)
+    }
+    return failed(error)
+  })
+}
+
+function lazyPage(importPage) {
+  return lazy(() => importWithRecovery(importPage))
 }
 
 const CourseSearch = lazyPage(() => import('./components/CourseSearch'))

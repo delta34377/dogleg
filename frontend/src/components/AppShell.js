@@ -82,12 +82,17 @@ function AppShell() {
   }
 
   const goBack = () => {
-    // location.key is 'default' when this page was opened directly (a shared
-    // link in a new tab), so there is no earlier app page to go back to
-    if (location.key !== 'default') {
+    // The router numbers this tab's history entries from 0 at every fresh
+    // page load. 0 means there is no earlier app page to go back to: a shared
+    // link opened in a new tab, the page reached after signing in (the
+    // redirects replace entries rather than adding them), or the return from
+    // Google sign-in, whose previous entry is Google's own page. (location.key
+    // can't tell: every redirect gives the page a new key.) Same check as the
+    // legal pages.
+    if (window.history.state?.idx > 0) {
       navigate(-1)
     } else {
-      navigate('/')
+      navigate('/', { replace: true })
     }
   }
 
@@ -227,7 +232,9 @@ function AppShell() {
       {/* Current page */}
       <main className="pt-4 pb-20 md:pb-4">
         {feedMounted && (
-          <div className={onFeed ? undefined : 'hidden'}>
+          // `hidden` (display: none) also takes the off-screen Feed out of
+          // the accessibility tree, so screen readers skip it
+          <div hidden={!onFeed}>
             <ErrorBoundary variant="inline">
               {/* active=false tells the hidden Feed to pause infinite scroll */}
               <Feed ref={feedRef} active={onFeed} />

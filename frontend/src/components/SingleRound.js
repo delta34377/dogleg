@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import FollowButton from './FollowButton'
 import ShareModal from './ShareModal'
 import RoundCard from './RoundCard'
+import { withMyReaction } from '../utils/reactions'
 
 // One round on its own page (/rounds/:roundId — a short code or the id).
 //
@@ -215,29 +216,24 @@ function SingleRound() {
   }
 
   const toggleReaction = async (roundId, reaction) => {
-    const previousRound = round
+    if (!round) return
 
-    const newReactions = { ...round.reactions }
-    const newUserReacted = [...round.userReacted]
+    // Save exactly what the user tapped for (the opposite of what the card
+    // shows), never "toggle whatever the database holds"
+    const shouldHave = !(round.userReacted || []).includes(reaction)
+    const showMine = (has) => setRound(current =>
+      current && current.id === roundId ? withMyReaction(current, reaction, has) : current
+    )
 
-    const hasReacted = round.userReacted.includes(reaction)
+    showMine(shouldHave)
 
-    if (hasReacted) {
-      newReactions[reaction] = Math.max(0, newReactions[reaction] - 1)
-      const index = newUserReacted.indexOf(reaction)
-      if (index > -1) newUserReacted.splice(index, 1)
-    } else {
-      newReactions[reaction] = (newReactions[reaction] || 0) + 1
-      newUserReacted.push(reaction)
-    }
-
-    setRound({ ...round, reactions: newReactions, userReacted: newUserReacted })
-
-    const { error } = await roundsService.saveReaction(roundId, reaction)
+    const { error, superseded, exists } = await roundsService.saveReaction(roundId, reaction, shouldHave)
 
     if (error) {
       console.error('Failed to save reaction:', error)
-      setRound(previousRound)
+      // Put the card back to what the database holds, unless a later tap on
+      // this reaction now owns it
+      if (!superseded) showMine(exists ?? !shouldHave)
     }
   }
 

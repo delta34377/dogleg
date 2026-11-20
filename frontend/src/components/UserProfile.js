@@ -10,6 +10,10 @@ import ShareModal from './ShareModal'
 import RoundCard from './RoundCard'
 import UserListModal from './UserListModal'
 import ProfileStatsCard from './ProfileStatsCard'
+import { withMyReaction } from '../utils/reactions'
+
+// PostgREST's answer to .single() when no row matched: no such golfer
+const NO_SUCH_PROFILE = 'PGRST116'
 
 function UserProfile() {
   const { username } = useParams()
@@ -17,6 +21,8 @@ function UserProfile() {
   const { user: currentUser } = useAuth()
 
   const [profileUser, setProfileUser] = useState(null)
+  // true when the profile couldn't be loaded (not "no such golfer")
+  const [profileError, setProfileError] = useState(false)
   const [rounds, setRounds] = useState([])
   const [isLoading, setIsLoading] = useState(true) // true: show skeletons, not "No rounds yet", before the first load
   const [hasMore, setHasMore] = useState(true)
@@ -61,6 +67,8 @@ function UserProfile() {
   }, [profileUser])
 
   const loadUserProfile = async () => {
+    setProfileError(false)
+    let profileLoaded = false
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -69,11 +77,20 @@ function UserProfile() {
         .single()
 
       if (error) {
-        console.error('Error loading profile:', error)
-        navigate('/404')
+        if (error.code === NO_SUCH_PROFILE) {
+          // No such golfer (renamed, mistyped, an old link). Replace this
+          // page in history: a pushed /404 made Back land here, fail again
+          // and push /404 again, so the user could never get back past it.
+          navigate('/404', { replace: true })
+        } else {
+          // Bad signal or a server hiccup is not "page not found"
+          console.error('Error loading profile:', error)
+          setProfileError(true)
+        }
         return
       }
 
+      profileLoaded = true
       setProfileUser(profile)
 
       // Check if current user follows this profile
@@ -83,6 +100,8 @@ function UserProfile() {
       }
     } catch (error) {
       console.error('Error in loadUserProfile:', error)
+      // Only the profile itself failing is worth an error screen
+      if (!profileLoaded) setProfileError(true)
     }
   }
 
@@ -277,47 +296,27 @@ function UserProfile() {
 
   // Toggle reaction - optimistic update
   const toggleReaction = async (roundId, reaction) => {
-    // Remember just this round's reactions in case the save fails
-    const before = rounds.find(round => round.id === roundId)
+    const round = rounds.find(r => r.id === roundId)
+    if (!round) return
 
-    setRounds(prevRounds =>
-      prevRounds.map(round => {
-        if (round.id === roundId) {
-          const hasReacted = round.userReacted.includes(reaction)
-          const newReactions = { ...round.reactions }
-          const newUserReacted = [...round.userReacted]
-
-          if (hasReacted) {
-            newReactions[reaction] = Math.max(0, newReactions[reaction] - 1)
-            const index = newUserReacted.indexOf(reaction)
-            if (index > -1) newUserReacted.splice(index, 1)
-          } else {
-            newReactions[reaction] = (newReactions[reaction] || 0) + 1
-            newUserReacted.push(reaction)
-          }
-
-          return { ...round, reactions: newReactions, userReacted: newUserReacted }
-        }
-        return round
-      })
+    // Save exactly what the user tapped for (the opposite of what this card
+    // shows), never "toggle whatever the database holds"
+    const shouldHave = !(round.userReacted || []).includes(reaction)
+    const showMine = (has) => setRounds(prevRounds =>
+      prevRounds.map(r => (r.id === roundId ? withMyReaction(r, reaction, has) : r))
     )
 
-    const { error } = await roundsService.saveReaction(roundId, reaction)
+    showMine(shouldHave)
+
+    const { error, superseded, exists } = await roundsService.saveReaction(roundId, reaction, shouldHave)
 
     if (error) {
-      // Undo the optimistic update on this one round. (Reloading the whole
-      // list here used to cut it back to the first 10 rounds and lose the
-      // scroll position.)
+      // Undo the optimistic update on this one round (back to what the
+      // database holds), unless a later tap on the same reaction now owns it.
+      // (Reloading the whole list here used to cut it back to the first 10
+      // rounds and lose the scroll position.)
       console.error('Failed to save reaction:', error)
-      if (before) {
-        setRounds(prevRounds =>
-          prevRounds.map(round =>
-            round.id === roundId
-              ? { ...round, reactions: before.reactions, userReacted: before.userReacted }
-              : round
-          )
-        )
-      }
+      if (!superseded) showMine(exists ?? !shouldHave)
     }
   }
 
@@ -347,6 +346,26 @@ function UserProfile() {
         })
       )
     }
+  }
+
+  // The profile failed to load: say so and offer Retry
+  if (!profileUser && profileError) {
+    return (
+      <div className="max-w-4xl mx-auto p-2 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center" role="alert">
+          <div className="text-6xl mb-4">📡</div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">Couldn't load this profile</h2>
+          <p className="text-gray-500 mb-6">Check your connection and try again.</p>
+          <button
+            type="button"
+            onClick={() => loadUserProfile()}
+            className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // LOADING CHECK - profile skeleton

@@ -318,50 +318,38 @@ export const roundsService = {
     return { data, error }
   },
 
-  // Save a reaction with user association
-  saveReaction: async (roundId, reactionType) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        return { data: null, error: new Error('User not authenticated') }
-      }
-
-      // Check if user already reacted with this type
-      const { data: existing } = await supabase
-        .from('reactions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('round_id', roundId)
-        .eq('reaction_type', reactionType)
-        .maybeSingle()
-      
-      if (existing) {
-        // Remove reaction if it already exists (toggle off)
-        const { error } = await supabase
-          .from('reactions')
-          .delete()
-          .eq('id', existing.id)
-        
-        return { data: null, error, removed: true }
-      }
-      
-      // Add new reaction
-      const { data, error } = await supabase
-        .from('reactions')
-        .insert([{
-          user_id: user.id,
-          round_id: roundId,
-          reaction_type: reactionType,
-          emoji: reactionType // Keep both columns for compatibility
-        }])
-        .select()
-        .single()
-      
-      return { data, error, removed: false }
-    } catch (error) {
-      return { data: null, error }
-    }
+  // Make the signed-in user's reaction of this type exist (shouldExist =
+  // true) or not (false). The card says which, rather than "toggle whatever
+  // the database holds": a card that was out of date (the user reacted on
+  // another page) used to remove a reaction when the user tapped to add it.
+  // Now adding one that is already there, or removing one that is already
+  // gone, simply succeeds.
+  //
+  // Calls for the same round and reaction run one after another, so the last
+  // tap always wins. The reply is { data, error, removed, exists, superseded }:
+  // superseded is true when a later call for the same reaction was made
+  // meanwhile, so the caller should leave the card to that call. exists is
+  // whether the reaction is there now, as far as this tab knows, so a
+  // caller whose save failed can put the card back to that. (After two
+  // quick taps that both failed, the card goes back to how it was before
+  // the first, not to the state the first tap asked for.)
+  //
+  // Leaving shouldExist out keeps the old toggle behaviour. (The database
+  // work is writeReaction, at the end of this file.)
+  saveReaction: (roundId, reactionType, shouldExist) => {
+    const key = `${roundId}:${reactionType}`
+    const previous = reactionWrites.get(key) || Promise.resolve(null)
+    // writeReaction never rejects, so the queue can't get stuck
+    const write = previous.then(async (earlier) => {
+      const result = await writeReaction(roundId, reactionType, shouldExist)
+      return { ...result, exists: reactionExistsAfter(result, earlier, shouldExist) }
+    })
+    reactionWrites.set(key, write)
+    return write.then((result) => {
+      const superseded = reactionWrites.get(key) !== write
+      if (!superseded) reactionWrites.delete(key)
+      return { ...result, superseded }
+    })
   },
 
   // Get user's reactions for specific rounds
@@ -647,9 +635,95 @@ getFeedWithDiscovery: async (limit = 10, offset = 0, mode = 'mixed', discoverRat
     .eq('id', roundId)
     .or('is_deleted.is.null,is_deleted.eq.false')  // ADD THIS LINE
     .single()
-  
+
   return { data, error }
 }
+}
+
+// ---- Reactions (roundsService.saveReaction) ----
+
+// The reaction write still running (or queued) for each "roundId:type"
+const reactionWrites = new Map()
+
+// Whether the reaction exists once a write has finished, as far as this tab
+// knows: what the write made it, or, if the write failed, what the call
+// queued before it left. For the first call in the queue that is what its
+// card showed, the opposite of what it asked for. undefined when unknown (a
+// failed toggle).
+function reactionExistsAfter(result, earlier, shouldExist) {
+  if (!result.error) return !result.removed
+  if (earlier) return earlier.exists
+  return shouldExist === undefined ? undefined : !shouldExist
+}
+
+// Unique-violation: with a unique index on reactions, a second tab or a
+// double tap can lose the race to insert the same reaction. It exists, which
+// is what was asked for.
+const isUniqueViolation = (error) => error?.code === '23505'
+
+async function writeReaction(roundId, reactionType, shouldExist) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { data: null, error: new Error('User not authenticated') }
+    }
+
+    // The user's rows for this reaction (not needed to remove it). A list,
+    // not .maybeSingle(): the table has no unique index, so an old double
+    // tap may have left two.
+    let existing = []
+    if (shouldExist !== false) {
+      const { data, error: lookupError } = await supabase
+        .from('reactions')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('round_id', roundId)
+        .eq('reaction_type', reactionType)
+        .limit(1)
+
+      if (lookupError) return { data: null, error: lookupError }
+      existing = Array.isArray(data) ? data : []
+    }
+    const alreadyThere = existing.length > 0
+
+    // Old callers that don't say what they want: toggle
+    const wanted = shouldExist === undefined ? !alreadyThere : !!shouldExist
+
+    if (!wanted) {
+      // Every copy, in case there are duplicates. Nothing to delete is fine.
+      const { error } = await supabase
+        .from('reactions')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('round_id', roundId)
+        .eq('reaction_type', reactionType)
+
+      return { data: null, error, removed: true }
+    }
+
+    if (alreadyThere) {
+      return { data: existing[0], error: null, removed: false }
+    }
+
+    const { data, error } = await supabase
+      .from('reactions')
+      .insert([{
+        user_id: user.id,
+        round_id: roundId,
+        reaction_type: reactionType,
+        emoji: reactionType // Keep both columns for compatibility
+      }])
+      .select()
+      .single()
+
+    if (isUniqueViolation(error)) {
+      return { data: null, error: null, removed: false }
+    }
+    return { data, error, removed: false }
+  } catch (error) {
+    return { data: null, error }
+  }
 }
 
 export default roundsService

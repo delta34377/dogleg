@@ -235,7 +235,8 @@ export const AuthProvider = ({ children }) => {
         username: metadata.username || null,
         full_name: metadata.full_name || null,
         avatar_url: metadata.avatar_url || null,
-        phone: u?.user?.phone || null,
+        // No phone number here: other users can read profile rows, and the
+        // sign-in record (auth.users) already keeps it for the owner
           wants_newsletter: metadata.wants_newsletter || false,
         created_at: new Date().toISOString()
       }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import ModalShell from './ModalShell'
 import { useAuth } from '../context/AuthContext'
+import { calculateVsPar } from '../utils/roundHelpers'
 
 // Utility function to intelligently display course/club names
 const getDisplayName = (round) => {
@@ -292,26 +293,9 @@ try {
     
     const scoreWidth = ctx.measureText(scoreText).width
     
-    // Vs Par
-    const calcVsPar = () => {
-      if (!round.par && !round.coursePars) return null
-      let par = round.par || 72
-      if (holesArr && holesArr.some(h => h) && round.coursePars) {
-        par = holesArr.reduce((s, score, i) => score ? s + parseInt(round.coursePars[i] || 4) : s, 0)
-      } else if (isNineHole) {
-        // one nine entered without hole detail: par of that nine
-        if (round.coursePars) {
-          const slice = frontPlayed ? round.coursePars.slice(0, 9) : round.coursePars.slice(9, 18)
-          par = slice.reduce((s, p) => s + parseInt(p || 4), 0)
-        } else {
-          par = Math.round(par / 2)
-        }
-      }
-      const diff = round.total - par
-      return diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`
-    }
-    
-    const vsPar = calcVsPar()
+    // Vs Par: the same helper as the round cards, so the image never says
+    // something different (nine-hole courses included)
+    const vsPar = calculateVsPar({ ...round, holes: holesArr || [] })
     if (vsPar) {
       ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif'
       // Over par is orange, matching the app's score semantics

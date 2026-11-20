@@ -123,6 +123,23 @@ describe('PostRoundModal', () => {
     expect(await screen.findByText(/3 more rated rounds until your handicap index/)).toBeInTheDocument()
   })
 
+  // ENTRY-3: the row the database stores for an 18-hole Quick Score (42 + 44)
+  // on a nine-hole course: par 36 (courses.total_par) and the nine's card
+  // padded with nulls. Vs par is against twice the nine, not against 36.
+  it('reads vs par against twice the nine for an 18 on a nine-hole course', async () => {
+    await renderModal(savedRow({
+      front9: 42, back9: 44, total_score: 86, par: 36, holes_played: 18,
+      course_pars: [4, 4, 3, 5, 4, 4, 3, 5, 4, ...Array(9).fill(null)],
+    }))
+    expect(screen.getByRole('heading', { name: 'You shot 86 (+14)' })).toBeInTheDocument()
+    expect(screen.queryByText('(+50)')).not.toBeInTheDocument()
+  })
+
+  it('reads vs par against the course par for an 18 on an 18-hole course', async () => {
+    await renderModal(savedRow())
+    expect(screen.getByRole('heading', { name: 'You shot 85 (+13)' })).toBeInTheDocument()
+  })
+
   it('moves focus into the dialog and names it', async () => {
     await renderModal(savedRow())
     const heading = screen.getByRole('heading', { name: /You shot 85/ })

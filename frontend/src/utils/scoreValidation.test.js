@@ -212,6 +212,28 @@ describe('validateRound: hard limits (C8)', () => {
     expect(check(buildHoleEntry(values)).errors[0]).toMatch(/^Hole 1:/)
   })
 
+  it(`blocks a hole-by-hole nine that adds up to more than ${HARD_LIMITS.nine.max}, like the database does`, () => {
+    // Nine 14s: every hole is within 1-20, but the nine is 126
+    const nine14s = buildHoleEntry(holesOf(9, '14'))
+    expect(nine14s.front9).toBe(126)
+    expect(check(nine14s).errors).toEqual([
+      'Your front 9 adds up to 126, but each nine must be 120 strokes or less. Check your hole scores.',
+    ])
+
+    // On the back nine of an 18-hole round, with the total still under 200
+    const values = [...holesOf(9, '5').slice(0, 9), ...Array(9).fill('14')]
+    const round = buildHoleEntry(values)
+    expect(round.total).toBe(171)
+    expect(check(round).errors).toEqual([
+      'Your back 9 adds up to 126, but each nine must be 120 strokes or less. Check your hole scores.',
+    ])
+
+    // Nine 13s (117) are allowed, with only the "Are you sure?" checks
+    const nine13s = check(buildHoleEntry(holesOf(9, '13')))
+    expect(nine13s.errors).toEqual([])
+    expect(nine13s.warnings.length).toBeGreaterThan(0)
+  })
+
   it('requires at least one hole in hole-by-hole mode', () => {
     expect(check(buildHoleEntry(holesOf(0))).errors).toEqual(['Enter at least one hole score.'])
   })

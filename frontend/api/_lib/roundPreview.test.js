@@ -115,7 +115,17 @@ test('buildRoundPreviewHtml fills in the Open Graph and Twitter tags', () => {
   assert.equal(metaContent(html, 'twitter:card'), 'summary_large_image')
   assert.match(html, /<link rel="canonical" href="https:\/\/dogleg\.io\/rounds\/UM6QVL">/)
   assert.match(html, /<a href="https:\/\/dogleg\.io\/rounds\/UM6QVL">/)
-  assert.doesNotMatch(html, /noindex/)
+})
+
+// DEPLOY-2: round pages are shared by link, not listed in search results
+// under the golfer's name. The preview tags above are still all there.
+test('buildRoundPreviewHtml asks search engines not to index the round', () => {
+  const html = buildRoundPreviewHtml({ payload: samplePayload(), host: 'dogleg.io', code: 'UM6QVL' })
+  assert.equal(metaContent(html, 'robots'), 'noindex')
+  assert.equal((html.match(/<meta name="robots"/g) || []).length, 1)
+  for (const key of ['og:title', 'og:description', 'og:url', 'og:image', 'twitter:card', 'twitter:title', 'twitter:image']) {
+    assert.ok(metaContent(html, key), `still has ${key}`)
+  }
 })
 
 test('buildRoundPreviewHtml falls back to the default image and the id', () => {
@@ -225,6 +235,7 @@ test('handler answers 200 with round tags when the round is public', async (t) =
   assert.equal(res.headers['content-type'], 'text/html; charset=utf-8')
   assert.equal(res.headers['cache-control'], 'public, s-maxage=300')
   assert.equal(metaContent(res.body, 'og:title'), 'alex_fairway shot 79 at Pebble Creek Golf Club')
+  assert.equal(metaContent(res.body, 'robots'), 'noindex')
 })
 
 test('handler never fails: generic tags with 200 when the database is down', async (t) => {
@@ -290,4 +301,31 @@ test('vercel.json bot rule matches preview bots and not people', () => {
   assert.equal(botRule.destination, '/api/og/round?code=:code')
   // The last rule keeps deep links like /profile/x working for people
   assert.deepEqual(spaFallback, { source: '/(.*)', destination: '/index.html' })
+  assert.equal(config.rewrites.length, 2)
+})
+
+// DEPLOY-2: every response for /rounds/... (the app page people get, and the
+// preview page bots get through the rewrite above) carries X-Robots-Tag:
+// noindex. Header rules are matched on the path that was asked for, before
+// any rewrite, and don't change where the request goes.
+test('vercel.json sends X-Robots-Tag: noindex on round pages only', () => {
+  const config = require('../../vercel.json')
+  assert.ok(Array.isArray(config.headers), 'vercel.json has a headers list')
+  const robotsRules = config.headers.filter((rule) =>
+    rule.headers.some((h) => h.key.toLowerCase() === 'x-robots-tag'))
+  assert.equal(robotsRules.length, 1)
+  const [rule] = robotsRules
+  assert.equal(rule.source, '/rounds/(.*)')
+  assert.equal(rule.has, undefined, 'applies to every visitor, not only bots')
+  assert.deepEqual(rule.headers, [{ key: 'X-Robots-Tag', value: 'noindex' }])
+
+  // The source is a path-to-regexp pattern; "(.*)" is a plain regex group, so
+  // this is how it matches the requested path
+  const pattern = new RegExp(`^${rule.source}$`)
+  for (const path of ['/rounds/UM6QVL', '/rounds/0b7c6a52-4a0e-4bb4-9d8a-1f6f2d3c4b5a']) {
+    assert.ok(pattern.test(path), `noindex on ${path}`)
+  }
+  for (const path of ['/', '/feed', '/profile/alex_fairway', '/privacy', '/rounds']) {
+    assert.ok(!pattern.test(path), `no noindex on ${path}`)
+  }
 })

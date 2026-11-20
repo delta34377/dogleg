@@ -22,7 +22,7 @@
 #   KEEP_DB=1            keep the databases afterwards (their names are printed)
 #   VERBOSE=1            print every file's full output, including NOTICEs
 #   IDEMPOTENCY_CHECK=0  skip step 4
-#   MOCK_SCORES_TYPE     type of rounds.scores_by_hole/course_pars (default integer[]; try jsonb)
+#   MOCK_SCORES_TYPE     type of rounds.scores_by_hole/course_pars (default integer[]; try jsonb or json)
 #   MOCK_PLAYED_AT_TYPE  type of rounds.played_at (default timestamptz; try date or timestamp)
 #
 # Only the psql client is needed, so this also runs in GitHub Actions against a

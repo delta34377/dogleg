@@ -77,8 +77,11 @@
 --     index AS OF that round, rebuilt from the rounds before it, so re-scoring
 --     an old round gives the same answer it got when it was posted.
 --   * scores_by_hole / course_pars / courses.handicaps may be stored as
---     int[], text[] or jsonb depending on how the table was created — every
---     reader goes through to_jsonb() + dogleg_nums() so all cases work.
+--     int[], text[], json or jsonb depending on how the table was created —
+--     every reader goes through to_jsonb() + dogleg_nums() so all cases work.
+--     Comparisons of such columns (and of achievements / stats_by_hole) go
+--     through to_jsonb() too: json has no "=" operator, so comparing two json
+--     values directly is an error, not just false.
 -- ============================================================================
 
 BEGIN;
@@ -106,25 +109,23 @@ ALTER TABLE public.rounds
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS handicap_index numeric(4,1);
 
--- Total score sanity limit as a table constraint (the trigger in PART 6 checks
--- the same limit first, with a friendlier message). NOT VALID: rows already in
--- the table are not checked, so an old typo can't make this migration fail.
--- Hidden (is_deleted) rounds are exempt, so a moderator can always hide an
--- old out-of-range round. Any other edit of such an old row fails until its
--- total is fixed; it can still be deleted. repair_nine_hole_totals.sql
--- explains how to find them.
+-- The total score limit (9-200) is enforced by the trigger in PART 6 only,
+-- which checks new rounds and changed totals for every role. There is
+-- deliberately NO table CHECK for it: Postgres checks a CHECK on every
+-- UPDATE of a row, even a NOT VALID one, so the stats engine's own UPDATEs
+-- (re-scoring after a backdated post or a delete, stats_backfill.sql) would
+-- fail for any golfer with an old out-of-range round, and their stats would
+-- silently stop updating. An earlier draft of this file added such a CHECK
+-- (rounds_total_score_range); it is dropped here if it exists.
+-- Old rounds outside the limit are left as they are and are re-scored like
+-- any other round.
+-- repair_nine_hole_totals.sql explains how to find and fix them.
+ALTER TABLE public.rounds DROP CONSTRAINT IF EXISTS rounds_total_score_range;
+
 DO $$
 DECLARE
   bad int;
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint
-                 WHERE conrelid = 'public.rounds'::regclass
-                   AND conname = 'rounds_total_score_range') THEN
-    ALTER TABLE public.rounds
-      ADD CONSTRAINT rounds_total_score_range
-      CHECK (total_score BETWEEN 9 AND 200 OR coalesce(is_deleted, false)) NOT VALID;
-  END IF;
-
   SELECT count(*) INTO bad FROM public.rounds WHERE total_score NOT BETWEEN 9 AND 200;
   IF bad > 0 THEN
     RAISE NOTICE '% existing round(s) have a total outside 9-200. They stay as they are; repair_nine_hole_totals.sql explains how to find and fix them.', bad;
@@ -1311,9 +1312,10 @@ BEGIN
       c.strokes_vs_usual := NULL; c.achievements := NULL;
     END;
 
-    IF (r.holes_played, r.differential, r.dogleg_score, r.strokes_vs_usual, r.achievements)
+    -- achievements as jsonb: a json column would have no "=" to compare with
+    IF (r.holes_played, r.differential, r.dogleg_score, r.strokes_vs_usual, to_jsonb(r.achievements))
        IS DISTINCT FROM
-       (c.holes_played, c.differential, c.dogleg_score, c.strokes_vs_usual, c.achievements) THEN
+       (c.holes_played, c.differential, c.dogleg_score, c.strokes_vs_usual, to_jsonb(c.achievements)) THEN
       UPDATE public.rounds
       SET holes_played = c.holes_played, differential = c.differential,
           dogleg_score = c.dogleg_score, strokes_vs_usual = c.strokes_vs_usual,
@@ -1344,7 +1346,12 @@ $$;
 -- and a message the app can show. A separate trigger, outside the stats
 -- trigger's catch-everything handler, so the error actually reaches the
 -- user. On UPDATE only the values that changed are checked, so an old
--- out-of-range round can still be hidden by a moderator.
+-- out-of-range round can still be hidden, edited and re-scored (this is the
+-- only place the total limit is enforced; see PART 1).
+-- Column values whose type differs between databases (scores_by_hole may be
+-- int[], text[], json or jsonb) are compared as jsonb: json has no "="
+-- operator, and PL/pgSQL plans the whole IF expression even when is_new
+-- already decides it.
 -- Named "check" so it runs before trg_dogleg_round_before_insert (triggers
 -- run in name order) and no stats work is wasted on a rejected round.
 CREATE OR REPLACE FUNCTION public.dogleg_round_validate()
@@ -1380,7 +1387,7 @@ BEGIN
   END IF;
 
   IF NEW.scores_by_hole IS NOT NULL
-     AND (is_new OR NEW.scores_by_hole IS DISTINCT FROM OLD.scores_by_hole) THEN
+     AND (is_new OR to_jsonb(NEW.scores_by_hole) IS DISTINCT FROM to_jsonb(OLD.scores_by_hole)) THEN
     holes := to_jsonb(NEW.scores_by_hole);
     IF jsonb_typeof(holes) <> 'array' THEN
       RAISE EXCEPTION 'Hole-by-hole scores must be a list of numbers.'
@@ -1519,7 +1526,8 @@ BEGIN
     PERFORM pg_advisory_xact_lock(hashtextextended('dogleg_user:' || NEW.user_id::text, 0));
     IF NEW.is_deleted IS DISTINCT FROM OLD.is_deleted
        OR NEW.total_score IS DISTINCT FROM OLD.total_score
-       OR NEW.scores_by_hole IS DISTINCT FROM OLD.scores_by_hole
+       -- as jsonb: the column may be json, which has no "=" (see PART 6 top)
+       OR to_jsonb(NEW.scores_by_hole) IS DISTINCT FROM to_jsonb(OLD.scores_by_hole)
        OR NEW.front9 IS DISTINCT FROM OLD.front9
        OR NEW.back9 IS DISTINCT FROM OLD.back9
        OR NEW.holes_declared IS DISTINCT FROM OLD.holes_declared

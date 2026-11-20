@@ -31,6 +31,7 @@ changes, and you can fix the problem and run it again.
 Run these **before** merging the matching app changes (the new app sends
 `holes_declared` and uses `get_public_round`):
 
+0. the read-only column check below
 1. `stats_layer.sql`
 2. `feed_algorithm.sql`
 3. `security_hardening.sql`
@@ -42,6 +43,35 @@ Then merge the frontend.
 so. Before you start, it is wise to look at **Database → Backups** in the
 dashboard and note the time.
 
+### Step 0: check the column types (read-only, changes nothing)
+
+The base tables were created in the dashboard, so git doesn't know the exact
+type of a few `rounds` columns. The files handle every type below, but it is
+worth one look before running anything. Paste this into a new query:
+
+```sql
+select column_name, data_type, udt_name
+from information_schema.columns
+where table_schema = 'public' and table_name = 'rounds'
+  and column_name in ('scores_by_hole', 'course_pars', 'stats_by_hole',
+                      'achievements', 'played_at')
+order by column_name;
+```
+
+What each row may say (`data_type`, with `udt_name` in parentheses):
+
+| Column | Fine | Stop if it says |
+|---|---|---|
+| `scores_by_hole`, `course_pars` | `ARRAY` (`_int4`, `_int2`, `_int8`, `_numeric` or `_text`), `jsonb`, `json` | `text`, `character varying`, anything else |
+| `stats_by_hole`, `achievements` | `jsonb`, `json`, or no row at all (`stats_layer.sql` adds them) | `text`, `character varying`, anything else |
+| `played_at` | `timestamp with time zone`, `timestamp without time zone`, `date` | `text`, `character varying`, anything else |
+
+If every row is in the "Fine" column, carry on with step 1. If one is not,
+**don't run the files yet**: send the query's output to a developer. A list
+of scores stored as plain text, for example, would make the new score checks
+refuse every hole-by-hole round. Nothing has changed at this point, so there
+is nothing to undo.
+
 ## What `security_hardening.sql` does
 
 1. **Nobody can make themselves an admin any more.** Until now any signed-in
@@ -51,6 +81,13 @@ dashboard and note the time.
    `is_banned`, `handicap_index`, `follower_count` and `following_count` (and
    `banned_at`, `banned_by`, `ban_reason` if those exist). The stats engine and
    the admin functions still can, because they run as the database owner.
+   It also **keeps the stopgap trigger you installed on 2026-11-20**,
+   `trg_dogleg_guard_profile_columns`, as a second lock: if a future
+   `grant all ... to authenticated` (a common tutorial line, or a dashboard
+   click) ever brings back the "write every column" right, a signed-in user
+   still can't change `is_admin`, `is_banned` or `handicap_index`. The file
+   re-creates it with exactly the definition you installed, so that changes
+   nothing; it is there so git matches the live database.
 2. **The server-computed round columns are server-only**: `holes_played`,
    `differential`, `dogleg_score`, `strokes_vs_usual`, `achievements`,
    `short_code`, and `is_deleted` (also `comments.is_deleted`), so nobody can
@@ -74,10 +111,21 @@ dashboard and note the time.
    recomputed. If you had made someone else an admin on purpose, add them back
    afterwards (see [Admin rights](#admin-rights)). Later re-runs leave admins
    alone.
+9. **Phone numbers, every run.** For accounts created by phone, the old app
+   copied the number into `profiles.phone`, and every signed-in user can read
+   every profile row, so anyone could read it. The file empties that copy
+   (`update public.profiles set phone = null where phone is not null`). The
+   numbers stay in **Authentication → Users**, which is what sign-in uses;
+   nothing in the app reads the copy. It runs on every run because the live
+   app can still copy a number in until the new app is deployed: re-running
+   the file afterwards clears any such copy too. The column itself stays, and
+   the app may still write it, because the live app sends a `phone` value
+   (almost always empty) when it creates a profile.
 
 When it finishes, the SQL editor shows a small report table: which columns are
 now server-only, which accounts lost the admin flag, which handicap indexes
-were recomputed, and "self-check passed".
+were recomputed, how many phone numbers were removed from profiles, and
+"self-check passed".
 
 ## How to check it worked
 
@@ -107,6 +155,13 @@ where schemaname = 'public' and policyname like 'dogleg\_guard\_%' order by tabl
 
 -- 6. A share link works for a public round (paste a real short code)
 select public.get_public_round('PASTE_A_CODE') -> 'round' ->> 'id';
+
+-- 7. The second lock is in place: one row, tgenabled = 'O'
+select tgname, tgenabled from pg_trigger
+where tgrelid = 'public.profiles'::regclass and tgname = 'trg_dogleg_guard_profile_columns';
+
+-- 8. Must be 0: no phone numbers left in profiles
+select count(*) from public.profiles where phone is not null;
 ```
 
 Then try the app with a normal (non-admin) account: sign up a new account,
@@ -217,9 +272,16 @@ Only roll back the part that causes a problem, and tell a developer: each
 rollback below re-opens the hole that part closed. Paste into the SQL editor.
 
 ```sql
--- PART 1, profiles (RE-OPENS "make yourself admin"! prefer granting the one
--- column the app needs, see "Something in the app stops working")
+-- PART 1, profiles. Prefer granting the one column the app needs (see
+-- "Something in the app stops working"). While the second lock
+-- (trg_dogleg_guard_profile_columns) exists, this does NOT re-open
+-- is_admin / is_banned / handicap_index: the trigger still refuses them.
+-- It does let the app write follower_count / following_count (and ban
+-- details) again.
 grant insert, update on public.profiles to authenticated;
+-- A FULL rollback of the profiles lockdown would also drop the second lock.
+-- That RE-OPENS "make yourself admin". Only on a developer's advice:
+--   drop trigger trg_dogleg_guard_profile_columns on public.profiles;
 -- PART 1, rounds / comments
 grant insert, update on public.rounds to authenticated;
 grant insert, update on public.comments to authenticated;
@@ -248,7 +310,8 @@ grant execute on function public.dogleg_example(uuid) to authenticated;
 
 PART 8 (the clean-up) can't be undone automatically: the report lists who
 lost the admin flag (re-add them as above), and recomputed handicap indexes
-are the correct values anyway.
+are the correct values anyway. PART 8b (phone numbers) needs no undo: the
+numbers are still in **Authentication → Users**.
 
 `feed_algorithm.sql`: the previous version is in git history
 (`git log -p database/feed_algorithm.sql`); paste the old function to undo the

@@ -23,7 +23,7 @@
 --
 -- Column-type variants: run.sh passes psql variables so the suite can also
 -- run against the other plausible production types:
---   MOCK_SCORES_TYPE    rounds.scores_by_hole / course_pars  (default integer[]; try jsonb)
+--   MOCK_SCORES_TYPE    rounds.scores_by_hole / course_pars  (default integer[]; try jsonb, json)
 --   MOCK_PLAYED_AT_TYPE rounds.played_at                     (default timestamptz; try date, timestamp)
 -- ============================================================================
 
@@ -148,7 +148,8 @@ CREATE TABLE public.rounds (
   front9         integer,
   back9          integer,
   total_score    integer,
-  -- UNCERTAIN: int[] vs jsonb; stats_layer.sql handles both via to_jsonb()
+  -- UNCERTAIN: int[], jsonb or json; stats_layer.sql reads and compares them
+  -- only through to_jsonb() (json has no "=" operator)
   scores_by_hole :mock_scores_type,
   par            integer,
   course_pars    :mock_scores_type,

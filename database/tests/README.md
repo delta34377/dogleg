@@ -56,23 +56,35 @@ that file and marks it FAIL, and the failing `file:line` and message are printed
 | `DATABASE_URL` | Admin connection. Default `postgres://postgres@localhost:54329/postgres`. Must be a superuser. |
 | `KEEP_DB=1` | Keep the databases and print their URLs, so you can inspect them with `psql <url>`. |
 | `VERBOSE=1` | Show all output, including NOTICEs and query results. |
-| `MOCK_SCORES_TYPE=jsonb` | Make `rounds.scores_by_hole` and `course_pars` `jsonb` instead of `integer[]`. |
+| `MOCK_SCORES_TYPE=jsonb` | Make `rounds.scores_by_hole` and `course_pars` `jsonb` (or `json`) instead of `integer[]`. |
 | `MOCK_PLAYED_AT_TYPE=date` | Make `rounds.played_at` a `date` (or `timestamp`) instead of `timestamptz`. |
 
-Production's real types for these columns are unknown. Before shipping SQL
-that reads them, run the suite in each variant:
+Production's real types for these columns are unknown (`database/README.md`
+shows the founder how to look them up). Before shipping SQL that reads them,
+run the suite in each variant:
 
 ```bash
-for s in 'integer[]' jsonb; do for p in timestamptz date timestamp; do
+for s in 'integer[]' jsonb json; do for p in timestamptz date timestamp; do
   MOCK_SCORES_TYPE=$s MOCK_PLAYED_AT_TYPE=$p database/tests/run.sh || echo "FAILED: $s / $p"
 done; done
 ```
 
+`json` is the one that catches most mistakes: unlike `jsonb` it has no `=`
+operator, so `a IS DISTINCT FROM b`, `DISTINCT`, `GROUP BY`, `UNION` or a row
+comparison over a `json` value is an **error** ("operator does not exist:
+json = json"), even when another part of the condition already decides the
+result (`is_new OR a IS DISTINCT FROM b`), because the whole expression is
+planned first. Compare such columns as `to_jsonb(a) IS DISTINCT FROM
+to_jsonb(b)`. `test_stats_70_json_columns.sql` also turns the columns
+`stats_layer.sql` adds itself (`achievements`, `stats_by_hole`) and `tee_data`
+into `json`.
+
 ## Running it in GitHub Actions
 
 Only the `psql` client is needed, and it is preinstalled on `ubuntu-latest`.
-Here is an example job. It is not committed, because `.github/` is outside
-this folder:
+The `database` job in `.github/workflows/ci.yml` runs the suite on every push,
+once with the default types and once per alternate type. A minimal job looks
+like this:
 
 ```yaml
 name: sql-tests
@@ -98,6 +110,11 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
           MOCK_SCORES_TYPE: jsonb
           MOCK_PLAYED_AT_TYPE: date
+      - run: database/tests/run.sh
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+          MOCK_SCORES_TYPE: json
+          MOCK_PLAYED_AT_TYPE: timestamp
 ```
 
 ## Adding a migration
@@ -165,7 +182,8 @@ SELECT tests.assert_eq((SELECT count(*) FROM public.comments WHERE id = :'commen
 trigger, uses the feed, reactions and notifications, and checks that the
 `is_admin` hole stays closed. `test_security_*.sql` cover
 `security_hardening.sql` (column lockdown, own-rows-only and ban policies,
-privacy, `get_public_round`, its preflight and re-runs).
+privacy, the phone-number clean-up, `get_public_round`, its preflight and
+re-runs).
 
 ### Helpers (schema `tests`)
 
@@ -231,8 +249,9 @@ choice, so SQL that passes here should also be safe on a stricter setup.
    import script, `docs/` and what `database/*.sql` reads. Production may have
    other columns, constraints, indexes, triggers or policies. Notable guesses:
    - `rounds`: `played_at timestamptz` (variants available), `scores_by_hole`
-     and `course_pars integer[]` (variant `jsonb`), `tee_data jsonb`, no FK
-     from `course_id`, `holes_played integer DEFAULT 18` already present.
+     and `course_pars integer[]` (variants `jsonb`, `json`), `tee_data jsonb`
+     (`json` in `test_stats_70_json_columns.sql`), no FK from `course_id`,
+     `holes_played integer DEFAULT 18` already present.
    - `courses.pars` and `handicaps` are `text[]` ("pars come as strings").
      Tee ratings are `numeric`.
    - `profiles.username` is UNIQUE (case-sensitive) and `profiles.handicap` is

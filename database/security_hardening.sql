@@ -29,6 +29,9 @@
 --   8. Clean-up of the hole itself (only while it is still open, i.e. on the
 --      first run): every admin flag except the founder's is reset, and
 --      handicap indexes that don't match the golfer's rounds are recomputed.
+--   9. Phone numbers copied into profiles.phone were readable by every
+--      signed-in user [SQL-3] -> the copy is cleared on every run (the
+--      number stays in auth.users).
 --
 -- HOW TO RUN (details, checks and rollback: database/README.md)
 --   Run order: stats_layer.sql -> feed_algorithm.sql -> security_hardening.sql.
@@ -665,6 +668,43 @@ BEGIN
           || CASE WHEN cardinality(failed) = 0 THEN ''
                   ELSE ' -- WARNING, could not recompute: ' || array_to_string(failed, ', ') END);
 END $cleanup$;
+
+
+-- ============================================================================
+-- PART 8b — Phone numbers: clear the copy in profiles (every run)
+--   The app used to copy a phone sign-up's number into profiles.phone, and
+--   every signed-in user can read every profiles row (profile pages need
+--   that), so anyone could read it. The number stays in auth.users, which is
+--   what sign-in uses; profiles.phone was only a copy that nothing reads.
+--   This empties the copy on EVERY run: the live app may still copy a number
+--   in until the new app is deployed, so a later re-run clears that too.
+--   The column stays, and stays writable: the live app sends a phone value
+--   (almost always null) when it creates a profile, and that insert must
+--   keep working.
+--   Runs as the owner, so trg_dogleg_guard_profile_columns does not stop it
+--   (it does not touch the columns that trigger guards anyway).
+-- ============================================================================
+
+DO $phone$
+DECLARE
+  n bigint;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_attribute
+                 WHERE attrelid = 'public.profiles'::regclass
+                   AND attname = 'phone' AND attnum > 0 AND NOT attisdropped) THEN
+    INSERT INTO dogleg_security_report (item, result)
+    VALUES ('phone numbers copied into profiles', 'skipped: profiles has no phone column');
+    RETURN;
+  END IF;
+
+  EXECUTE 'UPDATE public.profiles SET phone = NULL WHERE phone IS NOT NULL';
+  GET DIAGNOSTICS n = ROW_COUNT;
+
+  INSERT INTO dogleg_security_report (item, result)
+  VALUES ('phone numbers copied into profiles',
+          CASE WHEN n = 0 THEN 'none found'
+               ELSE n || ' removed (the numbers are still in auth.users, where sign-in reads them)' END);
+END $phone$;
 
 
 -- ============================================================================

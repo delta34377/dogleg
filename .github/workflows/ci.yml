@@ -117,3 +117,12 @@ jobs:
         env:
           MOCK_SCORES_TYPE: jsonb
           MOCK_PLAYED_AT_TYPE: date
+
+      # json, unlike jsonb, has no "=" operator: SQL that compares these
+      # columns directly fails here (and would break every post in production
+      # if the real column were json).
+      - name: SQL tests (json columns)
+        run: bash database/tests/run.sh
+        env:
+          MOCK_SCORES_TYPE: json
+          MOCK_PLAYED_AT_TYPE: timestamp

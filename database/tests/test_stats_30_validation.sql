@@ -3,16 +3,17 @@
 -- ============================================================================
 -- Hard limits, enforced by the server with SQLSTATE 23514 and a readable
 -- message: total 9-200, each hole 1-20, front/back nine 1-120, played_at at
--- most 1 day in the future. Plus a NOT VALID CHECK on total_score, so old
--- bad rows don't stop the migration.
+-- most 1 day in the future. Enforced by a trigger only (no table CHECK), so
+-- old out-of-range rows neither stop the migration nor block edits and
+-- re-scoring of other values (SQL-1; see test_stats_35_legacy_totals.sql).
 -- ============================================================================
 
 SELECT tests.create_user('val@val.test') AS val \gset
 SELECT tests.create_course('val-course') AS course \gset
 
--- Is scores_by_hole jsonb in this run (MOCK_SCORES_TYPE=jsonb)? Only then
--- can the browser send non-numbers in it at all.
-SELECT format_type(atttypid, atttypmod) = 'jsonb' AS scores_jsonb
+-- Is scores_by_hole json or jsonb in this run (MOCK_SCORES_TYPE=jsonb or
+-- json)? Only then can the browser send non-numbers in it at all.
+SELECT format_type(atttypid, atttypmod) IN ('jsonb', 'json') AS scores_json
 FROM pg_attribute WHERE attrelid = 'public.rounds'::regclass AND attname = 'scores_by_hole' \gset
 
 -- A valid payload; each check below changes one thing
@@ -53,7 +54,7 @@ SELECT tests.expect_error(format('SELECT tests.api_insert(%L, %L::jsonb || %L)',
 SELECT tests.api_insert('public.rounds', :'ok'::jsonb ||
   '{"scores_by_hole": [1,20,4,4,4,4,4,4,4,null,null,null,null,null,null,null,null,null], "total_score": 49, "played_at": "2026-08-05T00:00:00"}');
 
-\if :scores_jsonb
+\if :scores_json
   SELECT tests.expect_error(format('SELECT tests.api_insert(%L, %L::jsonb || %L)', 'public.rounds', :'ok',
     '{"scores_by_hole": [4,"abc",4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4]}'), '23514', 'Hole 2 score%');
   SELECT tests.expect_error(format('SELECT tests.api_insert(%L, %L::jsonb || %L)', 'public.rounds', :'ok',
@@ -96,38 +97,58 @@ SELECT tests.assert_eq(
 
 
 -- ----------------------------------------------------------------------------
--- The CHECK constraint is NOT VALID, so old out-of-range rows don't stop the
--- migration (or a re-run of it). Simulate an old row from before the limits.
+-- No table CHECK on total_score (SQL-1). A CHECK, even NOT VALID, is checked
+-- on every UPDATE of a row, so it broke the stats engine's own UPDATEs of old
+-- out-of-range rows. The trigger above is the only limit: it checks new
+-- rounds and changed totals, for every role. Simulate an old row from before
+-- the limits.
 -- ----------------------------------------------------------------------------
 SELECT tests.assert_false(
-  (SELECT convalidated FROM pg_constraint
-   WHERE conrelid = 'public.rounds'::regclass AND conname = 'rounds_total_score_range'),
-  'rounds_total_score_range exists and is NOT VALID');
+  EXISTS (SELECT 1 FROM pg_constraint
+          WHERE conrelid = 'public.rounds'::regclass AND conname = 'rounds_total_score_range'),
+  'there is no rounds_total_score_range CHECK');
 
-ALTER TABLE public.rounds DROP CONSTRAINT rounds_total_score_range;
 ALTER TABLE public.rounds DISABLE TRIGGER trg_dogleg_check_round;
 INSERT INTO public.rounds (user_id, course_id, played_at, total_score)
 VALUES (:'val', :'course', '2026-06-01', 5) RETURNING id AS old_typo \gset
 ALTER TABLE public.rounds ENABLE TRIGGER trg_dogleg_check_round;
 
+-- An earlier draft of stats_layer.sql added the CHECK (NOT VALID). If it got
+-- installed, re-running the file removes it.
+ALTER TABLE public.rounds ADD CONSTRAINT rounds_total_score_range
+  CHECK (total_score BETWEEN 9 AND 200 OR coalesce(is_deleted, false)) NOT VALID;
+
 \ir ../stats_layer.sql
 
+SELECT tests.assert_false(
+  EXISTS (SELECT 1 FROM pg_constraint
+          WHERE conrelid = 'public.rounds'::regclass AND conname = 'rounds_total_score_range'),
+  're-running stats_layer.sql drops the old draft CHECK');
 SELECT tests.assert_eq((SELECT total_score FROM public.rounds WHERE id = :'old_typo'), 5,
   're-running the migration leaves the old row alone');
-SELECT tests.assert_false(
-  (SELECT convalidated FROM pg_constraint
-   WHERE conrelid = 'public.rounds'::regclass AND conname = 'rounds_total_score_range'),
-  'the constraint is back, still NOT VALID');
--- Known limitation (documented in stats_layer.sql): such a row can't be
--- edited until its total is fixed...
-SELECT tests.expect_error(format($q$UPDATE public.rounds SET caption = 'x' WHERE id = %L$q$, :'old_typo'),
-  '23514', '%rounds_total_score_range%');
--- ...but a moderator can always hide it, and unhiding needs a fixed total
+
+-- The old row can be edited (values other than the total), hidden and
+-- restored, and the server can re-score it
+SELECT tests.assert_eq(
+  tests.exec_count(format($q$UPDATE public.rounds SET caption = 'x' WHERE id = %L$q$, :'old_typo')), 1,
+  'an old out-of-range round can still be edited');
 SELECT tests.assert_eq(
   tests.exec_count(format('UPDATE public.rounds SET is_deleted = true WHERE id = %L', :'old_typo')), 1,
   'an old out-of-range round can still be hidden');
-SELECT tests.expect_error(format('UPDATE public.rounds SET is_deleted = false WHERE id = %L', :'old_typo'),
-  '23514', '%rounds_total_score_range%');
+SELECT tests.assert_eq(
+  tests.exec_count(format('UPDATE public.rounds SET is_deleted = false WHERE id = %L', :'old_typo')), 1,
+  '...and restored');
+SELECT tests.assert_eq(
+  tests.exec_count(format($q$UPDATE public.rounds SET achievements = '[]', holes_played = NULL WHERE id = %L$q$,
+                          :'old_typo')), 1,
+  'the stats engine can update its computed columns');
+SELECT public.dogleg_rebuild_user(:'val', NULL);
+SELECT tests.assert_true(
+  (SELECT achievements @> '[{"type": "first_round"}]' FROM public.rounds WHERE id = :'old_typo'),
+  'dogleg_rebuild_user re-scores it (it is the golfer''s first round)');
+-- A changed total is still checked: another out-of-range value is refused
+SELECT tests.expect_error(format('UPDATE public.rounds SET total_score = 4 WHERE id = %L', :'old_typo'),
+  '23514', '%between 9 and 200%');
 -- fixing the total works, and so does deleting it
 SELECT tests.assert_eq(
   tests.exec_count(format('UPDATE public.rounds SET total_score = 85 WHERE id = %L', :'old_typo')), 1,

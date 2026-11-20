@@ -87,9 +87,10 @@ BEGIN
   SELECT count(*) INTO n_changed
   FROM public.rounds r
   JOIN dogleg_backfill_before b ON b.id = r.id
-  WHERE (r.holes_played, r.differential, r.dogleg_score, r.strokes_vs_usual, r.achievements)
+  -- achievements as jsonb: a json column would have no "=" to compare with
+  WHERE (r.holes_played, r.differential, r.dogleg_score, r.strokes_vs_usual, to_jsonb(r.achievements))
         IS DISTINCT FROM
-        (b.holes_played, b.differential, b.dogleg_score, b.strokes_vs_usual, b.achievements);
+        (b.holes_played, b.differential, b.dogleg_score, b.strokes_vs_usual, to_jsonb(b.achievements));
 
   RAISE NOTICE 'Stats backfill: % round(s) changed, % user(s) re-scored, % user(s) failed; total_putts filled in on % round(s).',
     n_changed, n_users, n_failed, n_putts;

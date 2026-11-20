@@ -45,8 +45,10 @@
 --
 -- ALSO: OLD ROUNDS OUTSIDE THE NEW SCORE LIMITS
 --   stats_layer.sql added a rule that a total must be 9-200. Old rounds that
---   break it were left alone. They can still be hidden by a moderator or
---   deleted, but any other change to them fails until the total is fixed.
+--   break it were left alone, and they don't get in the way: they can be
+--   edited, hidden or deleted, and the stats engine re-scores them like any
+--   other round. Only a change of the total itself is checked: the new total
+--   must be 9-200.
 --   A NOTICE below says how many there are. To see them, run:
 --          SELECT id, user_id, course_name, played_at, total_score
 --          FROM public.rounds WHERE total_score NOT BETWEEN 9 AND 200;

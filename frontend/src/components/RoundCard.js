@@ -18,6 +18,10 @@ import AchievementBadges from './AchievementBadges'
 // holes, coursePars, front9, back9, par, dogleg_score, strokes_vs_usual,
 // achievements, reactions, comments, userReacted, user_id } plus
 // comment/caption and photo/photo_url tolerated in either spelling.
+//
+// readOnly: the public view of a shared round for signed-out visitors. It
+// shows the reaction counts and comments but no buttons to react, comment or
+// delete, and no links into pages that need an account.
 
 export const REACTION_EMOJIS = {
   fire: '🔥',
@@ -112,13 +116,40 @@ function ReactionBar({ reactions, userReacted, onToggle }) {
   )
 }
 
-function CommentsSection({ round, onAddComment }) {
+// Read-only version of the reaction bar: just the counts, nothing to tap
+function ReactionCounts({ reactions }) {
+  const active = Object.entries(reactions || {})
+    .filter(([key, count]) => count > 0 && REACTION_EMOJIS[key])
+    .sort((a, b) => b[1] - a[1])
+
+  if (active.length === 0) return null
+
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" aria-label="Reactions">
+      {active.map(([key, count]) => (
+        <span
+          key={key}
+          title={key}
+          className="inline-flex items-center gap-1 h-9 px-2.5 rounded-full text-sm bg-gray-50"
+        >
+          <span className="text-base leading-none">{REACTION_EMOJIS[key]}</span>
+          <span className="text-xs font-semibold text-gray-700 tabular-nums">{count}</span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function CommentsSection({ round, onAddComment, readOnly = false }) {
   const navigate = useNavigate()
   const [showAllComments, setShowAllComments] = useState(false)
   const [newComment, setNewComment] = useState('')
 
   const comments = round.comments || []
   const visibleComments = showAllComments ? comments : comments.slice(-3)
+
+  // Nothing to show and no comment box: skip the grey panel entirely
+  if (readOnly && comments.length === 0) return null
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -139,12 +170,13 @@ function CommentsSection({ round, onAddComment }) {
         )}
 
         {visibleComments.length > 0 && (
-          <div className="space-y-2 mb-3">
+          <div className={`space-y-2 ${readOnly ? '' : 'mb-3'}`}>
             {visibleComments.map(comment => (
               <div key={comment.id} className="bg-white rounded-lg p-2">
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    {comment.author_username && comment.author_username !== 'Anonymous' ? (
+                    {/* Profiles need an account, so no profile links in readOnly */}
+                    {!readOnly && comment.author_username && comment.author_username !== 'Anonymous' ? (
                       <button
                         onClick={() => navigate(`/profile/${comment.author_username}`)}
                         className="font-semibold text-sm text-blue-600 hover:text-blue-800 hover:underline"
@@ -163,31 +195,40 @@ function CommentsSection({ round, onAddComment }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex gap-2">
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value.slice(0, 280))}
-              placeholder="Add a comment..."
-              maxLength={280}
-              className="w-full px-3 py-2.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-            {newComment.length > 250 && (
-              <span className="absolute right-3 top-2.5 text-xs text-gray-500 tabular-nums">
-                {280 - newComment.length}
-              </span>
+        {/* The public view gets at most 50 comments; say so if there are more */}
+        {readOnly && round.comment_count > comments.length && (
+          <p className="text-xs text-gray-500 mt-2">
+            Showing {comments.length} of {round.comment_count} comments
+          </p>
+        )}
+
+        {!readOnly && (
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value.slice(0, 280))}
+                placeholder="Add a comment..."
+                maxLength={280}
+                className="w-full px-3 py-2.5 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              {newComment.length > 250 && (
+                <span className="absolute right-3 top-2.5 text-xs text-gray-500 tabular-nums">
+                  {280 - newComment.length}
+                </span>
+              )}
+            </div>
+            {newComment.trim() && (
+              <button
+                type="submit"
+                className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 text-sm font-medium"
+              >
+                Post
+              </button>
             )}
-          </div>
-          {newComment.trim() && (
-            <button
-              type="submit"
-              className="px-4 py-2 bg-green-600 text-white rounded-full hover:bg-green-700 text-sm font-medium"
-            >
-              Post
-            </button>
-          )}
-        </form>
+          </form>
+        )}
       </div>
     </div>
   )
@@ -247,8 +288,9 @@ function RoundCard({
   headerAction = null,    // e.g. a FollowButton
   onToggleReaction,
   onAddComment,
-  onShare,
+  onShare = null,         // renders the Share button when provided
   onDelete = null,        // renders the 3-dot menu when provided
+  readOnly = false,       // public view: counts and comments only (see top)
 }) {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -272,6 +314,11 @@ function RoundCard({
   const photo = round.photo || round.photo_url
   const hasHoles = round.holes && round.holes.some(h => h !== '' && h !== null && h !== undefined)
 
+  // Pages behind the login wall aren't linked from the public view
+  const canOpenProfile = !readOnly && !!author?.username
+  const canOpenCourse = !readOnly && !!round.course_id
+  const hasReactions = Object.values(round.reactions || {}).some(count => count > 0)
+
   const metaParts = []
   if (!showAuthor) metaParts.push(formatDate(round.date))
   if (round.tee) metaParts.push(formatTeeDetails(round.tee))
@@ -282,8 +329,10 @@ function RoundCard({
       {showAuthor && (
         <div className="px-3 sm:px-4 pt-3 pb-1 flex items-center justify-between gap-2">
           <button
-            onClick={() => author?.username && navigate(`/profile/${author.username}`)}
-            className="flex items-center gap-2.5 min-w-0 hover:opacity-80 text-left"
+            type="button"
+            onClick={() => canOpenProfile && navigate(`/profile/${author.username}`)}
+            disabled={!canOpenProfile}
+            className={`flex items-center gap-2.5 min-w-0 text-left ${canOpenProfile ? 'hover:opacity-80' : 'cursor-default'}`}
           >
             <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center shrink-0">
               {author?.avatar_url ? (
@@ -317,9 +366,9 @@ function RoundCard({
           <div className="flex-1 min-w-0">
             <h3
               className={`font-bold text-base sm:text-lg text-gray-900 leading-snug ${
-                round.course_id ? 'cursor-pointer hover:text-green-700' : ''
+                canOpenCourse ? 'cursor-pointer hover:text-green-700' : ''
               }`}
-              onClick={() => round.course_id && navigate(`/courses/${round.course_id}`)}
+              onClick={() => canOpenCourse && navigate(`/courses/${round.course_id}`)}
             >
               {displayName}
             </h3>
@@ -333,7 +382,7 @@ function RoundCard({
             )}
           </div>
 
-          {onDelete && (
+          {onDelete && !readOnly && (
             <div className="relative -mr-1.5 -mt-1.5" ref={menuRef}>
               <button
                 onClick={(e) => { e.stopPropagation(); setMenuOpen(open => !open) }}
@@ -407,24 +456,34 @@ function RoundCard({
 
       {/* Social row */}
       <div className="px-2 sm:px-4 pb-2 sm:pb-4">
-        <div className="flex items-start justify-between gap-2 pt-2.5 mt-1.5 border-t border-gray-100">
-          <div className="flex-1 min-w-0">
-            <ReactionBar
-              reactions={round.reactions}
-              userReacted={round.userReacted}
-              onToggle={(key) => onToggleReaction(round.id, key)}
-            />
+        {/* In readOnly mode the row is only drawn when there's something in it */}
+        {(!readOnly || hasReactions || onShare) && (
+          <div className="flex items-start justify-between gap-2 pt-2.5 mt-1.5 border-t border-gray-100">
+            <div className="flex-1 min-w-0">
+              {readOnly ? (
+                <ReactionCounts reactions={round.reactions} />
+              ) : (
+                <ReactionBar
+                  reactions={round.reactions}
+                  userReacted={round.userReacted}
+                  onToggle={(key) => onToggleReaction(round.id, key)}
+                />
+              )}
+            </div>
+            {onShare && (
+              <button
+                type="button"
+                onClick={() => onShare(round)}
+                className="inline-flex items-center gap-1.5 h-9 px-2.5 shrink-0 rounded-full text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+              >
+                <span aria-hidden="true">🔗</span>
+                <span>Share</span>
+              </button>
+            )}
           </div>
-          <button
-            onClick={() => onShare(round)}
-            className="inline-flex items-center gap-1.5 h-9 px-2.5 shrink-0 rounded-full text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-50"
-          >
-            <span aria-hidden="true">🔗</span>
-            <span>Share</span>
-          </button>
-        </div>
+        )}
 
-        <CommentsSection round={round} onAddComment={onAddComment} />
+        <CommentsSection round={round} onAddComment={onAddComment} readOnly={readOnly} />
       </div>
     </article>
   )

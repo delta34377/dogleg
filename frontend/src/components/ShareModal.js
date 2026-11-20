@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import ModalShell from './ModalShell'
+import { useAuth } from '../context/AuthContext'
 
 // Utility function to intelligently display course/club names
 const getDisplayName = (round) => {
@@ -62,7 +63,18 @@ const getDisplayName = (round) => {
   return `${courseName} @ ${clubName}`
 }
 
+// The text that goes with the shared image. "I shot" only for your own
+// round; for anyone else's it names the golfer, so a friend's round shared
+// from the feed doesn't read as if you played it. The link is always in the
+// text itself, because some apps drop the separate `url` when an image is
+// attached.
+export function buildShareText({ round, username, isOwn, shareUrl }) {
+  const who = isOwn ? 'I' : (username || 'A golfer')
+  return `${who} shot ${round.total} at ${getDisplayName(round)}! ${shareUrl}`
+}
+
 function ShareModal({ round, username, onClose }) {
+  const { user } = useAuth()
   const [isGenerating, setIsGenerating] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -70,6 +82,8 @@ function ShareModal({ round, username, onClose }) {
   
   const shareUrl = `https://dogleg.io/rounds/${round.short_code || round.id}`
   const photoUrl = round.photo || round.photo_url
+  // Whose round is this? (signed-out visitors on a shared link: never theirs)
+  const isOwn = !!user && !!round.user_id && round.user_id === user.id
 
   // Helper to shrink text to fit width
   const drawTextToFit = (ctx, text, x, y, maxWidth, initialFontSize) => {
@@ -262,8 +276,10 @@ try {
 
     ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif'
     ctx.globalAlpha = 0.9
+    // Skip empty parts so a round with no city/state doesn't print " , "
+    const place = [round.city, round.state].filter(Boolean).join(', ')
     ctx.fillText(
-      `${formatDate(round.date)} • ${round.city}, ${round.state}${isNineHole ? ' • 9 holes' : ''}`,
+      [formatDate(round.date), place, isNineHole ? '9 holes' : ''].filter(Boolean).join(' • '),
       16, currentY)
     ctx.globalAlpha = 1
     
@@ -523,8 +539,8 @@ try {
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
-            title: 'My Golf Round',
-            text: `I shot ${round.total} at ${getDisplayName(round)}!`,
+            title: isOwn ? 'My Golf Round' : `${username || 'A golfer'}'s Golf Round`,
+            text: buildShareText({ round, username, isOwn, shareUrl }),
           })
           onClose()
           return
@@ -540,8 +556,12 @@ try {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
     } catch (error) {
-      console.error('Share error:', error)
-      alert('Failed to share image. Please try again.')
+      // Closing the phone's share sheet without picking an app rejects with
+      // AbortError. That's the user changing their mind, not a failure.
+      if (error?.name !== 'AbortError') {
+        console.error('Share error:', error)
+        alert('Failed to share image. Please try again.')
+      }
     }
     
     setIsGenerating(false)

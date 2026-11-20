@@ -36,6 +36,8 @@ WHERE user_id = :'alice' ORDER BY played_at DESC LIMIT 1 \gset
 --    fix), and two users have used the hole
 -- ----------------------------------------------------------------------------
 GRANT INSERT, UPDATE ON public.profiles TO anon, authenticated;
+-- ...and the founder's 2026-11-20 stopgap trigger is not there yet
+DROP TRIGGER trg_dogleg_guard_profile_columns ON public.profiles;
 
 SELECT tests.login_as(:'mallory');
 SET ROLE authenticated;
@@ -69,6 +71,9 @@ SELECT tests.assert_false(has_column_privilege('authenticated', 'public.profiles
   'the hole is closed');
 SELECT tests.assert_false(has_column_privilege('anon', 'public.profiles', 'is_admin', 'INSERT'),
   'the hole is closed for anon too');
+SELECT tests.assert_eq((SELECT count(*) FROM pg_trigger WHERE tgrelid = 'public.profiles'::regclass
+                          AND tgname = 'trg_dogleg_guard_profile_columns' AND tgenabled <> 'D'), 1,
+  'the second lock (stopgap trigger) is in place');
 
 SELECT tests.login_as(:'mallory');
 SET ROLE authenticated;

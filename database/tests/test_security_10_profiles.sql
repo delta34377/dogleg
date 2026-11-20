@@ -199,3 +199,47 @@ SELECT tests.assert_eq(
         unnest(ARRAY['INSERT', 'UPDATE']) AS p
    WHERE has_column_privilege(r, 'public.profiles', c, p)),
   0, 'no API role may INSERT or UPDATE a protected profile column');
+
+
+-- ----------------------------------------------------------------------------
+-- 9. The second lock (trg_dogleg_guard_profile_columns, the founder's
+--    2026-11-20 stopgap): even if a later "GRANT ALL ... TO authenticated"
+--    brings back the table-wide write right, a user still can't change
+--    is_admin / is_banned / handicap_index, and a sign-up can't start as admin
+-- ----------------------------------------------------------------------------
+GRANT INSERT, UPDATE ON public.profiles TO authenticated;   -- simulate the regression
+SELECT tests.assert_true(has_column_privilege('authenticated', 'public.profiles', 'is_admin', 'UPDATE'),
+  'the simulated regression re-opened the column grant');
+
+SELECT tests.login_as(:'alice');
+SET ROLE authenticated;
+SELECT tests.expect_error(
+  format($q$SELECT tests.api_update('public.profiles', '{"is_admin": true}', %L)$q$, format('id = %L', :'alice')),
+  '42501', '%only be changed by Dogleg%');
+SELECT tests.expect_error(
+  format($q$SELECT tests.api_update('public.profiles', '{"handicap_index": -5.0}', %L)$q$, format('id = %L', :'alice')),
+  '42501', '%only be changed by Dogleg%');
+-- an edit that re-sends the unchanged values is fine (the old app's behaviour)
+SELECT tests.assert_eq(tests.api_update('public.profiles',
+  jsonb_build_object('bio', 'still fine', 'is_admin', false, 'is_banned', false,
+                     'handicap_index', (SELECT handicap_index FROM public.profiles WHERE id = :'alice')),
+  format('id = %L', :'alice')), 1, 'unchanged protected values pass the second lock');
+RESET ROLE;
+
+INSERT INTO auth.users (email) VALUES ('erin@prof.test') RETURNING id AS erin \gset
+SELECT tests.login_as(:'erin');
+SET ROLE authenticated;
+SELECT tests.api_insert('public.profiles', jsonb_build_object(
+  'id', :'erin', 'username', 'erin', 'is_admin', true, 'is_banned', false, 'handicap_index', -9.9));
+RESET ROLE;
+SELECT tests.logout();
+SELECT tests.assert_eq(
+  (SELECT ARRAY[is_admin::text, is_banned::text, coalesce(handicap_index::text, 'null')]
+   FROM public.profiles WHERE id = :'erin'),
+  ARRAY['false', 'false', 'null'],
+  'a sign-up that sends is_admin/handicap_index gets the defaults instead');
+
+-- the server paths still pass the second lock
+UPDATE public.profiles SET is_admin = true WHERE id = :'erin';   -- SQL editor / owner
+SELECT tests.assert_true((SELECT is_admin FROM public.profiles WHERE id = :'erin'),
+  'the owner (SQL editor) can still grant admin');

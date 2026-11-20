@@ -257,6 +257,45 @@ END $lockdown$;
 
 
 -- ============================================================================
+-- PART 1b — Second lock on is_admin / is_banned / handicap_index
+--   The founder installed this trigger in production on 2026-11-20 as a
+--   same-day stopgap, before this file existed. It stays as a second lock:
+--   if a future "GRANT ALL ... TO authenticated" (a common tutorial line, or a
+--   dashboard click) ever brings back the table-wide write right that PART 1
+--   took away, a signed-in user still cannot make themselves an admin, lift a
+--   ban or set their own index. Server code (SECURITY DEFINER functions, the
+--   SQL editor, the service key) runs as another role and is not affected.
+--   This definition is identical to the stopgap, so re-creating it changes
+--   nothing in production; it is here so git matches the live database.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.dogleg_guard_profile_columns()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  IF current_user IN ('authenticated', 'anon') THEN
+    IF TG_OP = 'INSERT' THEN
+      NEW.is_admin := false; NEW.is_banned := false; NEW.handicap_index := NULL;
+    ELSIF NEW.is_admin IS DISTINCT FROM OLD.is_admin
+       OR NEW.is_banned IS DISTINCT FROM OLD.is_banned
+       OR NEW.handicap_index IS DISTINCT FROM OLD.handicap_index THEN
+      RAISE EXCEPTION 'These profile fields can only be changed by Dogleg' USING ERRCODE = '42501';
+    END IF;
+  END IF;
+  RETURN NEW;
+END; $$;
+
+-- A trigger function is not an API endpoint (PostgREST cannot call it).
+REVOKE ALL ON FUNCTION public.dogleg_guard_profile_columns() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_dogleg_guard_profile_columns ON public.profiles;
+CREATE TRIGGER trg_dogleg_guard_profile_columns BEFORE INSERT OR UPDATE ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.dogleg_guard_profile_columns();
+
+INSERT INTO dogleg_security_report (item, result)
+VALUES ('second lock on profiles', 'trigger trg_dogleg_guard_profile_columns in place');
+
+
+-- ============================================================================
 -- PART 2 — Helper: is this user banned?
 --   Used inside the policies below. SECURITY DEFINER so it can read
 --   profiles.is_banned whatever profiles' own policies say; it only answers
@@ -678,6 +717,12 @@ BEGIN
       END IF;
     END LOOP;
   END LOOP;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_trigger
+                 WHERE tgrelid = 'public.profiles'::regclass
+                   AND tgname = 'trg_dogleg_guard_profile_columns' AND tgenabled <> 'D') THEN
+    problems := problems || 'the second lock on profiles (trg_dogleg_guard_profile_columns) is missing or disabled'::text;
+  END IF;
 
   IF NOT has_function_privilege('anon', 'public.get_public_round(text)', 'EXECUTE') THEN
     problems := problems || 'signed-out visitors cannot call get_public_round'::text;

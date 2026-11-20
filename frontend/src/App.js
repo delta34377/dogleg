@@ -10,7 +10,6 @@ import {
   useNavigate,
   useOutletContext,
 } from 'react-router-dom'
-import './App.css'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AuthScreen from './components/auth/AuthScreen'

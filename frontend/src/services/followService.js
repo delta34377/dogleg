@@ -1,9 +1,7 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL,
-  process.env.REACT_APP_SUPABASE_ANON_KEY
-)
+// Use the app's one shared Supabase client. A second createClient() here used
+// to start a second auth client on the same saved session (supabase-js warns
+// "Multiple GoTrueClient instances detected"), with its own token-refresh timer.
+import { supabase } from './supabase'
 
 
 export const followService = {
@@ -18,6 +16,12 @@ isFollowing: async (targetUserId) => {
     .eq('follower_id', user.id)
     .eq('following_id', targetUserId)
     .maybeSingle()  // Changed from .single() to .maybeSingle()
+
+  if (error) {
+    // Treat a failed check as "not following" rather than breaking the page
+    console.error('Error checking follow status:', error)
+    return false
+  }
 
   return !!data
 },

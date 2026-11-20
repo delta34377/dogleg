@@ -37,7 +37,24 @@
 -- Planned upgrades (approved direction, not yet built): adaptive per-user
 -- discovery backfill (discovery only when following content runs thin) and
 -- stat-aware discovery ranking (heaters/milestones from nearby courses).
+--
+-- CHANGES SINCE THE EXPORT
+--   2026-11 (SOCIAL-4, ADMIN-3): get_feed_chronological_mixed no longer
+--   shows other people's private rounds (is_private) or rounds by banned
+--   users. Your own rounds are unaffected. Same parameters, same result
+--   shape. The rounds RLS policy in security_hardening.sql enforces the same
+--   rule; the filter here keeps the feed right on its own, even if the
+--   function is ever made SECURITY DEFINER (which would skip RLS).
+--   The legacy functions below are unchanged (they run with the caller's
+--   rights, so that RLS policy applies to them).
+--
+-- HOW TO RUN
+--   Run order: stats_layer.sql -> feed_algorithm.sql -> security_hardening.sql.
+--   Paste the whole file into the Supabase SQL editor and Run. One
+--   transaction (all or nothing); safe to re-run.
 -- ============================================================================
+
+BEGIN;
 
 
 -- ============================================================================
@@ -82,6 +99,12 @@ all_rounds_with_source AS (
   WHERE
     -- CRITICAL: Filter out soft deleted rounds
     (r.is_deleted IS NULL OR r.is_deleted = FALSE)
+    -- PRIVACY + BANS: someone else's round only if it isn't private and its
+    -- author isn't banned (your own rounds always pass)
+    AND (r.user_id = (SELECT id FROM me)
+         OR (NOT COALESCE(r.is_private, FALSE)
+             AND NOT EXISTS (SELECT 1 FROM profiles bp
+                             WHERE bp.id = r.user_id AND COALESCE(bp.is_banned, FALSE))))
     AND (
       -- Following rounds
       (p_mode IN ('mixed', 'following') AND r.user_id IN (SELECT following_id FROM my_following))
@@ -611,3 +634,5 @@ BEGIN
   RETURN rounds_json;
 END;
 $function$;
+
+COMMIT;

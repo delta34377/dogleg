@@ -171,74 +171,74 @@ RESET ROLE;
 SELECT tests.logout();
 
 
+
 -- ============================================================================
--- 4. !!! DOCUMENTS CURRENT VULNERABLE BEHAVIOUR (AUTH-1 / PROFILES-1 / STATS-3)
---    security_hardening.sql must flip this section.
+-- 4. The is_admin hole is closed (AUTH-1 / PROFILES-1 / STATS-3 / ADMIN-1)
+--    Until security_hardening.sql, Supabase's table-wide grants let any
+--    signed-in user write these columns on their own row, and is_admin()
+--    reads profiles.is_admin: "make yourself admin". Now the columns are
+--    server-only (column grants), so the attempts below fail with 42501.
+--    test_security_*.sql cover the rest of security_hardening.sql.
 -- ============================================================================
--- Today any signed-in user can write the protected profile columns on their
--- own row, because Supabase grants the whole table and the RLS policy only
--- checks WHICH ROW. Since admin_stats_engine.sql, is_admin() reads
--- profiles.is_admin — so this is "make yourself admin".
---
--- When security_hardening.sql is added to apply_order.txt, these assertions
--- start failing. Flip each one to its safe form, e.g.
---   SELECT tests.expect_error(format($q$SELECT tests.api_update('public.profiles',
---          '{"is_admin": true}', %L)$q$, 'id = ' || quote_literal(:'bob')), '42501');
--- and assert public.is_admin() stays false (or, if the fix is a trigger that
--- silently resets the column, assert the column is unchanged).
--- ----------------------------------------------------------------------------
 
 -- 4a. UPDATE own row: is_admin
 SELECT tests.login_as(:'bob');
 SET ROLE authenticated;
 SELECT tests.assert_false(public.is_admin(), 'Bob starts as a normal user');
 SELECT tests.expect_error('SELECT public.get_stats_engine_admin()', 'P0001', '%Admin access required%');
+SELECT tests.expect_error(
+  format($q$SELECT tests.api_update('public.profiles', '{"is_admin": true}', %L)$q$, format('id = %L', :'bob')),
+  '42501', '%permission denied%');
+SELECT tests.assert_false(public.is_admin(), '...so is_admin() still says Bob is not an admin');
+SELECT tests.expect_error('SELECT public.get_stats_engine_admin()', 'P0001', '%Admin access required%');
+-- ...but his ordinary profile edits still work
 SELECT tests.assert_eq(
-  tests.api_update('public.profiles', '{"is_admin": true}', format('id = %L', :'bob')), 1,
-  'VULNERABLE TODAY: a normal user can set is_admin on their own profile');
-SELECT tests.assert_true(public.is_admin(),
-  'VULNERABLE TODAY: ...and is_admin() then says they are an admin');
-SELECT tests.assert_eq((public.get_stats_engine_admin() ->> 'rounds_total')::int, 3,
-  'VULNERABLE TODAY: ...so the admin RPCs open up (get_stats_engine_admin, admin_stats_engine.sql)');
+  tests.api_update('public.profiles', '{"bio": "Weekend hacker"}', format('id = %L', :'bob')), 1,
+  'a normal profile edit still works');
 
--- 4b. UPDATE own row: handicap_index (should only ever be computed)
-SELECT tests.assert_eq(
-  tests.api_update('public.profiles', '{"handicap_index": -5.0}', format('id = %L', :'bob')), 1,
-  'VULNERABLE TODAY: a user can write their own handicap_index');
+-- 4b. UPDATE own row: handicap_index (only ever computed by the server)
+SELECT tests.expect_error(
+  format($q$SELECT tests.api_update('public.profiles', '{"handicap_index": -5.0}', %L)$q$, format('id = %L', :'bob')),
+  '42501');
 RESET ROLE;
-SELECT tests.assert_eq((SELECT handicap_index FROM public.profiles WHERE id = :'bob'), -5.0,
-                       'VULNERABLE TODAY: ...and the forged index sticks');
+SELECT tests.assert_null((SELECT handicap_index FROM public.profiles WHERE id = :'bob'),
+                         'Bob has no rounds, so no index, and the forged one never landed');
 
--- 4c. UPDATE own row: is_banned (a banned user can unban themselves)
+-- 4c. UPDATE own row: is_banned (a banned user can't unban themselves)
 UPDATE public.profiles SET is_banned = true WHERE id = :'alice';   -- as the owner, like an admin ban
 SELECT tests.login_as(:'alice');
 SET ROLE authenticated;
-SELECT tests.assert_eq(
-  tests.api_update('public.profiles', '{"is_banned": false}', format('id = %L', :'alice')), 1,
-  'VULNERABLE TODAY: a banned user can clear is_banned');
+SELECT tests.expect_error(
+  format($q$SELECT tests.api_update('public.profiles', '{"is_banned": false}', %L)$q$, format('id = %L', :'alice')),
+  '42501');
 RESET ROLE;
-SELECT tests.assert_false((SELECT is_banned FROM public.profiles WHERE id = :'alice'),
-                          'VULNERABLE TODAY: ...and the ban is gone');
+SELECT tests.assert_true((SELECT is_banned FROM public.profiles WHERE id = :'alice'),
+                         'the ban stays');
 
 -- 4d. INSERT own first profile row with is_admin = true (brand-new signup)
 INSERT INTO auth.users (email) VALUES ('mallory@smoke.test') RETURNING id AS mallory \gset
 SELECT tests.login_as(:'mallory');
 SET ROLE authenticated;
-SELECT tests.assert_eq(
+SELECT tests.expect_error(
+  format($q$SELECT tests.api_insert('public.profiles', jsonb_build_object('id', %L, 'username', 'mallory', 'is_admin', true))$q$,
+         :'mallory'),
+  '42501');
+-- the normal signup insert (AuthContext createProfile) still works
+SELECT tests.assert_false(
   (tests.api_insert('public.profiles', jsonb_build_object(
-     'id', :'mallory', 'username', 'mallory', 'is_admin', true)) ->> 'is_admin')::boolean,
-  true,
-  'VULNERABLE TODAY: a new user can create their profile with is_admin = true');
-SELECT tests.assert_true(public.is_admin(), 'VULNERABLE TODAY: ...and is an admin from the start');
+     'id', :'mallory', 'username', 'mallory', 'full_name', NULL, 'avatar_url', NULL,
+     'phone', NULL, 'wants_newsletter', false, 'created_at', now())) ->> 'is_admin')::boolean,
+  'a new user''s profile is created, and not as an admin');
+SELECT tests.assert_false(public.is_admin(), 'Mallory is not an admin');
 RESET ROLE;
 SELECT tests.logout();
 
 -- 4e. The founder's read-only production check (deep-dive report, section
---     1.1) gives the same answer here as in production today: all true.
+--     1.1) now answers false for every protected column.
 SELECT tests.assert_eq(
   (SELECT array_agg(c ORDER BY c)
    FROM unnest(ARRAY['handicap_index', 'is_admin', 'is_banned']) AS c
    WHERE has_column_privilege('authenticated', 'public.profiles', c, 'UPDATE')
-     AND has_column_privilege('authenticated', 'public.profiles', c, 'INSERT')),
-  ARRAY['handicap_index', 'is_admin', 'is_banned'],
-  'VULNERABLE TODAY: authenticated may INSERT and UPDATE the protected profile columns');
+      OR has_column_privilege('authenticated', 'public.profiles', c, 'INSERT')),
+  NULL::text[],
+  'authenticated may no longer INSERT or UPDATE the protected profile columns');

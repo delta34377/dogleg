@@ -162,8 +162,10 @@ SELECT tests.assert_eq((SELECT count(*) FROM public.comments WHERE id = :'commen
 ```
 
 `test_00_smoke.sql` is a longer example. It posts rounds through the stats
-trigger, uses the feed, reactions and notifications, and documents the
-current `is_admin` hole.
+trigger, uses the feed, reactions and notifications, and checks that the
+`is_admin` hole stays closed. `test_security_*.sql` cover
+`security_hardening.sql` (column lockdown, own-rows-only and ban policies,
+privacy, `get_public_round`, its preflight and re-runs).
 
 ### Helpers (schema `tests`)
 
@@ -212,8 +214,12 @@ Useful SQLSTATEs:
   failed") does not fail a file, but `run.sh` counts warnings next to PASS.
   Run with `VERBOSE=1` to read them.
 - **Documenting a known hole:** label the assertion `VULNERABLE TODAY: ...`,
-  as in section 4 of `test_00_smoke.sql`, so the fix's author knows to flip it
-  to an `expect_error`.
+  so the fix's author knows to flip it to an `expect_error` (section 4 of
+  `test_00_smoke.sql` was written that way until `security_hardening.sql`
+  closed the `is_admin` hole).
+- **Testing that a migration refuses to run:** wrap the `\ir` in
+  `\set ON_ERROR_STOP 0` / `\set ON_ERROR_STOP 1` and then assert that
+  nothing changed (see section 5 of `test_security_50_rerun.sql`).
 
 ## Known differences from production
 

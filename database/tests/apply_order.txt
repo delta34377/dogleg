@@ -20,3 +20,7 @@ database/admin_stats_engine.sql
 # Read-only diagnostic SELECTs (catalog queries). It changes nothing, but it
 # does contain executable statements, so applying it proves they still run.
 database/admin_security_audit.sql
+
+# Column lockdown, own-rows-only/ban/privacy policies, get_public_round.
+# Last: it needs stats_layer.sql and must see every function created before it.
+database/security_hardening.sql

@@ -436,7 +436,8 @@ CREATE POLICY "Courses are viewable by everyone" ON public.courses FOR SELECT US
 CREATE POLICY "Tees are viewable by everyone"    ON public.tees    FOR SELECT USING (true);
 
 -- Profiles: the classic Supabase starter. Note the UPDATE policy pins the ROW
--- (your own) but not the COLUMNS — that is today's is_admin hole.
+-- (your own) but not the COLUMNS — that is production's is_admin hole, which
+-- security_hardening.sql closes with column grants (applied last).
 CREATE POLICY "Public profiles are viewable by everyone." ON public.profiles
   FOR SELECT USING (true);
 CREATE POLICY "Users can insert their own profile." ON public.profiles

@@ -12,7 +12,7 @@ import {
 import { Users, Activity, Heart, Target } from 'lucide-react';
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   
   // State for all metrics
@@ -34,10 +34,10 @@ const [selectedTab, setSelectedTab] = useState('overview');
 
   // Defense-in-depth admin check (route is already gated by <AdminGate>).
   useEffect(() => {
-    if (!isAdmin(user)) {
+    if (!isAdmin(profile)) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [profile, navigate]);
 
   // Load all data on mount and period change
   useEffect(() => {

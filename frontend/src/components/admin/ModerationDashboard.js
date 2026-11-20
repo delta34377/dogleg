@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../services/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { ADMIN_EMAIL } from '../../utils/admin';
+import { isAdmin } from '../../utils/admin';
 import { useNavigate } from 'react-router-dom';
 import { 
   Trash2, Search, Users, MessageSquare, Flag, AlertTriangle, 
@@ -11,9 +11,25 @@ import {
   MoreVertical
 } from 'lucide-react';
 
+// toggle_user_ban_admin flips a user's ban. When the users list tells us the
+// current state (is_banned), name the action precisely; otherwise say it toggles.
+const banActionLabel = (user) => {
+  if (user?.is_banned === true) return 'Unban User';
+  if (user?.is_banned === false) return 'Ban User';
+  return 'Ban / Unban User';
+};
+
+const banActionQuestion = (user) => {
+  const name = `@${user?.username || 'this user'}`;
+  if (user?.is_banned === true) return `Unban ${name}? They will be able to post again.`;
+  if (user?.is_banned === false) return `Ban ${name}? They will no longer be able to post, comment or react.`;
+  return `Toggle the ban for ${name}? A banned user is unbanned; anyone else is banned.`;
+};
+
 const ModerationDashboard = () => {
-    // Admin guard
-  const { user } = useAuth();
+    // Admin guard (the route is already wrapped in <AdminGate>; the server's
+    // is_admin() check on every *_admin RPC is the real protection)
+  const { profile } = useAuth();
   const navigate = useNavigate();
 const [activeTab, setActiveTab] = useState(() => {
   return localStorage.getItem('moderationActiveTab') || 'users';
@@ -43,10 +59,10 @@ const [activeTab, setActiveTab] = useState(() => {
 
   // Check admin access
   useEffect(() => {
-    if (!user || user.email !== ADMIN_EMAIL) {
+    if (!isAdmin(profile)) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [profile, navigate]);
 
   // Save active tab to localStorage
 useEffect(() => {
@@ -402,7 +418,7 @@ useEffect(() => {
   };
 
   // Early return if not admin
-  if (!user || user.email !== ADMIN_EMAIL) return null;
+  if (!isAdmin(profile)) return null;
 
   return (
     <div className="space-y-6">
@@ -641,6 +657,11 @@ useEffect(() => {
                             <div>
                               <div className="text-sm font-medium text-gray-900">
                                 @{user.username || 'no-username'}
+                                {user.is_banned === true && (
+                                  <span className="ml-2 px-1.5 py-0.5 text-xs font-medium rounded bg-red-100 text-red-700">
+                                    Banned
+                                  </span>
+                                )}
                               </div>
                               {user.full_name && (
                                 <div className="text-sm text-gray-500">
@@ -686,14 +707,15 @@ useEffect(() => {
                                     <Trash2 className="w-4 h-4" />
                                     Delete All Content
                                   </button>
-                                  {/* Ban feature ready but commented out until backend support */}
-                                  {/* <button
+                                  {/* Bans are enforced server-side; toggle_user_ban_admin
+                                      flips the ban on or off */}
+                                  <button
                                     onClick={() => handleUserAction(user, 'ban')}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                    className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-gray-100 flex items-center gap-2"
                                   >
                                     <Ban className="w-4 h-4" />
-                                    Ban User
-                                  </button> */}
+                                    {banActionLabel(user)}
+                                  </button>
                                 </div>
                               </div>
                             )}
@@ -989,12 +1011,12 @@ useEffect(() => {
                 )}
               </div>
               <h3 className="text-lg leading-6 font-medium text-gray-900 mt-4">
-                {showUserActionModal === 'ban' ? 'Ban User' : 'Delete User Content'}
+                {showUserActionModal === 'ban' ? banActionLabel(selectedUser) : 'Delete User Content'}
               </h3>
               <div className="mt-2 px-7 py-3">
                 <p className="text-sm text-gray-500">
                   {showUserActionModal === 'ban' 
-                    ? `Are you sure you want to ban @${selectedUser?.username}?`
+                    ? banActionQuestion(selectedUser)
                     : `This will delete all rounds, comments, and reactions from @${selectedUser?.username}.`
                   }
                 </p>
@@ -1004,7 +1026,7 @@ useEffect(() => {
                   onClick={confirmUserAction}
                   className="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
                 >
-                  {showUserActionModal === 'ban' ? 'Ban User' : 'Delete All Content'}
+                  {showUserActionModal === 'ban' ? banActionLabel(selectedUser) : 'Delete All Content'}
                 </button>
                 <button
                   onClick={() => {

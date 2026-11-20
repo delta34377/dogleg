@@ -287,7 +287,7 @@ function StatsPage() {
             handicap index — start building from day one.
           </p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/add')}
             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
             Add Your First Round

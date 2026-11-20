@@ -1,21 +1,37 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import AvatarUpload from '../components/AvatarUpload'  
+import AvatarUpload from '../components/AvatarUpload'
 import { supabase } from '../services/supabase'
 import { followService } from '../services/followService'
+import { formatHandicap, parseHandicapInput } from '../utils/handicap'
+
+// Longest allowed text for each editable field (keeps the profile header
+// layout intact and the database tidy)
+const MAX_LENGTHS = {
+  full_name: 50,
+  location: 60,
+  bio: 280,
+}
+
+// What the edit form shows for a stored profile. `??` (not `||`) so a
+// scratch handicap of 0 still shows as "0" instead of an empty box.
+const formFromProfile = (profile) => ({
+  full_name: profile?.full_name ?? '',
+  bio: profile?.bio ?? '',
+  handicap: formatHandicap(profile?.handicap),
+  location: profile?.location ?? '',
+})
 
 function Profile() {
-  const { user, profile, updateProfile, signOut } = useAuth()
+  const { user, profile, profileLoading, loadProfile, updateProfile, signOut } = useAuth()
+  const navigate = useNavigate()
   const [roundsCount, setRoundsCount] = useState(0)
   const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-  const [formData, setFormData] = useState({
-    full_name: '',
-    bio: '',
-    handicap: '',
-    location: ''
-  })
+  // { type: 'success' | 'error', text }
+  const [message, setMessage] = useState(null)
+  const [formData, setFormData] = useState(() => formFromProfile(profile))
 
   const [followCounts, setFollowCounts] = useState({
   followers: 0,
@@ -24,12 +40,7 @@ function Profile() {
 
   useEffect(() => {
     if (profile) {
-      setFormData({
-        full_name: profile.full_name || '',
-        bio: profile.bio || '',
-        handicap: profile.handicap || '',
-        location: profile.location || ''
-      })
+      setFormData(formFromProfile(profile))
     }
   }, [profile])
 
@@ -37,14 +48,14 @@ function Profile() {
   useEffect(() => {
     const getFollowCounts = async () => {
       if (!user) return
-      
+
       const counts = await followService.getFollowCounts(user.id)
       setFollowCounts({
         followers: counts.followers,
         following: counts.following
       })
     }
-    
+
     getFollowCounts()
   }, [user])
 
@@ -52,15 +63,15 @@ function Profile() {
   useEffect(() => {
     const getRoundsCount = async () => {
       if (!user) return
-      
+
       const { count } = await supabase
         .from('rounds')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
-      
+
       setRoundsCount(count || 0)
     }
-    
+
     getRoundsCount()
   }, [user])
 
@@ -75,31 +86,97 @@ function Profile() {
     )
   }
 
-  const handleSave = async () => {
-    setLoading(true)
-    setMessage('')
+  // The profile row may still be loading, or may have failed to load (e.g.
+  // bad signal on the course). Never render the page without it.
+  if (!profile) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center">
+          {profileLoading ? (
+            <p className="text-gray-600">Loading your profile...</p>
+          ) : (
+            <>
+              <p className="text-gray-700 mb-4">We couldn't load your profile. Check your connection.</p>
+              <button
+                onClick={() => loadProfile(user.id)}
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+              >
+                Try again
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
 
-    const { error } = await updateProfile({
-      full_name: formData.full_name.trim(),
-      bio: formData.bio.trim(),
-      handicap: formData.handicap ? parseInt(formData.handicap) : null,
-      location: formData.location.trim()
-    })
+  const showMessage = (type, text, autoHide = false) => {
+    setMessage({ type, text })
+    if (autoHide) setTimeout(() => setMessage(null), 3000)
+  }
+
+  const handleSave = async () => {
+    setMessage(null)
+
+    // Check everything before sending anything
+    const { value: handicap, error: handicapError } = parseHandicapInput(formData.handicap)
+    if (handicapError) {
+      showMessage('error', handicapError)
+      return
+    }
+    const fullName = formData.full_name.trim()
+    const location = formData.location.trim()
+    const bio = formData.bio.trim()
+    if (fullName.length > MAX_LENGTHS.full_name) {
+      showMessage('error', `Full name can be at most ${MAX_LENGTHS.full_name} characters.`)
+      return
+    }
+    if (location.length > MAX_LENGTHS.location) {
+      showMessage('error', `Location can be at most ${MAX_LENGTHS.location} characters.`)
+      return
+    }
+    if (bio.length > MAX_LENGTHS.bio) {
+      showMessage('error', `Bio can be at most ${MAX_LENGTHS.bio} characters.`)
+      return
+    }
+
+    setLoading(true)
+    const updates = { full_name: fullName, bio, handicap, location }
+    let { error } = await updateProfile(updates)
+    let successText = 'Profile updated successfully!'
+
+    // If the database stores the handicap as a whole number, Postgres rejects
+    // a decimal like 12.4 with error 22P02. Save it rounded instead of failing.
+    if (error?.code === '22P02' && handicap !== null && !Number.isInteger(handicap)) {
+      const rounded = Math.round(handicap)
+      ;({ error } = await updateProfile({ ...updates, handicap: rounded === 0 ? 0 : rounded }))
+      successText = `Profile updated. Your handicap was saved as ${formatHandicap(rounded)} (whole numbers only for now).`
+    }
 
     if (error) {
-      setMessage(error.message)
+      // 23514 = a database CHECK rule (allowed range / length) said no
+      showMessage('error', error.code === '23514'
+        ? 'Some details are outside the allowed range. Handicaps go from +10 to 54; keep the text fields short.'
+        : (error.message || 'Could not save your profile. Please try again.'))
     } else {
-      setMessage('Profile updated successfully!')
+      showMessage('success', successText, true)
       setEditing(false)
-      setTimeout(() => setMessage(''), 3000)
     }
     setLoading(false)
   }
 
   // Handle successful avatar upload
   const handleAvatarUpload = (newAvatarUrl) => {
-    setMessage('Profile picture updated successfully!')
-    setTimeout(() => setMessage(''), 3000)
+    showMessage('success', 'Profile picture updated successfully!', true)
+  }
+
+  const handleSignOut = async () => {
+    const { error } = await signOut()
+    if (error) {
+      showMessage('error', "Couldn't sign out. Check your connection and try again.")
+      return
+    }
+    navigate('/', { replace: true })
   }
 
   const stats = [
@@ -107,6 +184,9 @@ function Profile() {
     { label: 'Followers', value: followCounts.followers },
     { label: 'Following', value: followCounts.following }
   ]
+
+  const manualHandicap = formatHandicap(profile.handicap)
+  const handicapIndex = formatHandicap(profile.handicap_index)
 
   return (
     <div className="max-w-4xl mx-auto p-2 sm:p-4">
@@ -121,20 +201,20 @@ function Profile() {
               onUploadComplete={handleAvatarUpload}
               className=""
             />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {profile?.full_name || profile?.username || 'Golfer'}
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold text-gray-900 break-words">
+                {profile.full_name || profile.username || 'Golfer'}
               </h1>
-              {profile?.username && (
+              {profile.username && (
                 <p className="text-gray-600">@{profile.username}</p>
               )}
-              {profile?.location && (
-                <p className="text-gray-500 flex items-center gap-1 mt-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {profile.location && (
+                <p className="text-gray-500 flex items-center gap-1 mt-1 min-w-0">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
-                  {profile.location}
+                  <span className="truncate">{profile.location}</span>
                 </p>
               )}
             </div>
@@ -155,11 +235,11 @@ function Profile() {
         <div className="p-6">
           {message && (
             <div className={`mb-4 p-3 rounded-lg text-sm ${
-              message.includes('success') 
-                ? 'bg-green-50 text-green-700 border border-green-200' 
+              message.type === 'success'
+                ? 'bg-green-50 text-green-700 border border-green-200'
                 : 'bg-red-50 text-red-700 border border-red-200'
-            }`}>
-              {message}
+            }`} role={message.type === 'error' ? 'alert' : 'status'}>
+              {message.text}
             </div>
           )}
 
@@ -168,57 +248,63 @@ function Profile() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">Email</p>
-                  <p className="font-medium">{user?.email}</p>
+                  <p className="font-medium break-all">{user.email}</p>
                 </div>
 
-                {user?.phone && (
+                {user.phone && (
                   <div>
                     <p className="text-sm text-gray-600">Phone</p>
                     <p className="font-medium">{user.phone}</p>
                   </div>
                 )}
 
-                {profile?.username && (
+                {profile.username && (
                   <div>
                     <p className="text-sm text-gray-600">Username</p>
                     <p className="font-medium">@{profile.username}</p>
                   </div>
                 )}
 
+                {/* The auto-calculated index is what the app uses once it exists */}
+                {handicapIndex && (
+                  <div>
+                    <p className="text-sm text-gray-600">Handicap index (auto)</p>
+                    <p className="font-medium tabular-nums">{handicapIndex}</p>
+                  </div>
+                )}
+
                 <div>
-                  <p className="text-sm text-gray-600">Handicap</p>
-                  <p className="font-medium">
-                    {profile?.handicap !== null ? profile.handicap : 'Not set'}
-                  </p>
+                  <p className="text-sm text-gray-600">Your handicap</p>
+                  <p className="font-medium tabular-nums">{manualHandicap || 'Not set'}</p>
                 </div>
 
                 <div>
                   <p className="text-sm text-gray-600">Member Since</p>
                   <p className="font-medium">
-                    {profile?.created_at 
+                    {profile.created_at
                       ? new Date(profile.created_at).toLocaleDateString()
                       : 'Recently joined'}
                   </p>
                 </div>
               </div>
 
-              {profile?.bio && (
+              {profile.bio && (
                 <div>
                   <p className="text-sm text-gray-600 mb-1">About</p>
-                  <p className="text-gray-800">{profile.bio}</p>
+                  <p className="text-gray-800 break-words">{profile.bio}</p>
                 </div>
               )}
 
               <div className="flex gap-3 pt-4">
                 <button
-                  onClick={() => setEditing(true)}
+                  onClick={() => { setMessage(null); setEditing(true) }}
                   className="flex-1 sm:flex-initial px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
                 >
                   Edit Profile
                 </button>
-                
+
                 <button
-                  onClick={signOut}
+                  onClick={handleSignOut}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
                 >
                   Sign Out
@@ -238,24 +324,31 @@ function Profile() {
                     onChange={(e) => setFormData({...formData, full_name: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="John Doe"
+                    maxLength={MAX_LENGTHS.full_name}
+                    autoComplete="name"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Handicap
+                    Your handicap
                   </label>
+                  {/* A text box (not type="number") so a plus handicap like
+                      "+2.4" can be typed; phones still show a number pad */}
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={formData.handicap}
                     onChange={(e) => setFormData({...formData, handicap: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    placeholder="15"
-                    min="0"
-                    max="54"
+                    placeholder="e.g. 15 or 12.4"
+                    maxLength={5}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Used until your handicap index is calculated. Plus handicap? Type it with a + (e.g. +2.4).
+                  </p>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Location
@@ -266,27 +359,28 @@ function Profile() {
                     onChange={(e) => setFormData({...formData, location: e.target.value})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     placeholder="New York, NY"
+                    maxLength={MAX_LENGTHS.location}
                   />
                 </div>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Bio
                 </label>
                 <textarea
                   value={formData.bio}
-                  onChange={(e) => setFormData({...formData, bio: e.target.value.slice(0, 280)})}
+                  onChange={(e) => setFormData({...formData, bio: e.target.value.slice(0, MAX_LENGTHS.bio)})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
                   rows="3"
                   placeholder="Tell us about your golf journey..."
-                  maxLength={280}
+                  maxLength={MAX_LENGTHS.bio}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  {formData.bio.length}/280 characters
+                  {formData.bio.length}/{MAX_LENGTHS.bio} characters
                 </p>
               </div>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={handleSave}
@@ -295,17 +389,12 @@ function Profile() {
                 >
                   {loading ? 'Saving...' : 'Save Changes'}
                 </button>
-                
+
                 <button
                   onClick={() => {
                     setEditing(false)
-                    setMessage('')
-                    setFormData({
-                      full_name: profile?.full_name || '',
-                      bio: profile?.bio || '',
-                      handicap: profile?.handicap || '',
-                      location: profile?.location || ''
-                    })
+                    setMessage(null)
+                    setFormData(formFromProfile(profile))
                   }}
                   disabled={loading}
                   className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"

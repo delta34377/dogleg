@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { getFeedSettings, saveFeedSettings } from '../services/feedSettingsService'
-import { ADMIN_EMAIL } from '../utils/admin'
+import { isAdmin } from '../utils/admin'
 
 function AdminPanel() {
-  const { user } = useAuth()
+  const { profile } = useAuth()
   const navigate = useNavigate()
 
   // Default settings - used if no global settings exist
@@ -49,12 +49,12 @@ function AdminPanel() {
 
   // Check if user is admin
   useEffect(() => {
-    if (!user || user.email !== ADMIN_EMAIL) {
+    if (!isAdmin(profile)) {
       navigate('/')
     }
-  }, [user, navigate])
+  }, [profile, navigate])
   
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!isAdmin(profile)) {
     return null
   }
   

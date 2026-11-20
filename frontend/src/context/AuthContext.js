@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../services/supabase'
+import { setMonitoringUser } from '../utils/monitoring'
+import { getSafeRedirectPath, clearRedirectAfterLogin } from '../utils/safeRedirect'
 
 const AuthContext = createContext({})
 export const useAuth = () => useContext(AuthContext)
@@ -7,6 +9,9 @@ export const useAuth = () => useContext(AuthContext)
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
+  // True while the signed-in user's profile row is being fetched, so pages
+  // can tell "still loading" apart from "failed to load" (profile stays null)
+  const [profileLoading, setProfileLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [rechecking, setRechecking] = useState(false)
 
@@ -47,6 +52,7 @@ export const AuthProvider = ({ children }) => {
         lastUserIdRef.current = nextUserId
         if (!nextUserId) {
           setProfile(null)
+          setProfileLoading(false)
         } else {
           loadProfileLatest(nextUserId)
         }
@@ -85,6 +91,7 @@ export const AuthProvider = ({ children }) => {
           lastUserIdRef.current = nextUserId
           if (!nextUserId) {
             setProfile(null)
+            setProfileLoading(false)
           } else {
             loadProfileLatest(nextUserId)
           }
@@ -178,9 +185,16 @@ export const AuthProvider = ({ children }) => {
     }
   }, [])
 
+  // Error reports (Sentry, when configured) carry only the user's id — never
+  // their email or name. Cleared again on sign-out.
+  useEffect(() => {
+    setMonitoringUser(user?.id ?? null)
+  }, [user?.id])
+
   // ---- Profile helpers (latest-only) ----
   const loadProfileLatest = async (userId) => {
     const seq = ++profileSeqRef.current
+    setProfileLoading(true)
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -203,6 +217,11 @@ export const AuthProvider = ({ children }) => {
       if (!mountedRef.current || profileSeqRef.current !== seq) return
       console.error('loadProfile error:', e)
       setProfile(null)
+    } finally {
+      // Only the newest request may end the loading state
+      if (mountedRef.current && profileSeqRef.current === seq) {
+        setProfileLoading(false)
+      }
     }
   }
 
@@ -259,12 +278,20 @@ export const AuthProvider = ({ children }) => {
   }
 
   // ---- Auth actions ----
-  const signUp = async (email, password, metadata = {}) => {
+  // redirectPath: the page to open when the user clicks the confirmation
+  // link (e.g. the shared round they came from). Supabase only honours it if
+  // the URL is allowed under Auth -> URL Configuration -> Redirect URLs;
+  // otherwise it falls back to the Site URL (the home page).
+  const signUp = async (email, password, metadata = {}, redirectPath = '/') => {
+    const safePath = getSafeRedirectPath(redirectPath)
+    const emailRedirectTo = safePath === '/'
+      ? window.location.origin // unchanged for the home page
+      : `${window.location.origin}${safePath}`
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: metadata, emailRedirectTo: window.location.origin }
+        options: { data: metadata, emailRedirectTo }
       })
       return { data, error }
     } catch (error) {
@@ -319,6 +346,9 @@ export const AuthProvider = ({ children }) => {
         setUser(null)
         userRef.current = null  // Keep ref in sync
         setProfile(null)
+        setProfileLoading(false)
+        // Don't let a page saved for an earlier sign-in hijack the next one
+        clearRedirectAfterLogin()
       }
       return { error }
     } catch (error) {
@@ -350,6 +380,7 @@ export const AuthProvider = ({ children }) => {
   const value = useMemo(() => ({
     user,
     profile,
+    profileLoading,
     loading,
     rechecking,
     signUp,
@@ -362,7 +393,7 @@ export const AuthProvider = ({ children }) => {
     updatePassword,
     updateProfile,
     loadProfile,
-  }), [user, profile, loading, rechecking])  // ← FIX: Added rechecking
+  }), [user, profile, profileLoading, loading, rechecking])  // ← FIX: Added rechecking
 
   return (
     <AuthContext.Provider value={value}>

@@ -176,7 +176,7 @@ describe('the Feed after visiting other pages (SHELL-1)', () => {
     render(<App />)
     fireEvent.click(await screen.findByRole('button', { name: 'Find Golfers to Follow' }))
 
-    expect(await screen.findByRole('heading', { name: 'Suggested Users' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Suggested golfers' })).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: 'Follow' }))
     expect(await screen.findByRole('button', { name: 'Following' })).toBeInTheDocument()
     expect(mockDb.follows).toEqual([expect.objectContaining({ follower_id: 'me', following_id: 'friend' })])
@@ -197,7 +197,7 @@ describe('the Feed after visiting other pages (SHELL-1)', () => {
     expect(await findCard('Friendly Links')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('link', { name: 'Search users' }))
-    expect(await screen.findByRole('heading', { name: 'Suggested Users' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Suggested golfers' })).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: 'Follow' }))
     expect(await screen.findByRole('button', { name: 'Following' })).toBeInTheDocument()
 
@@ -300,7 +300,7 @@ describe('Feed pop-ups on leaving the Feed (SHELL-3)', () => {
 
     // Visit the search page and come back, so there is a page to go Back to
     fireEvent.click(screen.getByRole('link', { name: 'Search users' }))
-    expect(await screen.findByRole('heading', { name: 'Suggested Users' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Suggested golfers' })).toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('link', { name: /Feed/ })[0])
     await waitFor(() => expect(window.location.pathname).toBe('/'))
 
@@ -361,7 +361,7 @@ describe('profile load errors (SHELL-5)', () => {
 
     act(() => window.history.back())
     await waitFor(() => expect(window.location.pathname).toBe('/search-users'))
-    expect(await screen.findByText('Suggested Users')).toBeInTheDocument()
+    expect(await screen.findByText('Suggested golfers')).toBeInTheDocument()
   })
 
   test('a profile that fails to load says so (not "Page not found") and can be retried', async () => {

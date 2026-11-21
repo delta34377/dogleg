@@ -31,14 +31,20 @@ function AuthScreen({ onSuccess }) {
   // path on this same site is accepted (see utils/safeRedirect.js).
   const requestedFrom = getSafeRedirectPath(location.state?.from)
   const cameForRound = requestedFrom.startsWith('/rounds/')
-  // From an invite link (/join/:username): continue to the Feed, where the
-  // app shell follows the inviter. (Signed in, /join/... would forget the
-  // invite and just open the inviter's profile.)
-  const cameForInvite = !!matchPath('/join/:username', requestedFrom.split(/[?#]/)[0])
-  const from = cameForInvite ? '/' : requestedFrom
+  const inviteMatch = matchPath('/join/:username', requestedFrom.split(/[?#]/)[0])
+  const cameForInvite = !!inviteMatch
 
   // The invite this browser opened, if any (see utils/invite.js)
   const [pendingInvite] = useState(() => readPendingInvite())
+
+  // From an invite link (/join/:username) that this browser remembered:
+  // continue to the Feed, where the app shell follows the inviter. (Signed
+  // in, /join/... forgets the invite and just opens the inviter's profile.)
+  // If it couldn't be remembered (storage blocked), go back to /join/...
+  // anyway, so they land on the inviter's profile and can follow from there.
+  const from = cameForInvite && pendingInvite?.username === inviteMatch.params.username
+    ? '/'
+    : requestedFrom
 
   // Landing page CTAs, shared-round pages and invite pages can open this
   // screen in signup mode; an invite page opens it there by default

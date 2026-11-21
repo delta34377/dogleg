@@ -39,7 +39,9 @@ const isDetailPage = (pathname) => /^\/(rounds|courses|profile)\/[^/]+/.test(pat
 const INVITE_TOAST_MS = 6000
 
 // "You're now following @x" after an invite link was applied. Closes by
-// itself after a few seconds, or with its × button.
+// itself after a few seconds, or with its × button. On phones it sits just
+// under the header: the bottom belongs to the tab bar and, for a new iPhone
+// user, the "Add to Home Screen" prompt that opens at the same time.
 function InviteFollowToast({ username, onDismiss }) {
   useEffect(() => {
     const timer = setTimeout(onDismiss, INVITE_TOAST_MS)
@@ -47,7 +49,7 @@ function InviteFollowToast({ username, onDismiss }) {
   }, [onDismiss])
 
   return (
-    <div className="fixed left-4 right-4 bottom-20 md:bottom-6 z-50 flex justify-center pointer-events-none">
+    <div className="fixed left-4 right-4 top-16 md:top-auto md:bottom-6 z-50 flex justify-center pointer-events-none">
       <div
         className="pointer-events-auto w-full max-w-sm flex items-center gap-3 bg-gray-900 text-white rounded-xl shadow-xl pl-4 pr-1 py-1 animate-fade-up"
         role="status"

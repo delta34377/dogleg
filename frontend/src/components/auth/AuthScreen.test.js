@@ -153,8 +153,59 @@ describe('arriving from an invite link', () => {
   })
 
   test('an already signed-in visitor goes to the Feed', () => {
+    storePendingInvite('alex_fairway')
     mockAuth.user = { id: 'me' }
     renderLogin({ from: '/join/alex_fairway' })
     expect(screen.getByTestId('path')).toHaveTextContent(/^\/$/)
+  })
+})
+
+// Without a remembered invite nobody is followed automatically, so the
+// Feed would be a dead end: they go back to the invite link, which (signed
+// in) opens the inviter's profile with its Follow button.
+describe('arriving from an invite link the browser could not remember', () => {
+  const blockStorage = () => {
+    const blocked = () => { throw new Error('SecurityError') }
+    jest.spyOn(Storage.prototype, 'getItem').mockImplementation(blocked)
+    jest.spyOn(Storage.prototype, 'setItem').mockImplementation(blocked)
+    jest.spyOn(Storage.prototype, 'removeItem').mockImplementation(blocked)
+  }
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  test('after signing in they go back to the invite link', async () => {
+    blockStorage()
+    renderLogin({ mode: 'signin', from: '/join/alex_fairway' })
+    expect(screen.queryByText(/follow @alex_fairway/)).not.toBeInTheDocument()
+    fireEvent.change(screen.getByPlaceholderText('your@email.com'), { target: { value: 'pal@example.com' } })
+    fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'secret123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign In' }))
+
+    await waitFor(() => expect(screen.getByTestId('path')).toHaveTextContent('/join/alex_fairway'))
+  })
+
+  test("the sign-up confirmation email opens the invite link (the inviter's profile)", async () => {
+    renderLogin({ from: '/join/alex_fairway' }) // nothing remembered
+    expect(isSignUpForm()).toBe(true)
+    fireEvent.change(screen.getByPlaceholderText('johndoe'), { target: { value: 'newbie' } })
+    fireEvent.change(screen.getByPlaceholderText('John Doe'), { target: { value: 'New Bie' } })
+    fireEvent.change(screen.getByPlaceholderText('your@email.com'), { target: { value: 'new@example.com' } })
+    const [password, confirm] = screen.getAllByPlaceholderText('••••••••')
+    fireEvent.change(password, { target: { value: 'secret123' } })
+    fireEvent.change(confirm, { target: { value: 'secret123' } })
+    fireEvent.click(screen.getByLabelText(/I am at least 13 years old/))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }))
+
+    await waitFor(() => expect(mockAuth.signUp).toHaveBeenCalled())
+    expect(mockAuth.signUp.mock.calls[0][3]).toBe('/join/alex_fairway')
+  })
+
+  test("a remembered invite from someone else doesn't count", () => {
+    storePendingInvite('someone_else')
+    mockAuth.user = { id: 'me' }
+    renderLogin({ from: '/join/alex_fairway' })
+    expect(screen.getByTestId('path')).toHaveTextContent('/join/alex_fairway')
   })
 })

@@ -25,7 +25,9 @@ const formatMonthLabel = (m) => {
     .toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
 }
 
-const formatChartDate = (d) => {
+// The three chart-date helpers below are exported only so the unit tests in
+// src/utils/dateFormat.test.js can pin down the date-label fixes (PRs #3-#5).
+export const formatChartDate = (d) => {
   if (!d) return ''
   const date = new Date(d + 'T00:00:00')
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
@@ -34,7 +36,7 @@ const formatChartDate = (d) => {
 // Dates arrive as YYYY-MM-DD strings. Single-year charts tick per round
 // ("Jul 15"); once a chart spans calendar years the axis ticks at month
 // starts instead ("Aug '26") — the tooltip still carries the exact day.
-const dateAxisProps = (data) => {
+export const dateAxisProps = (data) => {
   const years = new Set(data.filter(p => p.date).map(p => String(p.date).slice(0, 4)))
   if (years.size <= 1) return { tickFormatter: formatChartDate }
   const ticks = []
@@ -56,7 +58,7 @@ const dateAxisProps = (data) => {
   }
 }
 
-const formatFullDate = (d) => {
+export const formatFullDate = (d) => {
   if (!d) return ''
   const date = new Date(d + 'T00:00:00')
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -287,7 +289,7 @@ function StatsPage() {
             handicap index — start building from day one.
           </p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/add')}
             className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
             Add Your First Round

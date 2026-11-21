@@ -1,7 +1,19 @@
 import { useNavigate } from 'react-router-dom'
 
+// When anything here changes, update the "Last updated" date too
+const LAST_UPDATED = 'November 20, 2026'
+const CONTACT_EMAIL = 'hello@dogleg.io'
+
 function TermsOfService() {
   const navigate = useNavigate()
+
+  // This page is often opened in a new tab (the sign-up form's links do
+  // that), where there is no earlier page to go back to. React Router keeps
+  // its position in history.state.idx; 0 means this is the first page.
+  const goBack = () => {
+    if (window.history.state?.idx > 0) navigate(-1)
+    else navigate('/')
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -10,7 +22,7 @@ function TermsOfService() {
         <div className="max-w-4xl mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             <button
-              onClick={() => navigate(-1)}
+              onClick={goBack}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -34,8 +46,8 @@ function TermsOfService() {
       <div className="max-w-3xl mx-auto px-4 py-8">
         <div className="bg-white rounded-xl shadow-sm p-6 md:p-8">
           <h1 className="text-3xl font-bold text-center text-gray-900 mb-2">Terms of Service</h1>
-          <p className="text-center text-green-600 font-medium mb-2">Dogleg.io</p>
-          <p className="text-center text-gray-500 text-sm mb-8">Effective Date: January 5, 2026</p>
+          <p className="text-center text-green-700 font-medium mb-2">Dogleg.io</p>
+          <p className="text-center text-gray-500 text-sm mb-8">Last updated: {LAST_UPDATED}</p>
 
           <div className="prose prose-gray max-w-none">
             <p className="text-gray-700 mb-4">
@@ -77,7 +89,7 @@ function TermsOfService() {
             
             <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">4.1 Your Content</h3>
             <p className="text-gray-700 mb-4">
-              Dogleg allows you to post, upload, and share content, including golf scores, photos, comments, and other materials ("User Content"). You retain ownership of your User Content. However, by posting User Content on Dogleg, you grant us a non-exclusive, worldwide, royalty-free, sublicensable, and transferable license to use, reproduce, modify, adapt, publish, display, and distribute your User Content in connection with operating and providing the Service.
+              Dogleg allows you to post, upload, and share content, including golf scores, photos, comments, and other materials ("User Content"). You retain ownership of your User Content. Content you post can be seen by other Dogleg users, and each round can be viewed by anyone who has the round's link, even without an account (see our Privacy Policy). By posting User Content on Dogleg, you grant us a non-exclusive, worldwide, royalty-free, sublicensable, and transferable license to use, reproduce, modify, adapt, publish, display, and distribute your User Content in connection with operating and providing the Service.
             </p>
 
             <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">4.2 Content Responsibility</h3>
@@ -117,7 +129,7 @@ function TermsOfService() {
 
             <h2 className="text-xl font-bold text-gray-900 mt-8 mb-4">7. Third-Party Services</h2>
             <p className="text-gray-700 mb-4">
-              The Service may contain links to third-party websites or services that are not owned or controlled by Dogleg. We have no control over, and assume no responsibility for, the content, privacy policies, or practices of any third-party websites or services. We use third-party services including Supabase for authentication and data storage, Vercel for hosting, and Google for authentication options. Your use of such third-party services is subject to their respective terms and policies.
+              The Service may contain links to third-party websites or services that are not owned or controlled by Dogleg. We have no control over, and assume no responsibility for, the content, privacy policies, or practices of any third-party websites or services. We use third-party services including Supabase for accounts, sign-in, data and photo storage; Vercel for hosting and cookieless page-view analytics; Google for Google Sign-In and Google Analytics; and Sentry for error monitoring. Your use of such third-party services is subject to their respective terms and policies.
             </p>
 
             <h2 className="text-xl font-bold text-gray-900 mt-8 mb-4">8. Disclaimers</h2>
@@ -125,7 +137,7 @@ function TermsOfService() {
               THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, OR COURSE OF PERFORMANCE.
             </p>
             <p className="text-gray-700 mb-4">
-              We do not warrant that: (a) the Service will be uninterrupted, secure, or error-free; (b) the results obtained from using the Service will be accurate or reliable; (c) any errors in the Service will be corrected; or (d) golf course information, including pars, distances, and ratings, is accurate or complete.
+              We do not warrant that: (a) the Service will be uninterrupted, secure, or error-free; (b) the results obtained from using the Service will be accurate or reliable; (c) any errors in the Service will be corrected; (d) golf course information, including pars, distances, and ratings, is accurate or complete; or (e) handicaps, Dogleg Scores and other statistics calculated by the Service are accurate. Handicaps shown in Dogleg are estimates for personal tracking and are not an official handicap issued by a golf association or club.
             </p>
 
             <h2 className="text-xl font-bold text-gray-900 mt-8 mb-4">9. Limitation of Liability</h2>
@@ -146,7 +158,7 @@ function TermsOfService() {
               We may terminate or suspend your account and access to the Service immediately, without prior notice or liability, for any reason, including if you breach these Terms. Upon termination, your right to use the Service will immediately cease.
             </p>
             <p className="text-gray-700 mb-4">
-              You may delete your account at any time through the Service settings. Upon account deletion, we will permanently delete your personal data and User Content in accordance with our Privacy Policy.
+              You may ask us to delete your account at any time by emailing <a href={`mailto:${CONTACT_EMAIL}`} className="text-green-700 hover:underline">{CONTACT_EMAIL}</a> from the email address on your account. We will delete your account and your User Content, including your photos, within 30 days, as described in our Privacy Policy.
             </p>
 
             <h2 className="text-xl font-bold text-gray-900 mt-8 mb-4">12. Governing Law and Disputes</h2>
@@ -156,7 +168,7 @@ function TermsOfService() {
 
             <h2 className="text-xl font-bold text-gray-900 mt-8 mb-4">13. Changes to Terms</h2>
             <p className="text-gray-700 mb-4">
-              We reserve the right to modify these Terms at any time. We will notify you of any changes by posting the new Terms on this page and updating the "Effective Date" at the top. Your continued use of the Service after any changes constitutes acceptance of the new Terms. We encourage you to review these Terms periodically.
+              We reserve the right to modify these Terms at any time. We will notify you of any changes by posting the new Terms on this page and updating the "Last updated" date at the top. Your continued use of the Service after any changes constitutes acceptance of the new Terms. We encourage you to review these Terms periodically.
             </p>
 
             <h2 className="text-xl font-bold text-gray-900 mt-8 mb-4">14. Miscellaneous</h2>
@@ -169,15 +181,16 @@ function TermsOfService() {
               If you have any questions about these Terms, please contact us at:
             </p>
             <p className="text-gray-700 mb-2">
-              <strong>Email:</strong> <a href="mailto:privacy@dogleg.io" className="text-green-600 hover:underline">privacy@dogleg.io</a>
+              <strong>Email:</strong> <a href={`mailto:${CONTACT_EMAIL}`} className="text-green-700 hover:underline">{CONTACT_EMAIL}</a>
             </p>
             <p className="text-gray-700 mb-4">
-              <strong>Website:</strong> <a href="https://dogleg.io" className="text-green-600 hover:underline">https://dogleg.io</a>
+              <strong>Website:</strong> <a href="https://dogleg.io" className="text-green-700 hover:underline">https://dogleg.io</a>
             </p>
 
             <p className="text-center text-gray-500 italic mt-8">
               Thank you for using Dogleg. Play well! ⛳
             </p>
+            <p className="text-center text-gray-400 text-sm mt-4">© {new Date().getFullYear()} Dogleg.io</p>
           </div>
         </div>
       </div>

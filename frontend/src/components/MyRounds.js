@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react'
 import { roundsService } from '../services/roundsService'
 import { followService } from '../services/followService'
 import { useAuth } from '../context/AuthContext'
@@ -8,14 +8,25 @@ import AvatarUpload from '../components/AvatarUpload'
 import ShareModal from './ShareModal'
 import RoundCard from './RoundCard'
 import UserListModal from './UserListModal'
+import { withMyReaction } from '../utils/reactions'
 
 const MyRounds = forwardRef((props, ref) => {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [rounds, setRounds] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // true: show skeletons, not "No rounds yet", before the first load
   const [hasMore, setHasMore] = useState(true)
-  const [offset, setOffset] = useState(0)
+  // null, or 'first' / 'more' when the first page / a later page failed to load
+  const [loadError, setLoadError] = useState(null)
+
+  // Paging bookkeeping in refs so the scroll handler always sees the current
+  // values (state captured in an old closure let one page load twice and the
+  // next one get skipped). Same pattern as the Feed.
+  const inFlightRef = useRef(false)   // a page request is running
+  const nextOffsetRef = useRef(0)     // where the next page starts
+  const hasMoreRef = useRef(true)     // false once the server runs out
+  const failedRef = useRef(false)     // the last load failed: wait for Retry
+  const requestIdRef = useRef(0)      // bumped by every load; older replies are ignored
 
   // Profile stats state
   const [profileStats, setProfileStats] = useState({
@@ -42,11 +53,12 @@ const MyRounds = forwardRef((props, ref) => {
 
     const counts = await followService.getFollowCounts(user.id)
 
-    // Get the actual rounds count from database
+    // Get the actual rounds count from database (removed rounds don't count)
     const { count: roundsCount } = await supabase
       .from('rounds')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
+      .or('is_deleted.is.null,is_deleted.eq.false')
 
     setProfileStats({
       followersCount: counts.followers,
@@ -61,118 +73,143 @@ const MyRounds = forwardRef((props, ref) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
-  const loadRounds = async (loadMore = false) => {
-    if (isLoading) return
+  // loadMore=false loads the first page and replaces the list;
+  // loadMore=true appends the next page.
+  const loadRounds = useCallback(async (loadMore = false) => {
+    // Never start a second "next page" while one is running, after the end,
+    // or after a failure (the Retry button clears that)
+    if (loadMore && (inFlightRef.current || !hasMoreRef.current || failedRef.current)) return
 
+    // A first-page load always goes ahead; a reply still on its way for an
+    // older request is then ignored (see the requestId checks below)
+    const requestId = ++requestIdRef.current
+    inFlightRef.current = true
+    failedRef.current = false
     setIsLoading(true)
-    const currentOffset = loadMore ? offset : 0
+    setLoadError(null)
+    const currentOffset = loadMore ? nextOffsetRef.current : 0
 
-    // ONE CALL instead of 4!
-    const { data: roundsData, error } = await roundsService.getMyRoundsWithEverything(10, currentOffset)
+    try {
+      // ONE CALL instead of 4!
+      const { data: roundsData, error } = await roundsService.getMyRoundsWithEverything(10, currentOffset)
+      if (requestId !== requestIdRef.current) return
+      if (error || !roundsData) throw error || new Error('No rounds data')
 
-    if (!error && roundsData) {
       const dbRounds = roundsData.rounds || []
 
       // If we got less than 10, there are no more to load
-      if (dbRounds.length < 10) {
-        setHasMore(false)
-      }
+      const more = dbRounds.length >= 10
+      hasMoreRef.current = more
+      setHasMore(more)
+      // Advance exactly once per page that actually arrived
+      nextOffsetRef.current = currentOffset + dbRounds.length
 
-      if (dbRounds.length > 0) {
-        // Map database format to our component format
-        const formattedRounds = dbRounds.map(round => {
-          // Use the data we already fetched from the RPC
-          const roundReactions = roundsData.reactions?.filter(r => r.round_id === round.id) || []
-          const reactionCounts = {
-            fire: 0, clap: 0, dart: 0, goat: 0,
-            vomit: 0, clown: 0, skull: 0, laugh: 0
-          }
-          roundReactions.forEach(r => {
-            if (reactionCounts.hasOwnProperty(r.reaction_type)) {
-              reactionCounts[r.reaction_type]++
-            }
-          })
-
-          // Get comments for this round
-          const roundComments = roundsData.comments?.filter(c => c.round_id === round.id) || []
-
-          // Get user's own reactions from the already-fetched data
-          const myReactions = roundsData.userReactions?.filter(r => r.round_id === round.id).map(r => r.reaction_type) || []
-
-          return {
-            id: round.id,
-            user_id: user?.id,
-            course_id: round.course_id,
-            course_name: round.course_name,
-            club_name: round.club_name,
-            city: round.city,
-            state: round.state,
-            date: round.played_at,
-            front9: round.front9,
-            back9: round.back9,
-            total: round.total_score,
-            holes: round.scores_by_hole || [],
-            par: round.par,
-            coursePars: round.course_pars,
-            tee: round.tee_data,
-            comment: round.caption,
-            photo: round.photo_url,
-            dogleg_score: round.dogleg_score,
-            strokes_vs_usual: round.strokes_vs_usual,
-            achievements: round.achievements,
-            reactions: reactionCounts,
-            comments: roundComments.map(c => ({
-              id: c.id,
-              text: c.content || c.comment_text,
-              author: c.profiles?.username || c.profiles?.full_name || 'Anonymous',
-              author_username: c.profiles?.username || null,
-              author_avatar: c.profiles?.avatar_url,
-              date: c.created_at,
-              user_id: c.user_id
-            })),
-            userReacted: myReactions
+      // Map database format to our component format
+      const formattedRounds = dbRounds.map(round => {
+        // Use the data we already fetched from the RPC
+        const roundReactions = roundsData.reactions?.filter(r => r.round_id === round.id) || []
+        const reactionCounts = {
+          fire: 0, clap: 0, dart: 0, goat: 0,
+          vomit: 0, clown: 0, skull: 0, laugh: 0
+        }
+        roundReactions.forEach(r => {
+          if (reactionCounts.hasOwnProperty(r.reaction_type)) {
+            reactionCounts[r.reaction_type]++
           }
         })
 
-        if (loadMore) {
-          // Append to existing rounds, but filter out duplicates
-          setRounds(prev => {
-            const existingIds = new Set(prev.map(r => r.id))
-            const newRounds = formattedRounds.filter(r => !existingIds.has(r.id))
-            return [...prev, ...newRounds]
-          })
-          setOffset(prev => prev + dbRounds.length)
-        } else {
-          // Replace rounds (initial load)
-          setRounds(formattedRounds)
-          setOffset(dbRounds.length)
+        // Get comments for this round
+        const roundComments = roundsData.comments?.filter(c => c.round_id === round.id) || []
+
+        // Get user's own reactions from the already-fetched data
+        const myReactions = roundsData.userReactions?.filter(r => r.round_id === round.id).map(r => r.reaction_type) || []
+
+        return {
+          id: round.id,
+          user_id: user?.id,
+          short_code: round.short_code, // share links use the short code when there is one
+          course_id: round.course_id,
+          course_name: round.course_name,
+          club_name: round.club_name,
+          city: round.city,
+          state: round.state,
+          date: round.played_at,
+          front9: round.front9,
+          back9: round.back9,
+          total: round.total_score,
+          holes: round.scores_by_hole || [],
+          par: round.par,
+          coursePars: round.course_pars,
+          tee: round.tee_data,
+          comment: round.caption,
+          photo: round.photo_url,
+          holes_played: round.holes_played,
+          dogleg_score: round.dogleg_score,
+          strokes_vs_usual: round.strokes_vs_usual,
+          achievements: round.achievements,
+          reactions: reactionCounts,
+          comments: roundComments.map(c => ({
+            id: c.id,
+            text: c.content || c.comment_text,
+            author: c.profiles?.username || c.profiles?.full_name || 'Anonymous',
+            author_username: c.profiles?.username || null,
+            author_avatar: c.profiles?.avatar_url,
+            date: c.created_at,
+            user_id: c.user_id
+          })),
+          userReacted: myReactions
         }
+      })
+
+      if (loadMore) {
+        // Append to existing rounds, but filter out duplicates
+        setRounds(prev => {
+          const existingIds = new Set(prev.map(r => r.id))
+          const newRounds = formattedRounds.filter(r => !existingIds.has(r.id))
+          return [...prev, ...newRounds]
+        })
+      } else {
+        // Replace rounds (initial load)
+        setRounds(formattedRounds)
+      }
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return
+      console.error('Failed to load your rounds:', error)
+      failedRef.current = true
+      setLoadError(loadMore ? 'more' : 'first')
+    } finally {
+      // Only the newest request may clear the loading flags
+      if (requestId === requestIdRef.current) {
+        inFlightRef.current = false
+        setIsLoading(false)
       }
     }
+  }, [user?.id])
 
-    setIsLoading(false)
+  // Retry after a failed load: the first page, or the page that failed
+  const retry = () => {
+    failedRef.current = false
+    loadRounds(loadError === 'more')
   }
 
   // Load more rounds when scrolling
-  const handleScroll = useCallback(() => {
-    if (isLoading || !hasMore) return
-
-    // Check if user scrolled near bottom (200px from bottom)
-    const scrolledToBottom =
-      window.innerHeight + document.documentElement.scrollTop
-      >= document.documentElement.offsetHeight - 200
-
-    if (scrolledToBottom) {
-      loadRounds(true)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, hasMore, offset])
-
-  // Set up scroll listener
   useEffect(() => {
-    window.addEventListener('scroll', handleScroll)
+    const handleScroll = () => {
+      if (inFlightRef.current || !hasMoreRef.current || failedRef.current) return
+
+      // Check if user scrolled near bottom (200px from bottom)
+      const scrolledToBottom =
+        window.innerHeight + document.documentElement.scrollTop
+        >= document.documentElement.offsetHeight - 200
+
+      if (scrolledToBottom) {
+        loadRounds(true)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [handleScroll])
+  }, [loadRounds])
 
   // Initial load
   useEffect(() => {
@@ -186,7 +223,9 @@ const MyRounds = forwardRef((props, ref) => {
 
       if (!error) {
         // Remove from state
-        setRounds(rounds.filter(r => r.id !== roundId))
+        setRounds(prev => prev.filter(r => r.id !== roundId))
+        // One row fewer on the server, so the next page starts one earlier
+        nextOffsetRef.current = Math.max(0, nextOffsetRef.current - 1)
         // Properly decrement the count
         setProfileStats(prev => ({
           ...prev,
@@ -200,36 +239,30 @@ const MyRounds = forwardRef((props, ref) => {
 
   // In toggleReaction - update UI FIRST
   const toggleReaction = async (roundId, reaction) => {
-    // Optimistically update UI immediately
-    setRounds(prevRounds =>
-      prevRounds.map(round => {
-        if (round.id === roundId) {
-          const hasReacted = round.userReacted.includes(reaction)
-          const newReactions = { ...round.reactions }
-          const newUserReacted = [...round.userReacted]
+    const round = rounds.find(r => r.id === roundId)
+    if (!round) return
 
-          if (hasReacted) {
-            newReactions[reaction] = Math.max(0, newReactions[reaction] - 1)
-            const index = newUserReacted.indexOf(reaction)
-            if (index > -1) newUserReacted.splice(index, 1)
-          } else {
-            newReactions[reaction] = (newReactions[reaction] || 0) + 1
-            newUserReacted.push(reaction)
-          }
-
-          return { ...round, reactions: newReactions, userReacted: newUserReacted }
-        }
-        return round
-      })
+    // Save exactly what the user tapped for (the opposite of what this card
+    // shows), never "toggle whatever the database holds"
+    const shouldHave = !(round.userReacted || []).includes(reaction)
+    const showMine = (has) => setRounds(prevRounds =>
+      prevRounds.map(r => (r.id === roundId ? withMyReaction(r, reaction, has) : r))
     )
 
+    // Optimistically update UI immediately
+    showMine(shouldHave)
+
     // THEN save to database (no need to update state again on success)
-    const { error } = await roundsService.saveReaction(roundId, reaction)
+    const { error, superseded, exists } = await roundsService.saveReaction(roundId, reaction, shouldHave)
 
     // Only revert if error
     if (error) {
-      // Revert the optimistic update
-      loadRounds()
+      // Undo the optimistic update on this one round (back to what the
+      // database holds), unless a later tap on the same reaction now owns it.
+      // (Reloading the whole list here used to cut it back to the first 10
+      // rounds.)
+      console.error('Failed to save reaction:', error)
+      if (!superseded) showMine(exists ?? !shouldHave)
     }
   }
 
@@ -376,6 +409,20 @@ const MyRounds = forwardRef((props, ref) => {
             </div>
           ))}
         </div>
+      ) : rounds.length === 0 && loadError ? (
+        // Loading failed: don't claim there are no rounds
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center" role="alert">
+          <div className="text-6xl mb-4">📡</div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">Couldn't load your rounds</h2>
+          <p className="text-gray-500 mb-6">Check your connection and try again.</p>
+          <button
+            type="button"
+            onClick={retry}
+            className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            Retry
+          </button>
+        </div>
       ) : rounds.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <div className="text-6xl mb-4">🏌️</div>
@@ -384,7 +431,7 @@ const MyRounds = forwardRef((props, ref) => {
             Start tracking your golf rounds by searching for a course and entering your score!
           </p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/add')}
             className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
             Add Your First Round
@@ -411,6 +458,20 @@ const MyRounds = forwardRef((props, ref) => {
         <div className="text-center py-4">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
           <p className="text-gray-500 text-sm mt-2">Loading more rounds...</p>
+        </div>
+      )}
+
+      {/* A later page failed: stop auto-loading until the user taps Retry */}
+      {loadError === 'more' && !isLoading && rounds.length > 0 && (
+        <div className="text-center py-4" role="alert">
+          <p className="text-gray-500 text-sm mb-2">Couldn't load more rounds.</p>
+          <button
+            type="button"
+            onClick={retry}
+            className="px-4 py-2 text-sm font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100"
+          >
+            Retry
+          </button>
         </div>
       )}
 

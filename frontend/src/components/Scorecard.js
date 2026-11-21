@@ -1,11 +1,22 @@
 // Shared hole-by-hole scorecard grid (was duplicated across Feed, MyRounds,
 // SingleRound, and UserProfile). Renders only the nines that were actually
 // played — a 9-hole round shows one clean nine, not an empty grid.
+//
+// Some rounds have no par data (course_pars is null — we no longer save a
+// made-up all-4s card). Then the par row is left out and the score cells
+// stay neutral instead of being colored against a guess.
+
+// A par as a number, or null when it's missing or not a real par
+function toPar(value) {
+  const n = parseInt(value, 10)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
 
 function getScoreStyle(score, par) {
   if (!score || score === '') return { backgroundColor: 'white', color: '#999' }
+  if (par === null || par === undefined) return { backgroundColor: 'white', color: '#333' }
 
-  const diff = parseInt(score) - parseInt(par)
+  const diff = parseInt(score) - par
   if (diff <= -2) return { backgroundColor: '#0d7d0d', color: '#fff' }
   if (diff === -1) return { backgroundColor: '#4caf50', color: '#fff' }
   if (diff === 0) return { backgroundColor: 'white', color: '#333' }
@@ -15,6 +26,10 @@ function getScoreStyle(score, par) {
 }
 
 function Nine({ label, totalLabel, holes, pars, offset, subtotal }) {
+  // This nine's pars; shown only when all nine are known
+  const ninePars = pars ? pars.slice(offset, offset + 9).map(toPar) : []
+  const hasPars = ninePars.length === 9 && ninePars.every(p => p !== null)
+
   return (
     <div className="mb-4">
       <div className="bg-gray-50 px-2 py-1 rounded mb-2">
@@ -30,22 +45,24 @@ function Nine({ label, totalLabel, holes, pars, offset, subtotal }) {
           <div className="text-gray-600 font-bold">{totalLabel}</div>
         </div>
 
-        <div className="contents">
-          {pars.slice(offset, offset + 9).map((par, i) => (
-            <div key={`par-${i}`} className="text-gray-500 bg-gray-50 py-1 rounded text-xs">
-              P{par}
+        {hasPars && (
+          <div className="contents">
+            {ninePars.map((par, i) => (
+              <div key={`par-${i}`} className="text-gray-500 bg-gray-50 py-1 rounded text-xs">
+                P{par}
+              </div>
+            ))}
+            <div className="text-gray-500 bg-gray-50 py-1 rounded text-xs font-bold">
+              {ninePars.reduce((sum, p) => sum + p, 0)}
             </div>
-          ))}
-          <div className="text-gray-500 bg-gray-50 py-1 rounded text-xs font-bold">
-            {pars.slice(offset, offset + 9).reduce((sum, p) => sum + parseInt(p), 0)}
           </div>
-        </div>
+        )}
 
         <div className="contents">
           {holes ? (
             <>
               {holes.slice(offset, offset + 9).map((score, i) => {
-                const style = getScoreStyle(score, pars[offset + i])
+                const style = getScoreStyle(score, hasPars ? ninePars[i] : null)
                 return (
                   <div key={`score-${i}`} className="py-2 rounded font-medium" style={style}>
                     {score || '-'}
@@ -74,7 +91,8 @@ function Nine({ label, totalLabel, holes, pars, offset, subtotal }) {
 
 function Scorecard({ round }) {
   const holes = round.holes || round.scores_by_hole || null
-  const pars = round.coursePars || round.course_pars || Array(18).fill(4)
+  const parList = round.coursePars || round.course_pars
+  const pars = Array.isArray(parList) && parList.length > 0 ? parList : null
 
   const nineHasData = (offset, subtotal) => {
     if (holes && holes.slice(offset, offset + 9).some(h => h !== '' && h !== null && h !== undefined)) {

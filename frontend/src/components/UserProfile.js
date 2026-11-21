@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../services/supabase'
 import { roundsService } from '../services/roundsService'
@@ -10,6 +10,10 @@ import ShareModal from './ShareModal'
 import RoundCard from './RoundCard'
 import UserListModal from './UserListModal'
 import ProfileStatsCard from './ProfileStatsCard'
+import { withMyReaction } from '../utils/reactions'
+
+// PostgREST's answer to .single() when no row matched: no such golfer
+const NO_SUCH_PROFILE = 'PGRST116'
 
 function UserProfile() {
   const { username } = useParams()
@@ -17,10 +21,13 @@ function UserProfile() {
   const { user: currentUser } = useAuth()
 
   const [profileUser, setProfileUser] = useState(null)
+  // true when the profile couldn't be loaded (not "no such golfer")
+  const [profileError, setProfileError] = useState(false)
   const [rounds, setRounds] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // true: show skeletons, not "No rounds yet", before the first load
   const [hasMore, setHasMore] = useState(true)
-  const [offset, setOffset] = useState(0)
+  // null, or 'first' / 'more' when the first page / a later page failed to load
+  const [loadError, setLoadError] = useState(null)
   const [isFollowing, setIsFollowing] = useState(false)
   const [shareRound, setShareRound] = useState(null)
 
@@ -34,6 +41,15 @@ function UserProfile() {
   const [showFollowing, setShowFollowing] = useState(false)
   const [followersList, setFollowersList] = useState([])
   const [followingList, setFollowingList] = useState([])
+
+  // Paging bookkeeping in refs so the scroll handler always sees the current
+  // values (state captured in an old closure let fast scrolling load one page
+  // twice and skip the next). Same pattern as the Feed.
+  const inFlightRef = useRef(false)   // a page request is running
+  const nextOffsetRef = useRef(0)     // where the next page starts
+  const hasMoreRef = useRef(true)     // false once the server runs out
+  const failedRef = useRef(false)     // the last load failed: wait for Retry
+  const requestIdRef = useRef(0)      // bumped by every load; older replies are ignored
 
   // Load profile and check follow status
   useEffect(() => {
@@ -51,6 +67,8 @@ function UserProfile() {
   }, [profileUser])
 
   const loadUserProfile = async () => {
+    setProfileError(false)
+    let profileLoaded = false
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -59,11 +77,20 @@ function UserProfile() {
         .single()
 
       if (error) {
-        console.error('Error loading profile:', error)
-        navigate('/404')
+        if (error.code === NO_SUCH_PROFILE) {
+          // No such golfer (renamed, mistyped, an old link). Replace this
+          // page in history: a pushed /404 made Back land here, fail again
+          // and push /404 again, so the user could never get back past it.
+          navigate('/404', { replace: true })
+        } else {
+          // Bad signal or a server hiccup is not "page not found"
+          console.error('Error loading profile:', error)
+          setProfileError(true)
+        }
         return
       }
 
+      profileLoaded = true
       setProfileUser(profile)
 
       // Check if current user follows this profile
@@ -73,6 +100,8 @@ function UserProfile() {
       }
     } catch (error) {
       console.error('Error in loadUserProfile:', error)
+      // Only the profile itself failing is worth an error screen
+      if (!profileLoaded) setProfileError(true)
     }
   }
 
@@ -81,11 +110,17 @@ function UserProfile() {
 
     const counts = await followService.getFollowCounts(profileUser.id)
 
-    // Get actual rounds count from database
-    const { count: roundsCount } = await supabase
+    // Get actual rounds count from database: removed rounds never count, and
+    // visitors don't count private ones (the list below hides them too)
+    let countQuery = supabase
       .from('rounds')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', profileUser.id)
+      .or('is_deleted.is.null,is_deleted.eq.false')
+    if (currentUser?.id !== profileUser.id) {
+      countQuery = countQuery.not('is_private', 'is', true)
+    }
+    const { count: roundsCount } = await countQuery
 
     setProfileStats({
       followersCount: counts.followers,
@@ -94,36 +129,54 @@ function UserProfile() {
     })
   }
 
-  const loadRounds = async (loadMore = false) => {
-    if (isLoading || !profileUser?.id) return
+  // loadMore=false loads the first page and replaces the list;
+  // loadMore=true appends the next page.
+  const loadRounds = useCallback(async (loadMore = false) => {
+    if (!profileUser?.id) return
 
+    // Never start a second "next page" while one is running, after the end,
+    // or after a failure (the Retry button clears that)
+    if (loadMore && (inFlightRef.current || !hasMoreRef.current || failedRef.current)) return
+
+    // A first-page load always goes ahead; a reply still on its way for an
+    // older request is then ignored (see the requestId checks below)
+    const requestId = ++requestIdRef.current
+    inFlightRef.current = true
+    failedRef.current = false
     setIsLoading(true)
-    const currentOffset = loadMore ? offset : 0
+    setLoadError(null)
+    const currentOffset = loadMore ? nextOffsetRef.current : 0
 
-    // Get rounds for this specific user
-    const { data: dbRounds, error } = await roundsService.getUserRounds(
-      profileUser.id,
-      10,
-      currentOffset
-    )
+    // Someone else's profile: their private rounds stay hidden. The database
+    // is meant to enforce this too; this is the belt to its braces.
+    const isOwn = currentUser?.id === profileUser.id
 
-    if (!error && dbRounds) {
-      if (dbRounds.length < 10) {
-        setHasMore(false)
-      }
+    try {
+      // Get rounds for this specific user
+      const { data: dbRounds, error } = await roundsService.getUserRounds(
+        profileUser.id,
+        10,
+        currentOffset
+      )
+      if (requestId !== requestIdRef.current) return
+      if (error || !dbRounds) throw error || new Error('No rounds data')
 
-      if (dbRounds.length > 0) {
+      const visibleRounds = isOwn ? dbRounds : dbRounds.filter(r => !r.is_private)
+
+      let formattedRounds = []
+      if (visibleRounds.length > 0) {
         // Get all the social data
-        const roundIds = dbRounds.map(r => r.id)
+        const roundIds = visibleRounds.map(r => r.id)
 
         const [reactionsData, commentsData, userReactionsData] = await Promise.all([
           roundsService.getReactions(roundIds),
           roundsService.getComments(roundIds),
           roundsService.getUserReactions(roundIds)
         ])
+        if (requestId !== requestIdRef.current) return
 
         // Normalize for the shared card
-        const formattedRounds = dbRounds.map(round => {
+        formattedRounds = visibleRounds.map(round => {
           const roundReactions = reactionsData.data?.filter(r => r.round_id === round.id) || []
           const reactionCounts = {
             fire: 0, clap: 0, dart: 0, goat: 0,
@@ -140,6 +193,7 @@ function UserProfile() {
 
           return {
             id: round.id,
+            short_code: round.short_code, // share links use the short code when there is one
             course_id: round.course_id,
             course_name: round.course_name,
             club_name: round.club_name,
@@ -155,6 +209,7 @@ function UserProfile() {
             tee: round.tee_data,
             comment: round.caption,
             photo: round.photo_url,
+            holes_played: round.holes_played,
             dogleg_score: round.dogleg_score,
             strokes_vs_usual: round.strokes_vs_usual,
             achievements: round.achievements,
@@ -172,42 +227,61 @@ function UserProfile() {
             user_id: round.user_id
           }
         })
+      }
 
-        if (loadMore) {
-          setRounds(prev => {
-            const existingIds = new Set(prev.map(r => r.id))
-            const newRounds = formattedRounds.filter(r => !existingIds.has(r.id))
-            return [...prev, ...newRounds]
-          })
-          setOffset(prev => prev + dbRounds.length)
-        } else {
-          setRounds(formattedRounds)
-          setOffset(dbRounds.length)
-        }
+      // Paging counts every row the server sent, including any hidden above.
+      // A short page means we've reached the end.
+      const more = dbRounds.length >= 10
+      hasMoreRef.current = more
+      setHasMore(more)
+      nextOffsetRef.current = currentOffset + dbRounds.length
+
+      if (loadMore) {
+        setRounds(prev => {
+          const existingIds = new Set(prev.map(r => r.id))
+          const newRounds = formattedRounds.filter(r => !existingIds.has(r.id))
+          return [...prev, ...newRounds]
+        })
+      } else {
+        setRounds(formattedRounds)
+      }
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return
+      console.error('Failed to load rounds for this profile:', error)
+      failedRef.current = true
+      setLoadError(loadMore ? 'more' : 'first')
+    } finally {
+      // Only the newest request may clear the loading flags
+      if (requestId === requestIdRef.current) {
+        inFlightRef.current = false
+        setIsLoading(false)
       }
     }
+  }, [profileUser?.id, currentUser?.id])
 
-    setIsLoading(false)
+  // Retry after a failed load: the first page, or the page that failed
+  const retry = () => {
+    failedRef.current = false
+    loadRounds(loadError === 'more')
   }
 
   // Load more rounds when scrolling
-  const handleScroll = useCallback(() => {
-    if (isLoading || !hasMore) return
-
-    const scrolledToBottom =
-      window.innerHeight + document.documentElement.scrollTop
-      >= document.documentElement.offsetHeight - 200
-
-    if (scrolledToBottom) {
-      loadRounds(true)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, hasMore, offset])
-
   useEffect(() => {
-    window.addEventListener('scroll', handleScroll)
+    const handleScroll = () => {
+      if (inFlightRef.current || !hasMoreRef.current || failedRef.current) return
+
+      const scrolledToBottom =
+        window.innerHeight + document.documentElement.scrollTop
+        >= document.documentElement.offsetHeight - 200
+
+      if (scrolledToBottom) {
+        loadRounds(true)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [handleScroll])
+  }, [loadRounds])
 
   // Handle follow changes
   const handleFollowChange = (userId, isNowFollowing) => {
@@ -222,32 +296,27 @@ function UserProfile() {
 
   // Toggle reaction - optimistic update
   const toggleReaction = async (roundId, reaction) => {
-    setRounds(prevRounds =>
-      prevRounds.map(round => {
-        if (round.id === roundId) {
-          const hasReacted = round.userReacted.includes(reaction)
-          const newReactions = { ...round.reactions }
-          const newUserReacted = [...round.userReacted]
+    const round = rounds.find(r => r.id === roundId)
+    if (!round) return
 
-          if (hasReacted) {
-            newReactions[reaction] = Math.max(0, newReactions[reaction] - 1)
-            const index = newUserReacted.indexOf(reaction)
-            if (index > -1) newUserReacted.splice(index, 1)
-          } else {
-            newReactions[reaction] = (newReactions[reaction] || 0) + 1
-            newUserReacted.push(reaction)
-          }
-
-          return { ...round, reactions: newReactions, userReacted: newUserReacted }
-        }
-        return round
-      })
+    // Save exactly what the user tapped for (the opposite of what this card
+    // shows), never "toggle whatever the database holds"
+    const shouldHave = !(round.userReacted || []).includes(reaction)
+    const showMine = (has) => setRounds(prevRounds =>
+      prevRounds.map(r => (r.id === roundId ? withMyReaction(r, reaction, has) : r))
     )
 
-    const { error } = await roundsService.saveReaction(roundId, reaction)
+    showMine(shouldHave)
+
+    const { error, superseded, exists } = await roundsService.saveReaction(roundId, reaction, shouldHave)
 
     if (error) {
-      loadRounds() // Reload on error
+      // Undo the optimistic update on this one round (back to what the
+      // database holds), unless a later tap on the same reaction now owns it.
+      // (Reloading the whole list here used to cut it back to the first 10
+      // rounds and lose the scroll position.)
+      console.error('Failed to save reaction:', error)
+      if (!superseded) showMine(exists ?? !shouldHave)
     }
   }
 
@@ -277,6 +346,26 @@ function UserProfile() {
         })
       )
     }
+  }
+
+  // The profile failed to load: say so and offer Retry
+  if (!profileUser && profileError) {
+    return (
+      <div className="max-w-4xl mx-auto p-2 sm:p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center" role="alert">
+          <div className="text-6xl mb-4">📡</div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">Couldn't load this profile</h2>
+          <p className="text-gray-500 mb-6">Check your connection and try again.</p>
+          <button
+            type="button"
+            onClick={() => loadUserProfile()}
+            className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // LOADING CHECK - profile skeleton
@@ -436,6 +525,20 @@ function UserProfile() {
             </div>
           ))}
         </div>
+      ) : rounds.length === 0 && loadError ? (
+        // Loading failed: don't claim they have no rounds
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center" role="alert">
+          <div className="text-6xl mb-4">📡</div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">Couldn't load rounds</h2>
+          <p className="text-gray-500 mb-6">Check your connection and try again.</p>
+          <button
+            type="button"
+            onClick={retry}
+            className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700"
+          >
+            Retry
+          </button>
+        </div>
       ) : rounds.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <div className="text-6xl mb-4">🏌️</div>
@@ -464,6 +567,20 @@ function UserProfile() {
         <div className="text-center py-4">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
           <p className="text-gray-500 text-sm mt-2">Loading more rounds...</p>
+        </div>
+      )}
+
+      {/* A later page failed: stop auto-loading until the user taps Retry */}
+      {loadError === 'more' && !isLoading && rounds.length > 0 && (
+        <div className="text-center py-4" role="alert">
+          <p className="text-gray-500 text-sm mb-2">Couldn't load more rounds.</p>
+          <button
+            type="button"
+            onClick={retry}
+            className="px-4 py-2 text-sm font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100"
+          >
+            Retry
+          </button>
         </div>
       )}
 

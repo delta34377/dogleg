@@ -8,14 +8,14 @@ import { BarChart3, Sliders, Home, Shield, Gauge } from 'lucide-react';
 const AdminHub = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { profile } = useAuth();
 
   // Defense-in-depth admin check (route is already gated by <AdminGate>).
   useEffect(() => {
-    if (!isAdmin(user)) {
+    if (!isAdmin(profile)) {
       navigate('/');
     }
-  }, [user, navigate]);
+  }, [profile, navigate]);
 
   // Determine active tab based on current path
   const getActiveTab = () => {

@@ -1,10 +1,13 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../services/supabase'
 
+const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/
+
 function UsernameSetup() {
-  const { user, profile, updateProfile, loadProfile } = useAuth()
-  const [username, setUsername] = useState('')
+  const { user, profile, updateProfile, loadProfile, signOut } = useAuth()
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -17,6 +20,23 @@ function UsernameSetup() {
     user?.email?.split('@')[0]?.replace(/[^a-z0-9_]/gi, '').toLowerCase().slice(0, 20) || 
     ''
 
+  // Start with the suggestion already typed in (if it's a valid username), so
+  // "Let's Go!" works straight away. This screen only appears once the profile
+  // has loaded, so the suggestion is ready on first render.
+  const [username, setUsername] = useState(() =>
+    USERNAME_PATTERN.test(suggestedUsername) ? suggestedUsername : ''
+  )
+
+  // Signed in with the wrong Google account? Let them out without a username
+  const handleSignOut = async () => {
+    const { error: signOutError } = await signOut()
+    if (signOutError) {
+      setError("Couldn't sign out. Check your connection and try again.")
+      return
+    }
+    navigate('/', { replace: true })
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -24,7 +44,7 @@ function UsernameSetup() {
     const cleanUsername = username.toLowerCase().replace(/\s/g, '')
     
     // Validate username format
-    if (!/^[a-z0-9_]{3,20}$/.test(cleanUsername)) {
+    if (!USERNAME_PATTERN.test(cleanUsername)) {
       setError('Username must be 3-20 characters (letters, numbers, underscores only)')
       return
     }
@@ -65,7 +85,15 @@ function UsernameSetup() {
 
     } catch (err) {
       console.error('Error setting username:', err)
-      setError(err.message || 'Failed to set username. Please try again.')
+      // Postgres error codes: 23505 = someone else took the name a moment
+      // ago; 23514 = the database's own format check rejected it
+      if (err?.code === '23505') {
+        setError('This username is already taken. Please choose another.')
+      } else if (err?.code === '23514') {
+        setError('Username must be 3-20 characters (letters, numbers, underscores only)')
+      } else {
+        setError('Failed to set username. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
@@ -165,6 +193,18 @@ function UsernameSetup() {
 
         <p className="text-xs text-gray-500 text-center mt-4">
           Your username is how other golfers will find and follow you.
+        </p>
+
+        <p className="text-sm text-gray-600 text-center mt-4">
+          Not you?{' '}
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="font-semibold text-green-600 hover:text-green-700"
+            disabled={loading}
+          >
+            Sign out
+          </button>
         </p>
       </div>
     </div>

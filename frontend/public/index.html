@@ -2,8 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.png" />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="%PUBLIC_URL%/favicon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#16a34a" />
     <meta
@@ -12,16 +12,98 @@
     />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
     <title>Dogleg.io - The Strava for Golf</title>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5H72L3N9MF"></script>
+
+    <!--
+      Link previews (iMessage, WhatsApp, Slack, X...). Preview bots don't run
+      JavaScript, so these fixed tags are what they see for every page.
+      Shared round links get their own preview from api/og/round.js instead
+      (see vercel.json). Image URLs must be absolute (https://...).
+    -->
+    <meta property="og:site_name" content="Dogleg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Dogleg.io - The Strava for Golf" />
+    <meta
+      property="og:description"
+      content="An automatic handicap, a 0-10 Dogleg Score for every round, and a feed of your friends' golf. Post a round in 30 seconds."
+    />
+    <meta property="og:url" content="https://dogleg.io/" />
+    <meta property="og:image" content="https://dogleg.io/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The Dogleg dog mascot holding a golf club, with the words: Dogleg, the Strava for golf" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Dogleg.io - The Strava for Golf" />
+    <meta
+      name="twitter:description"
+      content="An automatic handicap, a 0-10 Dogleg Score for every round, and a feed of your friends' golf. Post a round in 30 seconds."
+    />
+    <meta name="twitter:image" content="https://dogleg.io/og-image.png" />
+
+    <!--
+      Google Analytics with Consent Mode v2.
+      The "consent default" lines MUST run before gtag('config', ...), so they
+      come first:
+        - EEA, UK and Switzerland: analytics/advertising cookies are OFF
+          (privacy law there needs consent first).
+        - Everywhere else: ON.
+        - Anyone who chose on the Privacy page (localStorage
+          'dogleg_analytics_optout'): '1' = OFF everywhere, '0' = analytics ON.
+      The Privacy page's switch is in src/utils/analyticsConsent.js; keep the
+      key and values in step with it.
+    -->
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+
+      var analyticsChoice = null;
+      try {
+        analyticsChoice = window.localStorage.getItem('dogleg_analytics_optout');
+      } catch (e) {
+        // Storage blocked (some private-browsing modes): use the defaults
+      }
+
+      var CONSENT_DENIED = {
+        analytics_storage: 'denied',
+        ad_storage: 'denied',
+        ad_user_data: 'denied',
+        ad_personalization: 'denied'
+      };
+
+      if (analyticsChoice === '1') {
+        // Turned off on the Privacy page: off everywhere
+        gtag('consent', 'default', CONSENT_DENIED);
+      } else {
+        // EEA (EU + Iceland, Liechtenstein, Norway), UK and Switzerland
+        gtag('consent', 'default', {
+          analytics_storage: 'denied',
+          ad_storage: 'denied',
+          ad_user_data: 'denied',
+          ad_personalization: 'denied',
+          region: [
+            'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR',
+            'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL',
+            'PT', 'RO', 'SE', 'SI', 'SK', 'IS', 'LI', 'NO', 'GB', 'CH'
+          ]
+        });
+        // Everywhere else
+        gtag('consent', 'default', {
+          analytics_storage: 'granted',
+          ad_storage: 'granted',
+          ad_user_data: 'granted',
+          ad_personalization: 'granted'
+        });
+        if (analyticsChoice === '0') {
+          // Turned on on the Privacy page: analytics cookies allowed anywhere
+          gtag('consent', 'update', { analytics_storage: 'granted' });
+        }
+      }
+
       gtag('js', new Date());
       gtag('config', 'G-5H72L3N9MF');
     </script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-5H72L3N9MF"></script>
   </head>
-  
+
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>

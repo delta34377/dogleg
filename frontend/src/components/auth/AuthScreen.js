@@ -1,8 +1,24 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { FcGoogle } from 'react-icons/fc'
-import { MdPhone } from 'react-icons/md'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { Navigate, useNavigate, useLocation } from 'react-router-dom'
+import FullPageSpinner from '../FullPageSpinner'
+import {
+  getSafeRedirectPath,
+  saveRedirectAfterLogin,
+  clearRedirectAfterLogin,
+} from '../../utils/safeRedirect'
+
+// Google's multi-colour "G" (inline so we don't need an icon library)
+function GoogleIcon() {
+  return (
+    <svg className="w-5 h-5" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
+  )
+}
 
 function AuthScreen({ onSuccess }) {
   // Add mounted ref to prevent state updates after unmount
@@ -10,9 +26,12 @@ function AuthScreen({ onSuccess }) {
 
   const navigate = useNavigate()
   const location = useLocation()
-  const from = location.state?.from || '/'  // where to go after login
+  // Where to go after login. Router state can come from anywhere, so only a
+  // path on this same site is accepted (see utils/safeRedirect.js).
+  const from = getSafeRedirectPath(location.state?.from)
+  const cameForRound = from.startsWith('/rounds/')
 
-  // Landing page CTAs can open this screen directly in signup mode
+  // Landing page CTAs and shared-round pages can open this screen in signup mode
   const [authMode, setAuthMode] = useState(location.state?.mode === 'signup' ? 'signup' : 'signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -29,6 +48,8 @@ function AuthScreen({ onSuccess }) {
   const [success, setSuccess] = useState('')
 
   const {
+    user,
+    loading: authLoading,
     signUp, 
     signIn, 
     signInWithPhone, 
@@ -44,12 +65,11 @@ function AuthScreen({ onSuccess }) {
     }
   }, [])
 
-  // Save the destination for OAuth redirect
-useEffect(() => {
-  if (from !== '/') {
-    sessionStorage.setItem('redirectAfterLogin', from)
-  }
-}, [from])
+  // Forget any destination saved by an earlier, abandoned Google sign-in.
+  // (It is saved again only when the Google button is pressed.)
+  useEffect(() => {
+    clearRedirectAfterLogin()
+  }, [])
 
   // Clear sensitive data when switching modes
   useEffect(() => {
@@ -107,11 +127,12 @@ useEffect(() => {
 
     safeSetState(setLoading)(true)
 
+    // Passing `from` makes the confirmation email link open that page
     const { error } = await signUp(email, password, {
   username: username.toLowerCase().replace(/\s/g, ''),
   full_name: fullName,
   wants_newsletter: wantsNewsletter
-})
+}, from)
 
     if (!mountedRef.current) return
 
@@ -119,7 +140,9 @@ useEffect(() => {
       setError(error.message)
       setLoading(false)
     } else {
-      setSuccess('Check your email to confirm your account!')
+      setSuccess(cameForRound
+        ? 'Check your email to confirm your account! The link will bring you back to this round.'
+        : 'Check your email to confirm your account!')
       setEmail('')
       setPassword('')
       setConfirmPassword('')
@@ -195,10 +218,9 @@ useEffect(() => {
   safeSetState(setError)('')
   safeSetState(setLoading)(true)
 
-  // Store redirect path before OAuth redirect
-  if (from !== '/') {
-    sessionStorage.setItem('redirectAfterLogin', from)
-  }
+  // Google always returns to the home page; remember where to continue.
+  // The app shell reads this once after sign-in (and sign-out clears it).
+  saveRedirectAfterLogin(from)
 
   const { error } = await signInWithGoogle()
 
@@ -237,6 +259,16 @@ useEffect(() => {
     // useEffect will handle clearing sensitive data
   }
 
+  // Wait for the session check, then send already-signed-in users on their
+  // way instead of showing them a login form (e.g. after a slow token refresh
+  // bounced them here, or a stale "Log in" bookmark)
+  if (authLoading) {
+    return <FullPageSpinner />
+  }
+  if (user) {
+    return <Navigate to={from} replace />
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
@@ -252,6 +284,13 @@ useEffect(() => {
       <p className="text-lg font-semibold text-green-700 mb-3">
         Your Golf Life, Socialized.
       </p>
+      {cameForRound && (
+        <p className="text-sm font-medium text-gray-700 mb-3">
+          {authMode === 'signup'
+            ? 'Create a free account to react and comment on this round.'
+            : 'Sign in to react and comment on this round.'}
+        </p>
+      )}
               <div className="flex flex-col gap-1 text-sm text-gray-600">
                 <p>⛳ Log your rounds in seconds</p>
                 <p>👥 Follow friends and see their scores</p>
@@ -292,7 +331,7 @@ useEffect(() => {
                 className="w-full flex items-center justify-center gap-3 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
                 disabled={loading}
               >
-                <FcGoogle className="text-xl" />
+                <GoogleIcon />
                 <span>Continue with Google</span>
               </button>
             </div>

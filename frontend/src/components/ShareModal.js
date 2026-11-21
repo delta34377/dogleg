@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import ModalShell from './ModalShell'
+import { useAuth } from '../context/AuthContext'
+import { calculateVsPar, cardFor } from '../utils/roundHelpers'
 
 // Utility function to intelligently display course/club names
 const getDisplayName = (round) => {
@@ -62,7 +64,18 @@ const getDisplayName = (round) => {
   return `${courseName} @ ${clubName}`
 }
 
+// The text that goes with the shared image. "I shot" only for your own
+// round; for anyone else's it names the golfer, so a friend's round shared
+// from the feed doesn't read as if you played it. The link is always in the
+// text itself, because some apps drop the separate `url` when an image is
+// attached.
+export function buildShareText({ round, username, isOwn, shareUrl }) {
+  const who = isOwn ? 'I' : (username || 'A golfer')
+  return `${who} shot ${round.total} at ${getDisplayName(round)}! ${shareUrl}`
+}
+
 function ShareModal({ round, username, onClose }) {
+  const { user } = useAuth()
   const [isGenerating, setIsGenerating] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -70,6 +83,8 @@ function ShareModal({ round, username, onClose }) {
   
   const shareUrl = `https://dogleg.io/rounds/${round.short_code || round.id}`
   const photoUrl = round.photo || round.photo_url
+  // Whose round is this? (signed-out visitors on a shared link: never theirs)
+  const isOwn = !!user && !!round.user_id && round.user_id === user.id
 
   // Helper to shrink text to fit width
   const drawTextToFit = (ctx, text, x, y, maxWidth, initialFontSize) => {
@@ -262,8 +277,10 @@ try {
 
     ctx.font = '12px -apple-system, BlinkMacSystemFont, sans-serif'
     ctx.globalAlpha = 0.9
+    // Skip empty parts so a round with no city/state doesn't print " , "
+    const place = [round.city, round.state].filter(Boolean).join(', ')
     ctx.fillText(
-      `${formatDate(round.date)} • ${round.city}, ${round.state}${isNineHole ? ' • 9 holes' : ''}`,
+      [formatDate(round.date), place, isNineHole ? '9 holes' : ''].filter(Boolean).join(' • '),
       16, currentY)
     ctx.globalAlpha = 1
     
@@ -276,26 +293,9 @@ try {
     
     const scoreWidth = ctx.measureText(scoreText).width
     
-    // Vs Par
-    const calcVsPar = () => {
-      if (!round.par && !round.coursePars) return null
-      let par = round.par || 72
-      if (holesArr && holesArr.some(h => h) && round.coursePars) {
-        par = holesArr.reduce((s, score, i) => score ? s + parseInt(round.coursePars[i] || 4) : s, 0)
-      } else if (isNineHole) {
-        // one nine entered without hole detail: par of that nine
-        if (round.coursePars) {
-          const slice = frontPlayed ? round.coursePars.slice(0, 9) : round.coursePars.slice(9, 18)
-          par = slice.reduce((s, p) => s + parseInt(p || 4), 0)
-        } else {
-          par = Math.round(par / 2)
-        }
-      }
-      const diff = round.total - par
-      return diff === 0 ? 'E' : diff > 0 ? `+${diff}` : `${diff}`
-    }
-    
-    const vsPar = calcVsPar()
+    // Vs Par: the same helper as the round cards, so the image never says
+    // something different (nine-hole courses included)
+    const vsPar = calculateVsPar({ ...round, holes: holesArr || [] })
     if (vsPar) {
       ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, sans-serif'
       // Over par is orange, matching the app's score semantics
@@ -352,10 +352,12 @@ try {
     
     // Scorecard logic — draw only the nines that were played
     const hasHoles = holesArr && holesArr.some(h => h !== '' && h !== null)
-    const pars = round.coursePars || Array(18).fill(4)
+    // 18 pars (null where the card has none; a nine-hole course's card is
+    // read again for holes 10-18), the same card the round cards use
+    const pars = cardFor(round.coursePars) || Array(18).fill(null)
     
     const getScoreColor = (score, par) => {
-      if (!score) return { bg: '#ffffff', fg: '#334155' }
+      if (!score || par === null || par === undefined) return { bg: '#ffffff', fg: '#334155' }
       const diff = parseInt(score) - parseInt(par)
       if (diff <= -2) return { bg: '#0d7d0d', fg: '#ffffff' }
       if (diff === -1) return { bg: '#4caf50', fg: '#ffffff' }
@@ -393,9 +395,10 @@ try {
         ctx.font = '500 10px -apple-system, BlinkMacSystemFont, sans-serif'
         ctx.fillStyle = '#94a3b8'
         for (let i = 0; i < 9; i++) {
-          ctx.fillText(String(pars[nine.offset + i]), startX + i * (cellW + gap) + cellW/2, y)
+          ctx.fillText(String(pars[nine.offset + i] ?? '-'), startX + i * (cellW + gap) + cellW/2, y)
         }
-        const ninePar = pars.slice(nine.offset, nine.offset + 9).reduce((a, b) => a + parseInt(b), 0)
+        const ninePars = pars.slice(nine.offset, nine.offset + 9)
+        const ninePar = ninePars.every(p => p !== null) ? ninePars.reduce((a, b) => a + b, 0) : '-'
         ctx.fillText(String(ninePar), startX + 9 * (cellW + gap) + cellW/2, y)
         
         y += 20
@@ -523,8 +526,8 @@ try {
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             files: [file],
-            title: 'My Golf Round',
-            text: `I shot ${round.total} at ${getDisplayName(round)}!`,
+            title: isOwn ? 'My Golf Round' : `${username || 'A golfer'}'s Golf Round`,
+            text: buildShareText({ round, username, isOwn, shareUrl }),
           })
           onClose()
           return
@@ -540,8 +543,12 @@ try {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
     } catch (error) {
-      console.error('Share error:', error)
-      alert('Failed to share image. Please try again.')
+      // Closing the phone's share sheet without picking an app rejects with
+      // AbortError. That's the user changing their mind, not a failure.
+      if (error?.name !== 'AbortError') {
+        console.error('Share error:', error)
+        alert('Failed to share image. Please try again.')
+      }
     }
     
     setIsGenerating(false)

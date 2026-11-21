@@ -1,585 +1,192 @@
-import { useState, useRef, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
-import './App.css'
+import { Fragment, Suspense, lazy } from 'react'
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+  matchPath,
+  useLocation,
+  useNavigate,
+  useOutletContext,
+} from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AuthScreen from './components/auth/AuthScreen'
-import CourseSearch from './components/CourseSearch'
+import AppShell from './components/AppShell'
+import PublicShell from './components/PublicShell'
+import FullPageSpinner, { PageSpinner } from './components/FullPageSpinner'
+import AdminGate from './components/AdminGate'
 import MyRounds from './components/MyRounds'
 import Profile from './components/Profile'
-import Feed from './components/Feed'
-import UserProfile from './components/UserProfile'
-import ResetPassword from './components/ResetPassword'
 import SingleRound from './components/SingleRound'
-import StatsPage from './components/StatsPage'
-import CoursePage from './components/CoursePage'
-import SearchUsers from './pages/SearchUsers'
-import TermsOfService from './pages/TermsOfService'
-import PrivacyPolicy from './pages/PrivacyPolicy'
 import LandingPage from './pages/LandingPage'
-import { getInitials } from './utils/avatarUtils'
-import AdminPanel from './components/AdminPanel'
-import AdminGate from './components/AdminGate'
-import { isAdmin } from './utils/admin'
-import AdminHub from './components/admin/AdminHub'
-import AdminOverview from './components/admin/AdminOverview'
-import AdminDashboard from './components/admin/AdminDashboard'
-import AdminStatsEngine from './components/admin/AdminStatsEngine'
-import ModerationDashboard from './components/admin/ModerationDashboard'
-import NotificationDropdown from './components/NotificationDropdown'
-import IOSInstallPrompt from './components/IOSInstallPrompt';
 import { Analytics } from '@vercel/analytics/react'
-import UsernameSetup from './components/UsernameSetup'
 
+// ---- Code splitting ----
+// These pages are downloaded only when someone opens them, so a first-time
+// visitor on the landing page doesn't download the charts library, the admin
+// dashboards or the legal pages.
+//
+// After a new deploy, a phone that still has the old app open may ask for a
+// page file that no longer exists. lazyPage() then reloads once to pick up the
+// new version; if that still fails, the error screen offers "Reload".
+//
+// A phone with no signal (out on the course) fails the same download for a
+// different reason. Reloading then would swap the running app for the
+// browser's "no connection" page (and the installed iPhone app has no reload
+// button), so instead the page keeps its spinner and tries again once the
+// phone is back online.
+const CHUNK_RELOAD_KEY = 'dogleg-chunk-reload'
 
+// The errors a missing page file gives (webpack's, and the browsers' own for
+// native imports). Anything else is a real bug: show the error screen.
+export const isStaleChunkError = (error) =>
+  /ChunkLoadError|Loading (CSS )?chunk|dynamically imported module/i.test(
+    `${error?.name || ''} ${error?.message || ''}`
+  )
 
-// Main authenticated app with navigation
-function AuthenticatedApp() {
-  const location = useLocation()
-  // Detail pages (/rounds/:id, /courses/:id, /profile/:username) mount their
-  // own AuthenticatedApp instance, so tab state is lost when leaving them.
-  // Tab clicks on those pages pass the target through navigation state.
-  const [activeView, setActiveView] = useState(() => location.state?.view || 'feed')
-  const feedRef = useRef(null)
-  const roundsRef = useRef(null)
-  const { user, profile, signOut } = useAuth()
-  const navigate = useNavigate()
+const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false
 
-  
-  
-  // Handle redirect after OAuth login
-useEffect(() => {
-  const redirectPath = sessionStorage.getItem('redirectAfterLogin')
-  
-  if (redirectPath) {
-    // Clean up storage
-    sessionStorage.removeItem('redirectAfterLogin')
-    
-    // Navigate to the saved path (e.g. /rounds/UM6QVL)
-    navigate(redirectPath, { replace: true })
+const waitUntilOnline = () =>
+  new Promise((resolve) => window.addEventListener('online', resolve, { once: true }))
+
+// importPage() with the recovery described above. `reload` is only replaced
+// by tests.
+export function importWithRecovery(importPage, reload = () => window.location.reload()) {
+  const loaded = (module) => {
+    try { sessionStorage.removeItem(CHUNK_RELOAD_KEY) } catch { /* storage unavailable */ }
+    return module
   }
-}, [navigate])
 
-// Check if user needs to set up username (Google OAuth users)
-  if (profile && !profile.username) {
-    return <UsernameSetup />
+  const failed = (error) => {
+    if (!isOffline() && isStaleChunkError(error)) {
+      let alreadyReloaded = true
+      try {
+        alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY) === '1'
+        if (!alreadyReloaded) sessionStorage.setItem(CHUNK_RELOAD_KEY, '1')
+      } catch { /* storage unavailable: don't risk a reload loop */ }
+
+      if (!alreadyReloaded) {
+        reload()
+        return new Promise(() => {}) // never resolves; the page is reloading
+      }
+    }
+    throw error // the inline error screen shows, with its Reload button
   }
-  
-  // Handle Feed tab click - refresh if already on feed
-const handleFeedClick = () => {
-  if (isDetailPage) {
-    navigate('/', { state: { view: 'feed' } })
-  } else if (activeView === 'feed' && feedRef.current) {
-    // Already on feed, trigger refresh and scroll to top
-    feedRef.current.refresh()
-  } else {
-    // Not on feed, just switch to feed
-    setActiveView('feed')
-  }
+
+  return importPage().then(loaded, (error) => {
+    if (isOffline()) {
+      // Keep the spinner; try once more when the connection comes back
+      return waitUntilOnline().then(() => importPage()).then(loaded, failed)
+    }
+    return failed(error)
+  })
 }
 
-// Handle My Rounds tab click - scroll to top if already on rounds
-const handleMyRoundsClick = () => {
-  if (isDetailPage) {
-    navigate('/', { state: { view: 'rounds' } })
-  } else if (activeView === 'rounds' && roundsRef.current) {
-    // Already on rounds, trigger scroll to top
-    roundsRef.current.scrollToTop()
-  } else {
-    // Not on rounds, just switch to rounds
-    setActiveView('rounds')
-  }
+function lazyPage(importPage) {
+  return lazy(() => importWithRecovery(importPage))
 }
 
-// Add handler for Add Round
-const handleAddRoundClick = () => {
-  if (isDetailPage) {
-    navigate('/', { state: { view: 'search' } })
-  } else {
-    setActiveView('search')
+const CourseSearch = lazyPage(() => import('./components/CourseSearch'))
+const StatsPage = lazyPage(() => import('./components/StatsPage'))
+const CoursePage = lazyPage(() => import('./components/CoursePage'))
+const UserProfile = lazyPage(() => import('./components/UserProfile'))
+const SearchUsers = lazyPage(() => import('./pages/SearchUsers'))
+const ResetPassword = lazyPage(() => import('./components/ResetPassword'))
+const TermsOfService = lazyPage(() => import('./pages/TermsOfService'))
+const PrivacyPolicy = lazyPage(() => import('./pages/PrivacyPolicy'))
+const AdminHub = lazyPage(() => import('./components/admin/AdminHub'))
+const AdminOverview = lazyPage(() => import('./components/admin/AdminOverview'))
+const AdminDashboard = lazyPage(() => import('./components/admin/AdminDashboard'))
+const AdminStatsEngine = lazyPage(() => import('./components/admin/AdminStatsEngine'))
+const ModerationDashboard = lazyPage(() => import('./components/admin/ModerationDashboard'))
+const AdminPanel = lazyPage(() => import('./components/AdminPanel'))
+
+// Pages that need an account. A signed-out visitor on one of these goes to
+// /login and is brought back afterwards. (Signed-out visitors may see "/"
+// — the landing page — and "/rounds/:roundId" — a shared round.)
+const SIGNED_IN_ONLY_PATHS = [
+  '/add',
+  '/my-rounds',
+  '/stats',
+  '/profile',
+  '/profile/:username',
+  '/courses/:courseId',
+  '/search-users',
+]
+
+// Decides what wraps the in-app pages: the landing page, the public frame for
+// a shared round, or the signed-in app shell. Because this is one layout route
+// that stays mounted, moving between pages never rebuilds the shell.
+function AppLayout() {
+  const { user, loading, rechecking } = useAuth()
+  const { pathname } = useLocation()
+
+  // Wait until we know whether the user is signed in
+  if (loading || (!user && rechecking)) {
+    return <FullPageSpinner />
   }
-}
 
-// Add handler for Stats
-const handleStatsClick = () => {
-  if (isDetailPage) {
-    navigate('/', { state: { view: 'stats' } })
-  } else {
-    setActiveView('stats')
-  }
-}
+  if (!user) {
+    if (pathname === '/') return <LandingPage />
 
-// Add handler for Profile
-const handleProfileClick = () => {
-  if (isDetailPage) {
-    navigate('/', { state: { view: 'profile' } })
-  } else {
-    setActiveView('profile')
-  }
-}
+    // Shared round links work without an account
+    if (matchPath('/rounds/:roundId', pathname)) {
+      return (
+        <PublicShell>
+          <Suspense fallback={<PageSpinner />}>
+            <Outlet />
+          </Suspense>
+        </PublicShell>
+      )
+    }
 
-  // Check if we're on a user profile page
-  const isUserProfilePage = location.pathname.startsWith('/profile/') && location.pathname !== '/profile'
-
-  // Check if we're on a single round page
-const isSingleRoundPage = location.pathname.startsWith('/rounds/')
-
-  // Check if we're on a course page
-const isCoursePage = location.pathname.startsWith('/courses/')
-
-  // Detail pages render inside the nav shell but aren't a tab
-const isDetailPage = isSingleRoundPage || isCoursePage
-  
-  // If on user profile page, show UserProfile with navigation
-  if (isUserProfilePage) {
-    return (
-      <div className="bg-gray-50 min-h-screen">
-      <IOSInstallPrompt />
-        {/* Top Bar with User Info */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-          <div className="max-w-4xl mx-auto px-4">
-            <div className="flex items-center justify-between h-14">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => navigate(-1)}
-                  className="mr-2 p-1.5 hover:bg-gray-100 rounded-lg md:hidden"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => {
-                    navigate('/', { state: { view: 'feed' } })
-                  }}
-                  className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                >
-                  <img src="/icon-192.png" alt="Dogleg" className="w-12 h-12 object-contain" />
-<span className="font-bold text-xl text-green-700">Dogleg.io</span>
-                </button>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                {/* ADD SEARCH ICON HERE */}
-                <button
-                  onClick={() => navigate('/search-users')}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                  title="Search users"
-                >
-                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
-
-{/* Notifications */}
-
-<NotificationDropdown />
-
-
-                {/* Secret Admin Button - only shows for admin email */}
-                {isAdmin(user) && (
-                  <button
-                    onClick={() => navigate('/admin')}
-                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                    title="Admin Panel"
-                  >
-                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </button>
-                )}
-
-                <button
-                  onClick={() => {
-                    navigate('/', { state: { view: 'profile' } })
-                  }}
-                  className="flex items-center gap-2 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
-                >
-                  {profile?.avatar_url ? (
-                    <img 
-                      src={profile.avatar_url} 
-                      alt="Profile" 
-                      className="w-8 h-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                      <span className="text-green-700 font-semibold">
-                        {getInitials(profile) || user?.email?.[0]?.toUpperCase()}
-                      </span>
-                    </div>
-                  )}
-                  <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                    {profile?.username || profile?.full_name || 'Profile'}
-                  </span>
-                </button>
-
-                <button
-                  onClick={signOut}
-                  className="text-sm text-gray-600 hover:text-gray-900"
-                  title="Sign out"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Desktop Navigation Bar */}
-        <div className="hidden md:block bg-white border-b border-gray-200 sticky top-14 z-40 shadow-sm">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex">
-              <button
-                onClick={() => {
-                  navigate('/', { state: { view: 'feed' } })
-                }}
-                className={`flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50`}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-xl">📰</span>
-                  <span>Feed</span>
-                </div>
-              </button>
-
-              <button
-                onClick={() => {
-                  navigate('/', { state: { view: 'search' } })
-                }}
-                className={`flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50`}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-xl">➕</span>
-                  <span>Add Round</span>
-                </div>
-              </button>
-
-              <button
-                onClick={() => {
-                  navigate('/', { state: { view: 'stats' } })
-                }}
-                className={`flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50`}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-xl">📈</span>
-                  <span>Stats</span>
-                </div>
-              </button>
-
-              <button
-                onClick={() => {
-                  navigate('/', { state: { view: 'rounds' } })
-                }}
-                className={`flex-1 py-4 px-4 text-center font-medium transition-colors text-gray-600 hover:text-gray-800 hover:bg-gray-50`}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-xl">📊</span>
-                  <span>My Rounds</span>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="pt-4 pb-20 md:pb-4">
-<UserProfile key={location.pathname} />
-        </div>
-
-        {/* Bottom Navigation Bar (Mobile) */}
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 md:hidden">
-          <div className="grid grid-cols-4 h-16">
-            <button
-              onClick={() => {
-                navigate('/', { state: { view: 'feed' } })
-              }}
-              className={`flex flex-col items-center justify-center gap-1 text-gray-600`}
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2 2 0 00-2-2h-2" />
-              </svg>
-              <span className="text-xs">Feed</span>
-            </button>
-
-            <button
-              onClick={() => {
-                navigate('/', { state: { view: 'search' } })
-              }}
-              className={`flex flex-col items-center justify-center gap-1 text-gray-600`}
-            >
-              <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center -mt-2">
-                <span className="text-white text-2xl">+</span>
-              </div>
-              <span className="text-xs">Add</span>
-            </button>
-
-            <button
-              onClick={() => {
-                navigate('/', { state: { view: 'stats' } })
-              }}
-              className={`flex flex-col items-center justify-center gap-1 text-gray-600`}
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-              <span className="text-xs">Stats</span>
-            </button>
-
-            <button
-              onClick={() => {
-                navigate('/', { state: { view: 'rounds' } })
-              }}
-              className={`flex flex-col items-center justify-center gap-1 text-gray-600`}
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <span className="text-xs">Rounds</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    )
+    // Unknown address: show the landing page rather than a login wall
+    if (!SIGNED_IN_ONLY_PATHS.some((pattern) => matchPath(pattern, pathname))) {
+      return <Navigate to="/" replace />
+    }
+    // Otherwise ProtectedRoute (below) sends them to /login and back
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-    <IOSInstallPrompt />
-      {/* Top Bar with User Info */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            <button
-              onClick={handleFeedClick}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-            >
-              <img src="/icon-192.png" alt="Dogleg" className="w-12 h-12 object-contain" />
-<span className="font-bold text-xl text-green-700">Dogleg.io</span>
-            </button>
-            
-            <div className="flex items-center gap-3">
-
-              {/* ADD SEARCH ICON HERE */}
-              <button
-                onClick={() => navigate('/search-users')}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                title="Search users"
-              >
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
-
-{/* Notifications */}
-<NotificationDropdown />
-
-              {/* Secret Admin Button */}
-              {isAdmin(user) && (
-                <button
-                  onClick={() => navigate('/admin')}
-                  className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                  title="Admin Panel"
-                >
-                  ⚙️
-                </button>
-              )}
-
-              <button
-  onClick={handleProfileClick}
-                className="flex items-center gap-2 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
-              >
-                {profile?.avatar_url ? (
-                  <img 
-                    src={profile.avatar_url} 
-                    alt="Profile" 
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-green-700 font-semibold">
-                      {getInitials(profile) || user?.email?.[0]?.toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                  {profile?.username || profile?.full_name || 'Profile'}
-                </span>
-              </button>
-
-              <button
-                onClick={signOut}
-                className="text-sm text-gray-600 hover:text-gray-900"
-                title="Sign out"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Navigation Bar (Mobile) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 md:hidden">
-        <div className="grid grid-cols-4 h-16">
-          <button
-            onClick={handleFeedClick}
-            className={`flex flex-col items-center justify-center gap-1 ${
-                activeView === 'feed' && !isDetailPage ? 'text-green-600' : 'text-gray-600'
-            }`}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9.5a2 2 0 00-2-2h-2" />
-            </svg>
-            <span className="text-xs">Feed</span>
-          </button>
-
-          <button
-  onClick={handleAddRoundClick}
-            className={`flex flex-col items-center justify-center gap-1 ${
-              activeView === 'search' && !isDetailPage ? 'text-green-600' : 'text-gray-600'
-            }`}
-          >
-            <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center -mt-2">
-              <span className="text-white text-2xl">+</span>
-            </div>
-            <span className="text-xs">Add</span>
-          </button>
-
-          <button
-  onClick={handleStatsClick}
-            className={`flex flex-col items-center justify-center gap-1 ${
-              activeView === 'stats' && !isDetailPage ? 'text-green-600' : 'text-gray-600'
-            }`}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-            <span className="text-xs">Stats</span>
-          </button>
-
-          <button
-  onClick={handleMyRoundsClick}
-            className={`flex flex-col items-center justify-center gap-1 ${
-              activeView === 'rounds' && !isDetailPage ? 'text-green-600' : 'text-gray-600'
-            }`}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span className="text-xs">Rounds</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Desktop Navigation Bar */}
-      <div className="hidden md:block bg-white border-b border-gray-200 sticky top-14 z-40 shadow-sm">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex">
-            <button
-              onClick={handleFeedClick}
-              className={`flex-1 py-4 px-4 text-center font-medium transition-colors ${
-                  activeView === 'feed' && !isSingleRoundPage
-                  ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-xl">📰</span>
-                <span>Feed</span>
-              </div>
-            </button>
-
-            <button
-  onClick={handleAddRoundClick}
-              className={`flex-1 py-4 px-4 text-center font-medium transition-colors ${
-                activeView === 'search' && !isDetailPage
-                  ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-xl">➕</span>
-                <span>Add Round</span>
-              </div>
-            </button>
-
-            <button
-  onClick={handleStatsClick}
-              className={`flex-1 py-4 px-4 text-center font-medium transition-colors ${
-                activeView === 'stats' && !isDetailPage
-                  ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-xl">📈</span>
-                <span>Stats</span>
-              </div>
-            </button>
-
-            <button
-  onClick={handleMyRoundsClick}
-              className={`flex-1 py-4 px-4 text-center font-medium transition-colors ${
-                activeView === 'rounds' && !isDetailPage
-                  ? 'text-green-600 border-b-2 border-green-600 bg-green-50'
-                  : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-xl">📊</span>
-                <span>My Rounds</span>
-              </div>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-<div className="pt-4 pb-20 md:pb-4">
-  {isSingleRoundPage ? (
-    <SingleRound />
-  ) : isCoursePage ? (
-    <CoursePage />
-  ) : (
-    <>
-      {activeView === 'feed' && <Feed ref={feedRef} />}
-      {activeView === 'search' && <CourseSearch />}
-      {activeView === 'stats' && <StatsPage />}
-      {activeView === 'rounds' && <MyRounds ref={roundsRef} />}
-      {activeView === 'profile' && <Profile />}
-    </>
-  )}
-</div>
-    </div>
+    <ProtectedRoute>
+      <AppShell />
+    </ProtectedRoute>
   )
 }
 
-// Home route: marketing landing page for visitors, the app for signed-in users
-function HomeRoute() {
-  const { user, loading, rechecking } = useAuth()
+// My Rounds needs the shell's ref so re-tapping its tab can scroll to the top
+function MyRoundsTab() {
+  const { roundsRef } = useOutletContext()
+  return <MyRounds ref={roundsRef} />
+}
 
-  // Same loading rules as ProtectedRoute
-  if (loading || (!user && rechecking)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-            <svg className="animate-spin h-8 w-8 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
+// Rebuild a detail page when its address changes (e.g. tapping from one
+// golfer's profile to another's) so it never shows the previous page's data
+function RemountOnPathChange({ children }) {
+  const { pathname } = useLocation()
+  return <Fragment key={pathname}>{children}</Fragment>
+}
+
+function NotFound() {
+  const navigate = useNavigate()
+  return (
+    <div className="max-w-4xl mx-auto p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
+        <div className="text-6xl mb-4">⛳</div>
+        <h2 className="text-xl font-semibold text-gray-700 mb-2">Page not found</h2>
+        <p className="text-gray-500 mb-6">That link may be out of date.</p>
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700"
+        >
+          Back to the feed
+        </button>
       </div>
-    )
-  }
-
-  return user ? <AuthenticatedApp /> : <LandingPage />
+    </div>
+  )
 }
 
 // Main App component with routing
@@ -587,82 +194,48 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<AuthScreen />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          
-          {/* User search route */}
-          <Route 
-            path="/search-users" 
-            element={
-              <ProtectedRoute>
-                <SearchUsers />
-              </ProtectedRoute>
-            }
-          />
-          
-          {/* Admin routes with sub-routes */}
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute>
-                <AdminGate>
-                  <AdminHub />
-                </AdminGate>
-              </ProtectedRoute>
-            }
-          >
-            {/* Default admin page shows overview */}
-            <Route index element={<AdminOverview />} />
-            
-            {/* Analytics dashboard */}
-            <Route path="analytics" element={<AdminDashboard />} />
+        <Suspense fallback={<FullPageSpinner />}>
+          <Routes>
+            <Route path="/login" element={<AuthScreen />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
 
-            {/* Stats engine observability + user diagnostics */}
-            <Route path="stats-engine" element={<AdminStatsEngine />} />
+            {/* Admin pages (outside the app shell) */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminGate>
+                    <AdminHub />
+                  </AdminGate>
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<AdminOverview />} />
+              <Route path="analytics" element={<AdminDashboard />} />
+              <Route path="stats-engine" element={<AdminStatsEngine />} />
+              <Route path="feed-algorithm" element={<AdminPanel />} />
+              <Route path="moderation" element={<ModerationDashboard />} />
+            </Route>
 
-            {/* Your existing feed algorithm controls */}
-            <Route path="feed-algorithm" element={<AdminPanel />} />
-              <Route path="moderation" element={<ModerationDashboard />} /> 
-
-          </Route>
-
-          {/* Profile route */}
-          <Route 
-            path="/profile/:username" 
-            element={
-              <ProtectedRoute>
-                <AuthenticatedApp />
-              </ProtectedRoute>
-            }
-          />
-          
-          {/* Individual round route */}
-          <Route
-  path="/rounds/:roundId"
-  element={
-    <ProtectedRoute>
-      <AuthenticatedApp />
-    </ProtectedRoute>
-  }
-/>
-
-          {/* Course page route */}
-          <Route
-  path="/courses/:courseId"
-  element={
-    <ProtectedRoute>
-      <AuthenticatedApp />
-    </ProtectedRoute>
-  }
-/>
-
-          {/* Home: landing page for visitors, app for signed-in users */}
-          <Route path="/*" element={<HomeRoute />} />
-        </Routes>
-          <Analytics />
+            {/* Everything else lives inside one shared layout (see AppLayout) */}
+            <Route element={<AppLayout />}>
+              {/* "/" is the Feed, which AppShell itself keeps mounted */}
+              <Route index element={null} />
+              <Route path="add" element={<CourseSearch />} />
+              <Route path="my-rounds" element={<MyRoundsTab />} />
+              <Route path="stats" element={<StatsPage />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="profile/:username" element={<RemountOnPathChange><UserProfile /></RemountOnPathChange>} />
+              <Route path="courses/:courseId" element={<RemountOnPathChange><CoursePage /></RemountOnPathChange>} />
+              <Route path="rounds/:roundId" element={<RemountOnPathChange><SingleRound /></RemountOnPathChange>} />
+              <Route path="search-users" element={<SearchUsers />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </Suspense>
+        <Analytics />
       </AuthProvider>
     </Router>
   )

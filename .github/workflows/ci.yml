@@ -1,0 +1,128 @@
+# Continuous integration: GitHub runs these checks on every push and every
+# pull request, and shows a green tick or a red cross next to the commit.
+# A red cross means "don't merge yet": open the failing step's log to see why.
+#
+# Two independent jobs:
+#   frontend - install, lint, unit tests, Vercel function tests, production build
+#   database - applies database/*.sql to a throwaway PostgreSQL 16 and runs the
+#              SQL tests in database/tests (see database/tests/README.md)
+#
+# Nothing here talks to the real Supabase or Vercel: every key below is a dummy.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Read-only access to the repo is all these checks need
+permissions:
+  contents: read
+
+# If you push again while a run is still going, cancel the older run
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # Run in a US time zone. Some date tests only catch the "round shows one
+      # day early" bug west of Greenwich; in UTC they would pass either way.
+      TZ: America/Los_Angeles
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # same major version Vercel builds with
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # npm ci installs exactly what package-lock.json says, and fails if
+      # package.json and the lockfile disagree (run `npm install` to resync).
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      # ESLint exits with an error only for real errors; warnings are printed
+      # in the log but don't fail the build.
+      - name: Lint
+        run: npx eslint src --ext .js
+
+      # Jest unit tests in src/ (dummy Supabase settings come from .env.test)
+      - name: Unit tests
+        run: npm test -- --watchAll=false
+        env:
+          CI: true
+
+      # Tests for the Vercel functions in frontend/api (plain Node, no Jest).
+      # Skipped automatically if there are no test files there.
+      - name: Vercel function tests
+        if: hashFiles('frontend/api/**/*.test.js') != ''
+        run: node --test "api/**/*.test.js"
+
+      # The same production build Vercel does. The "build" script sets CI=false
+      # so lint warnings don't fail it. The Supabase values are placeholders:
+      # the build only needs them to exist.
+      - name: Build
+        run: npm run build
+        env:
+          REACT_APP_SUPABASE_URL: https://example.supabase.co
+          REACT_APP_SUPABASE_ANON_KEY: dummy-anon-key-for-ci
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      # A throwaway PostgreSQL 16 server that exists only for this job
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust # no password; it's never reachable from outside
+        ports:
+          - 5432:5432
+        # Wait until the server accepts connections before running the steps
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+
+      # The harness only needs the psql client. GitHub's Ubuntu image ships
+      # with it; install it if that ever changes.
+      - name: Check for psql
+        run: |
+          if ! command -v psql >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y postgresql-client
+          fi
+          psql --version
+
+      - name: SQL tests
+        run: bash database/tests/run.sh
+
+      # We can't see production's exact column types (the base schema isn't in
+      # git), so run everything again with the other plausible types too.
+      - name: SQL tests (alternate column types)
+        run: bash database/tests/run.sh
+        env:
+          MOCK_SCORES_TYPE: jsonb
+          MOCK_PLAYED_AT_TYPE: date
+
+      # json, unlike jsonb, has no "=" operator: SQL that compares these
+      # columns directly fails here (and would break every post in production
+      # if the real column were json).
+      - name: SQL tests (json columns)
+        run: bash database/tests/run.sh
+        env:
+          MOCK_SCORES_TYPE: json
+          MOCK_PLAYED_AT_TYPE: timestamp

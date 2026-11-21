@@ -1,33 +1,30 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import FullPageSpinner from './FullPageSpinner'
+import UsernameSetup from './UsernameSetup'
 
+// Wraps every page that needs an account (the app shell and the admin pages).
+//  - While auth is still loading: spinner.
+//  - Signed out: go to /login, remembering this page so we can come back.
+//  - Signed in but no username yet (new Google users): pick one first.
 function ProtectedRoute({ children }) {
-  const { user, loading, rechecking } = useAuth()
-  const location = useLocation()  // ADD THIS LINE
+  const { user, profile, loading, rechecking } = useAuth()
+  const location = useLocation()
 
-  // Only show spinner in two cases:
-  // 1. Initial loading
-  // 2. No user AND rechecking (avoids spinner when user exists)
+  // Only show the spinner on first load, or while re-checking a session that
+  // might have expired (no spinner if the user is already known)
   if (loading || (!user && rechecking)) {
-    // Show loading spinner while checking auth status
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-            <svg className="animate-spin h-8 w-8 text-green-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    )
+    return <FullPageSpinner />
   }
 
   if (!user) {
-    // Redirect to login if not authenticated
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />
+    // Keep the query string too, so e.g. /profile/x?tab=rounds survives
+    return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />
+  }
+
+  // Covers every signed-in page, not just the feed
+  if (profile && !profile.username) {
+    return <UsernameSetup />
   }
 
   return children

@@ -1,24 +1,32 @@
 {
+  "id": "/",
   "short_name": "Dogleg",
   "name": "Dogleg - The Strava for Golf",
-  "description": "Automatic handicap, a 0-10 score for every round, and a feed of your friends's golf",
+  "description": "Automatic handicap, a 0-10 score for every round, and a feed of your friends' golf",
   "icons": [
     {
       "src": "favicon.png",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/png"
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icon-192.png",
-      "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "icon-512.png",
-      "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "start_url": "/",

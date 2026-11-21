@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { searchService } from '../services/searchService'
 import { followService } from '../services/followService'
 import FollowButton from '../components/FollowButton'
+import InviteButton from '../components/InviteButton'
 import { ChevronLeft, Search, X } from 'lucide-react'
 import { getInitials } from '../utils/avatarUtils'
 
@@ -277,7 +278,12 @@ function SearchUsers() {
 
       {/* Results or Suggestions with max-width wrapper */}
       <div className="max-w-4xl mx-auto p-2 sm:p-4">
-        {/* InviteButton slot */}
+        {/* Invite friends who aren't on Dogleg yet (hidden while searching) */}
+        {!searchTerm && (
+          <div className="mb-3 px-2 sm:px-0 sm:max-w-xs">
+            <InviteButton variant="secondary" />
+          </div>
+        )}
 
         {loading ? (
           <div className="text-center py-8">

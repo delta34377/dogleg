@@ -178,7 +178,8 @@ export const searchService = {
           .or('is_banned.is.null,is_banned.eq.false')
         if (me) query = query.neq('id', me)
         return query
-          .order('created_at', { ascending: false })
+          // (Postgres puts NULLs first in a descending sort: keep undated rows last)
+          .order('created_at', { ascending: false, nullsFirst: false })
           .limit(Math.max(max * 3, 30))
       })
 

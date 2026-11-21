@@ -185,3 +185,65 @@ test('shortening a running search to one letter does not leave the spinner up', 
   await waitFor(() => expect(screen.queryByText('Searching...')).not.toBeInTheDocument())
   expect(screen.getByText('No users found matching "s"')).toBeInTheDocument()
 })
+
+test('a suggested golfer the status lookup says is already followed is left off the list', async () => {
+  // e.g. the service could not read every follow; the page's own check catches it
+  followService.getFollowStatuses.mockResolvedValueOnce({ fan: false, pat: true, old: false })
+  renderPage()
+  await screen.findByText('Follows you')
+
+  await waitFor(() => expect(screen.queryByText('Plays Pebble Beach Golf Links')).not.toBeInTheDocument())
+  expect(screen.getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/profile/fan', '/profile/old_timer'])
+})
+
+test('a golfer followed here before the status lookup answered stays on the list as "Following"', async () => {
+  const lookup = deferred()
+  followService.getFollowStatuses.mockReturnValueOnce(lookup.promise)
+  renderPage()
+  await screen.findByText('Follows you')
+
+  fireEvent.click(within(cardFor('pat')).getByRole('button', { name: 'Follow' }))
+  expect(await within(cardFor('pat')).findByRole('button', { name: 'Following' })).toBeInTheDocument()
+
+  // The lookup read the follow that was just made
+  await act(async () => lookup.resolve({ fan: false, pat: true, old: false }))
+  expect(within(cardFor('pat')).getByRole('button', { name: 'Following' })).toBeInTheDocument()
+})
+
+test("an older search's status lookup finishing late does not take down a newer search's spinner", async () => {
+  const oldLookup = deferred()
+  followService.getFollowStatuses.mockImplementation(async (ids) => (
+    ids.join() === 'sam' ? oldLookup.promise : Object.fromEntries(ids.map((id) => [id, false]))
+  ))
+  searchService.searchUsers.mockImplementation((term) => (
+    term === 'sam'
+      ? Promise.resolve({ data: [{ id: 'sam', username: 'sam', full_name: 'Sam Slice' }], error: null })
+      : new Promise(() => {}) // the newer search is still running
+  ))
+  renderPage()
+  await screen.findByText('Follows you')
+
+  typeSearch('sam')
+  await waitFor(() => expect(followService.getFollowStatuses).toHaveBeenCalledWith(['sam']))
+  typeSearch('samuel')
+  await waitFor(() => expect(searchService.searchUsers).toHaveBeenCalledWith('samuel'))
+
+  await act(async () => oldLookup.resolve({ sam: false }))
+  expect(screen.getByText('Searching...')).toBeInTheDocument()
+  expect(screen.queryByText('Sam Slice')).not.toBeInTheDocument()
+})
+
+test('a search whose status lookup fails still shows its results', async () => {
+  followService.getFollowStatuses.mockImplementation(async (ids) => {
+    if (ids.join() === 'sam') throw new Error('offline')
+    return Object.fromEntries(ids.map((id) => [id, false]))
+  })
+  searchService.searchUsers.mockResolvedValue({ data: [{ id: 'sam', username: 'sam', full_name: 'Sam Slice' }], error: null })
+  renderPage()
+  await screen.findByText('Follows you')
+
+  typeSearch('sam')
+  expect(await screen.findByText('Sam Slice')).toBeInTheDocument()
+  expect(screen.queryByText('Searching...')).not.toBeInTheDocument()
+  expect(within(cardFor('sam')).getByRole('button', { name: 'Follow' })).toBeInTheDocument()
+})

@@ -393,6 +393,12 @@ describe('query budget', () => {
   })
 })
 
+test('the newest-profiles fallback asks for undated profiles last (Postgres sorts NULLs first when descending)', async () => {
+  await suggest()
+  const newest = mockDb.calls.find((c) => c.table === 'profiles' && c.ops.some(([op, column]) => op === 'order' && column === 'created_at'))
+  expect(newest.ops).toContainEqual(['order', 'created_at', { ascending: false, nullsFirst: false }])
+})
+
 describe('when a query fails', () => {
   const isFollowsOfMe = (call) => call.table === 'follows' && call.ops.some(([op, f]) => op === 'or' && String(f).includes('me'))
   const isRecentRounds = (call) => call.table === 'rounds' && call.ops.some(([op]) => op === 'gte')

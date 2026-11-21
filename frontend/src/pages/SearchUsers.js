@@ -62,7 +62,12 @@ function SearchUsers() {
     if (list.length > 0) {
       try {
         const statuses = await followService.getFollowStatuses(list.map(u => u.id))
-        if (reqId === latestSuggestionsReqRef.current) mergeFollowStatuses(statuses)
+        if (reqId !== latestSuggestionsReqRef.current) return
+        mergeFollowStatuses(statuses)
+        // Someone the user already follows is not a suggestion. The service
+        // leaves them out too, unless it could not read all of the follows;
+        // a golfer followed (or unfollowed) here a moment ago stays put.
+        setSuggestedUsers(prev => prev.filter(u => statuses?.[u.id] !== true || u.id in changedHereRef.current))
       } catch (error) {
         console.error('Error checking follow statuses:', error)
       }
@@ -104,17 +109,23 @@ function SearchUsers() {
       
       // Get follow statuses for search results
       if (data.length > 0) {
-        const userIds = data.map(u => u.id)
-        const statuses = await followService.getFollowStatuses(userIds)
-        
-        // Check again after async operation
-        if (reqId === latestReqRef.current) {
-          mergeFollowStatuses(statuses)
+        try {
+          const userIds = data.map(u => u.id)
+          const statuses = await followService.getFollowStatuses(userIds)
+
+          // Check again after async operation
+          if (reqId === latestReqRef.current) {
+            mergeFollowStatuses(statuses)
+          }
+        } catch (statusError) {
+          console.error('Error checking follow statuses:', statusError)
         }
       }
     }
-    
-    setLoading(false)
+
+    // Only the latest search may take the spinner down: an older one finishing
+    // its status lookup must not show its stale results over a newer search
+    if (reqId === latestReqRef.current) setLoading(false)
   }, [mergeFollowStatuses])
 
   // Handle search input change with debouncing

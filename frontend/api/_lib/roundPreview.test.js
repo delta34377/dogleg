@@ -262,7 +262,8 @@ test('handler never fails: generic tags with 200 when the database is down', asy
 // matches the whole header value, like the anchored regex below.
 test('vercel.json bot rule matches preview bots and not people', () => {
   const config = require('../../vercel.json')
-  const [botRule, spaFallback] = config.rewrites
+  const botRule = config.rewrites.find((rule) => rule.source === '/rounds/:code')
+  const spaFallback = config.rewrites[config.rewrites.length - 1]
   const pattern = new RegExp(`^${botRule.has[0].value}$`)
 
   const bots = [
@@ -297,25 +298,27 @@ test('vercel.json bot rule matches preview bots and not people', () => {
   for (const ua of bots) assert.ok(pattern.test(ua), `should match bot: ${ua}`)
   for (const ua of people) assert.ok(!pattern.test(ua), `should not match person: ${ua}`)
 
-  assert.equal(botRule.source, '/rounds/:code')
   assert.equal(botRule.destination, '/api/og/round?code=:code')
-  // The last rule keeps deep links like /profile/x working for people
+  // The round bot rule comes first; the last rule keeps deep links like
+  // /profile/x working for people (the invite bot rule sits between them,
+  // see invitePreview.test.js)
+  assert.equal(config.rewrites[0], botRule)
   assert.deepEqual(spaFallback, { source: '/(.*)', destination: '/index.html' })
-  assert.equal(config.rewrites.length, 2)
+  assert.equal(config.rewrites.length, 3)
 })
 
 // DEPLOY-2: every response for /rounds/... (the app page people get, and the
 // preview page bots get through the rewrite above) carries X-Robots-Tag:
 // noindex. Header rules are matched on the path that was asked for, before
 // any rewrite, and don't change where the request goes.
-test('vercel.json sends X-Robots-Tag: noindex on round pages only', () => {
+test('vercel.json sends X-Robots-Tag: noindex on round pages', () => {
   const config = require('../../vercel.json')
   assert.ok(Array.isArray(config.headers), 'vercel.json has a headers list')
   const robotsRules = config.headers.filter((rule) =>
     rule.headers.some((h) => h.key.toLowerCase() === 'x-robots-tag'))
-  assert.equal(robotsRules.length, 1)
-  const [rule] = robotsRules
-  assert.equal(rule.source, '/rounds/(.*)')
+  // Round pages and invite pages (/join/..., see invitePreview.test.js)
+  assert.deepEqual(robotsRules.map((r) => r.source), ['/rounds/(.*)', '/join/(.*)'])
+  const rule = robotsRules.find((r) => r.source === '/rounds/(.*)')
   assert.equal(rule.has, undefined, 'applies to every visitor, not only bots')
   assert.deepEqual(rule.headers, [{ key: 'X-Robots-Tag', value: 'noindex' }])
 

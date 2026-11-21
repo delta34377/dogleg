@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, within, waitFor, act, isInaccessible } from '@testing-library/react'
 import App, { importWithRecovery, isStaleChunkError } from './App'
 import { roundsService } from './services/roundsService'
+import { readPendingInvite, storePendingInvite } from './utils/invite'
 
 // The real app (router, shell, Feed, search page, profile page) on top of a
 // tiny in-memory stand-in for the database. followService and the reaction
@@ -374,6 +375,71 @@ describe('profile load errors (SHELL-5)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(await screen.findByRole('heading', { name: 'friend' })).toBeInTheDocument()
+  })
+})
+
+describe('invite links, signed in', () => {
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  test("a friend's invite opened before signing up is followed once the account is ready", async () => {
+    storePendingInvite('friend')
+    render(<App />)
+
+    // The toast, the follow, and the inviter's round in the Feed
+    expect(await screen.findByText("You're now following @friend")).toBeInTheDocument()
+    expect(mockDb.follows).toEqual([expect.objectContaining({ follower_id: 'me', following_id: 'friend' })])
+    expect(await findCard('Friendly Links')).toBeInTheDocument()
+    expect(readPendingInvite()).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByText("You're now following @friend")).not.toBeInTheDocument()
+  })
+
+  test('the toast closes by itself after a few seconds', async () => {
+    storePendingInvite('friend')
+    jest.useFakeTimers()
+    try {
+      render(<App />)
+      expect(await screen.findByText("You're now following @friend")).toBeInTheDocument()
+
+      act(() => { jest.advanceTimersByTime(5900) })
+      expect(screen.getByText("You're now following @friend")).toBeInTheDocument()
+      act(() => { jest.advanceTimersByTime(200) })
+      expect(screen.queryByText("You're now following @friend")).not.toBeInTheDocument()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  test('an invite from someone already followed: no toast, no second follow', async () => {
+    mockDb.follows = [{ follower_id: 'me', following_id: 'friend' }]
+    storePendingInvite('friend')
+    render(<App />)
+
+    expect(await findCard('Friendly Links')).toBeInTheDocument()
+    await waitFor(() => expect(readPendingInvite()).toBeNull())
+    expect(mockDb.follows).toHaveLength(1)
+    expect(screen.queryByText(/You're now following/)).not.toBeInTheDocument()
+  })
+
+  test("opening an invite link while signed in shows the inviter's profile and follows nobody", async () => {
+    storePendingInvite('pal')
+    window.history.replaceState(null, '', '/join/friend')
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'friend' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/profile/friend')
+    expect(readPendingInvite()).toBeNull()
+    expect(mockDb.follows).toEqual([])
+    expect(screen.queryByText(/You're now following/)).not.toBeInTheDocument()
+  })
+
+  test('the empty Feed offers an Invite friends button next to Find Golfers to Follow', async () => {
+    render(<App />)
+    expect(await screen.findByRole('button', { name: 'Find Golfers to Follow' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Invite friends' })).toBeInTheDocument()
   })
 })
 

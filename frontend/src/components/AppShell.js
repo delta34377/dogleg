@@ -6,6 +6,7 @@ import NotificationDropdown from './NotificationDropdown'
 import IOSInstallPrompt from './IOSInstallPrompt'
 import ErrorBoundary from './ErrorBoundary'
 import { PageSpinner } from './FullPageSpinner'
+import { usePendingInviteFollow } from './InvitePage'
 import { getInitials } from '../utils/avatarUtils'
 import { isAdmin } from '../utils/admin'
 import { takeRedirectAfterLogin } from '../utils/safeRedirect'
@@ -35,6 +36,39 @@ const TABS = [
 // Pages that belong to no tab and get a back arrow on phones
 const isDetailPage = (pathname) => /^\/(rounds|courses|profile)\/[^/]+/.test(pathname)
 
+const INVITE_TOAST_MS = 6000
+
+// "You're now following @x" after an invite link was applied. Closes by
+// itself after a few seconds, or with its × button. On phones it sits just
+// under the header: the bottom belongs to the tab bar and, for a new iPhone
+// user, the "Add to Home Screen" prompt that opens at the same time.
+function InviteFollowToast({ username, onDismiss }) {
+  useEffect(() => {
+    const timer = setTimeout(onDismiss, INVITE_TOAST_MS)
+    return () => clearTimeout(timer)
+  }, [onDismiss])
+
+  return (
+    <div className="fixed left-4 right-4 top-16 md:top-auto md:bottom-6 z-50 flex justify-center pointer-events-none">
+      <div
+        className="pointer-events-auto w-full max-w-sm flex items-center gap-3 bg-gray-900 text-white rounded-xl shadow-xl pl-4 pr-1 py-1 animate-fade-up"
+        role="status"
+        aria-live="polite"
+      >
+        <span className="flex-1 min-w-0 text-sm font-medium break-words">You're now following @{username}</span>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-300 hover:text-white text-xl leading-none"
+          aria-label="Dismiss"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function AppShell() {
   const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
@@ -43,6 +77,10 @@ function AppShell() {
 
   const feedRef = useRef(null)
   const roundsRef = useRef(null)
+
+  // Opened a friend's invite link before signing up? Follow them now that
+  // the account has a username (this shell only shows after UsernameSetup).
+  const [invitedFollow, dismissInvitedFollow] = usePendingInviteFollow(user?.id, profile?.username)
 
   // The Feed stays mounted (just hidden) while you visit other pages, so Back
   // returns to the same spot instead of reloading it from the top. It is first
@@ -278,6 +316,8 @@ function AppShell() {
           ))}
         </div>
       </nav>
+
+      {invitedFollow && <InviteFollowToast username={invitedFollow} onDismiss={dismissInvitedFollow} />}
     </div>
   )
 }

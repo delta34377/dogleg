@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
-import { Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { Navigate, matchPath, useNavigate, useLocation } from 'react-router-dom'
 import FullPageSpinner from '../FullPageSpinner'
 import {
   getSafeRedirectPath,
   saveRedirectAfterLogin,
   clearRedirectAfterLogin,
 } from '../../utils/safeRedirect'
+import { readPendingInvite } from '../../utils/invite'
 
 // Google's multi-colour "G" (inline so we don't need an icon library)
 function GoogleIcon() {
@@ -28,11 +29,31 @@ function AuthScreen({ onSuccess }) {
   const location = useLocation()
   // Where to go after login. Router state can come from anywhere, so only a
   // path on this same site is accepted (see utils/safeRedirect.js).
-  const from = getSafeRedirectPath(location.state?.from)
-  const cameForRound = from.startsWith('/rounds/')
+  const requestedFrom = getSafeRedirectPath(location.state?.from)
+  const cameForRound = requestedFrom.startsWith('/rounds/')
+  const inviteMatch = matchPath('/join/:username', requestedFrom.split(/[?#]/)[0])
+  const cameForInvite = !!inviteMatch
 
-  // Landing page CTAs and shared-round pages can open this screen in signup mode
-  const [authMode, setAuthMode] = useState(location.state?.mode === 'signup' ? 'signup' : 'signin')
+  // The invite this browser opened, if any (see utils/invite.js)
+  const [pendingInvite] = useState(() => readPendingInvite())
+
+  // From an invite link (/join/:username) that this browser remembered:
+  // continue to the Feed, where the app shell follows the inviter. (Signed
+  // in, /join/... forgets the invite and just opens the inviter's profile.)
+  // If it couldn't be remembered (storage blocked), go back to /join/...
+  // anyway, so they land on the inviter's profile and can follow from there.
+  const from = cameForInvite && pendingInvite?.username === inviteMatch.params.username
+    ? '/'
+    : requestedFrom
+
+  // Landing page CTAs, shared-round pages and invite pages can open this
+  // screen in signup mode; an invite page opens it there by default
+  const [authMode, setAuthMode] = useState(() => {
+    const requestedMode = location.state?.mode
+    if (requestedMode === 'signup') return 'signup'
+    if (requestedMode === 'signin') return 'signin'
+    return cameForInvite ? 'signup' : 'signin'
+  })
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -281,8 +302,10 @@ function AuthScreen({ onSuccess }) {
   {/* Marketing content - remove old h1 "Dogleg.io" since it's in the image now */}
   {(authMode === 'signin' || authMode === 'signup') && (
     <div className="mt-4">
+      {/* Same message as the landing page's headline */}
       <p className="text-lg font-semibold text-green-700 mb-3">
-        Your Golf Life, Socialized.
+        <span className="block text-gray-900">Strava for golf.</span>{' '}
+        <span className="block text-balance">Track every round. Watch your handicap drop.</span>
       </p>
       {cameForRound && (
         <p className="text-sm font-medium text-gray-700 mb-3">
@@ -291,10 +314,17 @@ function AuthScreen({ onSuccess }) {
             : 'Sign in to react and comment on this round.'}
         </p>
       )}
+      {pendingInvite && (
+        <p className="text-sm font-medium text-gray-700 mb-3 break-words">
+          {authMode === 'signup'
+            ? `@${pendingInvite.username} invited you — create your free account to follow them.`
+            : `Sign in to follow @${pendingInvite.username}.`}
+        </p>
+      )}
               <div className="flex flex-col gap-1 text-sm text-gray-600">
-                <p>⛳ Log your rounds in seconds</p>
-                <p>👥 Follow friends and see their scores</p>
-                <p>🔥 React and comment on rounds</p>
+                <p>📈 A real handicap, automatically</p>
+                <p>🐶 A Dogleg Score for every round</p>
+                <p>👥 Your friends' rounds in one feed</p>
               </div>
             </div>
           )}

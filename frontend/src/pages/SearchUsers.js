@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { searchService } from '../services/searchService'
 import { followService } from '../services/followService'
 import FollowButton from '../components/FollowButton'
+import InviteButton from '../components/InviteButton'
 import { ChevronLeft, Search, X } from 'lucide-react'
 import { getInitials } from '../utils/avatarUtils'
 
@@ -11,20 +12,73 @@ import { getInitials } from '../utils/avatarUtils'
 function SearchUsers() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const currentUserId = user?.id
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState([])
   const [suggestedUsers, setSuggestedUsers] = useState([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true)
+  const [suggestionsFailed, setSuggestionsFailed] = useState(false)
   const [loading, setLoading] = useState(false)
   const [followStatuses, setFollowStatuses] = useState({})
   const searchTimerRef = useRef(null)
   const latestReqRef = useRef(0)  // ADD THIS FOR RACE CONDITION FIX
+  const latestSuggestionsReqRef = useRef(0)
+  // Follows and unfollows made on this page. They win over any status lookup
+  // that answers later (one may have started before the tap).
+  const changedHereRef = useRef({})
 
-  // Load suggested users on mount
-  useEffect(() => {
-    if (user && !searchTerm) {
-      loadSuggestedUsers()
+  // Add looked-up follow statuses without dropping the ones already known.
+  // (Replacing them made golfers followed from the suggestions show "Follow"
+  // again after a search was cleared.)
+  const mergeFollowStatuses = useCallback((statuses) => {
+    setFollowStatuses(prev => ({ ...prev, ...statuses, ...changedHereRef.current }))
+  }, [])
+
+  // Load suggested users (each with a short reason, e.g. "Follows you")
+  const loadSuggestedUsers = useCallback(async () => {
+    const reqId = ++latestSuggestionsReqRef.current
+    if (!currentUserId) {
+      setSuggestionsLoading(false)
+      return
     }
-  }, [user])
+
+    setSuggestionsLoading(true)
+    setSuggestionsFailed(false)
+    let list = []
+    try {
+      const { data, error } = await searchService.getSuggestedUsers(currentUserId)
+      if (reqId !== latestSuggestionsReqRef.current) return
+      list = Array.isArray(data) ? data : []
+      setSuggestedUsers(list)
+      setSuggestionsFailed(!!error && list.length === 0)
+    } catch (error) {
+      console.error('Error loading suggested users:', error)
+      if (reqId !== latestSuggestionsReqRef.current) return
+      setSuggestedUsers([])
+      setSuggestionsFailed(true)
+    }
+    setSuggestionsLoading(false)
+
+    // Get follow statuses for suggested users
+    if (list.length > 0) {
+      try {
+        const statuses = await followService.getFollowStatuses(list.map(u => u.id))
+        if (reqId !== latestSuggestionsReqRef.current) return
+        mergeFollowStatuses(statuses)
+        // Someone the user already follows is not a suggestion. The service
+        // leaves them out too, unless it could not read all of the follows;
+        // a golfer followed (or unfollowed) here a moment ago stays put.
+        setSuggestedUsers(prev => prev.filter(u => statuses?.[u.id] !== true || u.id in changedHereRef.current))
+      } catch (error) {
+        console.error('Error checking follow statuses:', error)
+      }
+    }
+  }, [currentUserId, mergeFollowStatuses])
+
+  // Load suggested users on mount (and if the signed-in user changes)
+  useEffect(() => {
+    loadSuggestedUsers()
+  }, [loadSuggestedUsers])
 
   useEffect(() => {
     return () => {
@@ -32,25 +86,13 @@ function SearchUsers() {
     }
   }, [])
 
-  // Load suggested users
-  const loadSuggestedUsers = async () => {
-    const { data } = await searchService.getSuggestedUsers(user.id)
-    setSuggestedUsers(data)
-    
-    // Get follow statuses for suggested users
-    if (data.length > 0) {
-      const userIds = data.map(u => u.id)
-      const statuses = await followService.getFollowStatuses(userIds)
-      setFollowStatuses(statuses)
-    }
-  }
-
   // Debounced search function - UPDATED WITH RACE CONDITION FIX
   const performSearch = useCallback(async (term) => {
     const reqId = ++latestReqRef.current  // Track this request
     
     if (!term || term.trim().length < 2) {
       setSearchResults([])
+      setLoading(false) // an earlier search may still be running; its answer is now ignored
       return
     }
 
@@ -68,18 +110,24 @@ function SearchUsers() {
       
       // Get follow statuses for search results
       if (data.length > 0) {
-        const userIds = data.map(u => u.id)
-        const statuses = await followService.getFollowStatuses(userIds)
-        
-        // Check again after async operation
-        if (reqId === latestReqRef.current) {
-          setFollowStatuses(statuses)
+        try {
+          const userIds = data.map(u => u.id)
+          const statuses = await followService.getFollowStatuses(userIds)
+
+          // Check again after async operation
+          if (reqId === latestReqRef.current) {
+            mergeFollowStatuses(statuses)
+          }
+        } catch (statusError) {
+          console.error('Error checking follow statuses:', statusError)
         }
       }
     }
-    
-    setLoading(false)
-  }, [])
+
+    // Only the latest search may take the spinner down: an older one finishing
+    // its status lookup must not show its stale results over a newer search
+    if (reqId === latestReqRef.current) setLoading(false)
+  }, [mergeFollowStatuses])
 
   // Handle search input change with debouncing
   const handleSearchChange = (e) => {
@@ -104,10 +152,14 @@ function SearchUsers() {
     if (searchTimerRef.current) {  // Changed from searchDebounceTimer
       clearTimeout(searchTimerRef.current)
     }
+    // A search still running must not bring back its spinner over the suggestions
+    latestReqRef.current++
+    setLoading(false)
   }
 
   // Handle follow status change
   const handleFollowChange = (userId, isFollowing) => {
+    changedHereRef.current = { ...changedHereRef.current, [userId]: isFollowing }
     setFollowStatuses(prev => ({
       ...prev,
       [userId]: isFollowing
@@ -116,7 +168,7 @@ function SearchUsers() {
 
   // Render user card
   const renderUserCard = (userItem) => (
-    <div key={userItem.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between">
+    <div key={userItem.id} role="listitem" className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between">
       <Link 
         to={`/profile/${userItem.username}`}
         className="flex items-center flex-1 min-w-0"
@@ -141,6 +193,12 @@ function SearchUsers() {
           {userItem.full_name && (
             <p className="text-sm text-gray-600 truncate">
               {userItem.full_name}
+            </p>
+          )}
+          {/* Why a suggested golfer is suggested ("Follows you", "Plays ...") */}
+          {userItem.reason && (
+            <p className="text-xs text-gray-500 truncate mt-0.5">
+              {userItem.reason}
             </p>
           )}
           
@@ -172,7 +230,7 @@ function SearchUsers() {
   const usersToDisplay = searchTerm ? searchResults : suggestedUsers
   const displayTitle = searchTerm 
     ? (searchResults.length > 0 ? 'Search Results' : 'No results found')
-    : 'Suggested Users'
+    : 'Suggested golfers'
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -208,6 +266,7 @@ function SearchUsers() {
                 <button
                   onClick={clearSearch}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label="Clear search"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -219,6 +278,13 @@ function SearchUsers() {
 
       {/* Results or Suggestions with max-width wrapper */}
       <div className="max-w-4xl mx-auto p-2 sm:p-4">
+        {/* Invite friends who aren't on Dogleg yet (hidden while searching) */}
+        {!searchTerm && (
+          <div className="mb-3 px-2 sm:px-0 sm:max-w-xs">
+            <InviteButton variant="secondary" />
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
@@ -233,8 +299,15 @@ function SearchUsers() {
 
             {/* User List */}
             <div className="space-y-2">
-              {usersToDisplay.length > 0 ? (
-                usersToDisplay.map(renderUserCard)
+              {!searchTerm && suggestionsLoading ? (
+                <div className="text-center py-8" role="status">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                  <p className="mt-2 text-gray-600">Finding golfers for you...</p>
+                </div>
+              ) : usersToDisplay.length > 0 ? (
+                <div role="list" className="space-y-2">
+                  {usersToDisplay.map(renderUserCard)}
+                </div>
               ) : searchTerm && !loading ? (
                 <div className="text-center py-8 bg-white rounded-xl shadow-sm border border-gray-100">
                   <p className="text-gray-500">
@@ -244,10 +317,29 @@ function SearchUsers() {
                     Try searching with a different username or name
                   </p>
                 </div>
+              ) : !searchTerm && suggestionsFailed ? (
+                <div className="text-center py-8 px-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                  <p className="text-gray-700 font-medium">
+                    Couldn't load suggestions
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Check your connection, or search for golfers by name above.
+                  </p>
+                  <button
+                    onClick={loadSuggestedUsers}
+                    className="mt-4 px-4 py-2 text-sm rounded-lg font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
+                  >
+                    Try again
+                  </button>
+                </div>
               ) : !searchTerm && suggestedUsers.length === 0 ? (
-                <div className="text-center py-8 bg-white rounded-xl shadow-sm border border-gray-100">
-                  <p className="text-gray-500">
-                    No suggested users at this time
+                <div className="text-center py-8 px-4 bg-white rounded-xl shadow-sm border border-gray-100">
+                  <p className="text-gray-700 font-medium">
+                    No golfers to suggest yet
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Golf's better with your buddies. Invite the friends you play with to join Dogleg,
+                    or search above if they're already here.
                   </p>
                 </div>
               ) : null}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import AvatarUpload from '../components/AvatarUpload'
+import InviteButton from './InviteButton'
 import { supabase } from '../services/supabase'
 import { followService } from '../services/followService'
 import { formatHandicap, parseHandicapInput } from '../utils/handicap'
@@ -219,6 +220,9 @@ function Profile() {
               )}
             </div>
           </div>
+
+          {/* Share your invite link (www.dogleg.io/join/<username>) */}
+          <InviteButton className="mt-4 sm:max-w-xs" />
         </div>
 
         {/* Stats */}

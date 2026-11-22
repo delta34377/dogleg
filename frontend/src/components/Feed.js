@@ -4,6 +4,7 @@ import { followService } from '../services/followService'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import FollowButton from './FollowButton'
+import InviteButton from './InviteButton'
 import { getFeedSettings, subscribeToFeedSettings } from '../services/feedSettingsService'
 import { statsService } from '../services/statsService'
 import RoundCard from './RoundCard'
@@ -546,12 +547,16 @@ const Feed = forwardRef(({ active = true }, ref) => {
           <p className="text-gray-500 mb-6">
             Start following other golfers to see their rounds here!
           </p>
-          <button
-            onClick={() => navigate('/search-users')}
-            className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700"
-          >
-            Find Golfers to Follow
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => navigate('/search-users')}
+              className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              Find Golfers to Follow
+            </button>
+            {/* Friends not on Dogleg yet? Send them your invite link */}
+            <InviteButton variant="secondary" />
+          </div>
         </div>
       </div>
     )

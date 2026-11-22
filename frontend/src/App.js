@@ -20,6 +20,7 @@ import AdminGate from './components/AdminGate'
 import MyRounds from './components/MyRounds'
 import Profile from './components/Profile'
 import SingleRound from './components/SingleRound'
+import InvitePage from './components/InvitePage'
 import LandingPage from './pages/LandingPage'
 import { Analytics } from '@vercel/analytics/react'
 
@@ -104,8 +105,9 @@ const ModerationDashboard = lazyPage(() => import('./components/admin/Moderation
 const AdminPanel = lazyPage(() => import('./components/AdminPanel'))
 
 // Pages that need an account. A signed-out visitor on one of these goes to
-// /login and is brought back afterwards. (Signed-out visitors may see "/"
-// — the landing page — and "/rounds/:roundId" — a shared round.)
+// /login and is brought back afterwards. (Signed-out visitors may see "/",
+// the landing page; "/rounds/:roundId", a shared round; and
+// "/join/:username", a friend's invite link.)
 const SIGNED_IN_ONLY_PATHS = [
   '/add',
   '/my-rounds',
@@ -131,8 +133,8 @@ function AppLayout() {
   if (!user) {
     if (pathname === '/') return <LandingPage />
 
-    // Shared round links work without an account
-    if (matchPath('/rounds/:roundId', pathname)) {
+    // Shared round links and invite links work without an account
+    if (matchPath('/rounds/:roundId', pathname) || matchPath('/join/:username', pathname)) {
       return (
         <PublicShell>
           <Suspense fallback={<PageSpinner />}>
@@ -231,6 +233,8 @@ function App() {
               <Route path="courses/:courseId" element={<RemountOnPathChange><CoursePage /></RemountOnPathChange>} />
               <Route path="rounds/:roundId" element={<RemountOnPathChange><SingleRound /></RemountOnPathChange>} />
               <Route path="search-users" element={<SearchUsers />} />
+              {/* Invite link: a page for signed-out visitors, the inviter's profile otherwise */}
+              <Route path="join/:username" element={<InvitePage />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>

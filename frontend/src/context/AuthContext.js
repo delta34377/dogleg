@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { supabase } from '../services/supabase'
 import { setMonitoringUser } from '../utils/monitoring'
 import { getSafeRedirectPath, clearRedirectAfterLogin } from '../utils/safeRedirect'
+import { trackSignUp } from '../utils/adsConversion'
 
 const AuthContext = createContext({})
 export const useAuth = () => useContext(AuthContext)
@@ -251,6 +252,9 @@ export const AuthProvider = ({ children }) => {
         console.error('Error creating profile:', error)
         return null
       }
+      // The profile row is made once, on a new account's first sign-in
+      // (email, Google or phone), so this is the moment of sign-up
+      trackSignUp(u?.user?.app_metadata?.provider)
       return data
     } catch (err) {
       console.error('createProfile error:', err)

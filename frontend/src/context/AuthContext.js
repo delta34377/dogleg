@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import { supabase } from '../services/supabase'
 import { setMonitoringUser } from '../utils/monitoring'
 import { getSafeRedirectPath, clearRedirectAfterLogin } from '../utils/safeRedirect'
-import { trackSignUp } from '../utils/adsConversion'
+import { trackSignUpIfNew } from '../utils/adsConversion'
 
 const AuthContext = createContext({})
 export const useAuth = () => useContext(AuthContext)
@@ -192,6 +192,13 @@ export const AuthProvider = ({ children }) => {
     setMonitoringUser(user?.id ?? null)
   }, [user?.id])
 
+  // Google Ads / Analytics sign-up: counted when a brand-new account signs in.
+  // Keyed off the account's creation time, not off this browser making the
+  // profiles row, because the live database can make that row itself.
+  useEffect(() => {
+    if (user) trackSignUpIfNew(user)
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---- Profile helpers (latest-only) ----
   const loadProfileLatest = async (userId) => {
     const seq = ++profileSeqRef.current
@@ -252,9 +259,6 @@ export const AuthProvider = ({ children }) => {
         console.error('Error creating profile:', error)
         return null
       }
-      // The profile row is made once, on a new account's first sign-in
-      // (email, Google or phone), so this is the moment of sign-up
-      trackSignUp(u?.user?.app_metadata?.provider)
       return data
     } catch (err) {
       console.error('createProfile error:', err)

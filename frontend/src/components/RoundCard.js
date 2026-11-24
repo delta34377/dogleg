@@ -35,14 +35,13 @@ export const REACTION_EMOJIS = {
 }
 
 // Collapsed by default: the top three reactions with counts plus an
-// add button; the full emoji tray expands on demand. Cards with fewer
-// than three reacted types are padded with starter emojis so there's
-// always something to one-tap.
+// add button; the full emoji tray (ReactionTray, drawn by the card across
+// its full width) opens on demand. Cards with fewer than three reacted
+// types are padded with starter emojis so there's always something to
+// one-tap.
 const QUICK_REACTIONS = ['fire', 'clap', 'laugh']
 
-function ReactionBar({ reactions, userReacted, onToggle }) {
-  const [trayOpen, setTrayOpen] = useState(false)
-
+function ReactionBar({ reactions, userReacted, onToggle, trayOpen, onToggleTray }) {
   const active = Object.entries(reactions || {})
     .filter(([key, count]) => count > 0 && REACTION_EMOJIS[key])
     .sort((a, b) => b[1] - a[1])
@@ -79,7 +78,7 @@ function ReactionBar({ reactions, userReacted, onToggle }) {
       )}
 
       <button
-        onClick={() => setTrayOpen(open => !open)}
+        onClick={onToggleTray}
         aria-label={trayOpen ? 'Hide reactions' : 'Add reaction'}
         aria-expanded={trayOpen}
         className={`relative inline-flex items-center justify-center w-9 h-9 rounded-full border transition-colors before:absolute before:-inset-1 before:content-[''] ${
@@ -95,23 +94,35 @@ function ReactionBar({ reactions, userReacted, onToggle }) {
           <path strokeLinecap="round" d="M18.5 15.5v6M15.5 18.5h6" />
         </svg>
       </button>
+    </div>
+  )
+}
 
-      {trayOpen && (
-        <div className="w-full flex flex-wrap items-center gap-1 pt-1 animate-fade-in">
-          {Object.entries(REACTION_EMOJIS).map(([key, emoji]) => (
-            <button
-              key={key}
-              onClick={() => onToggle(key)}
-              title={key}
-              className={`inline-flex items-center justify-center w-11 h-11 rounded-full text-xl transition-transform hover:scale-110 ${
-                reacted.includes(key) ? 'bg-green-100' : 'hover:bg-gray-50'
-              }`}
-            >
-              {emoji}
-            </button>
-          ))}
-        </div>
-      )}
+// All eight reactions in one evenly spaced row across the card (it used to
+// wrap into uneven rows in the space left next to Share). Picking one
+// closes the tray, like a reaction picker in a messaging app.
+function ReactionTray({ userReacted, onPick }) {
+  const reacted = userReacted || []
+  return (
+    <div
+      role="group"
+      aria-label="All reactions"
+      className="mt-2 grid grid-cols-8 gap-0.5 p-1 rounded-2xl bg-gray-50 border border-gray-100 animate-fade-in"
+    >
+      {Object.entries(REACTION_EMOJIS).map(([key, emoji]) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onPick(key)}
+          title={key}
+          aria-pressed={reacted.includes(key)}
+          className={`flex items-center justify-center h-11 rounded-xl text-xl min-[360px]:text-[22px] leading-none transition-transform active:scale-90 ${
+            reacted.includes(key) ? 'bg-green-100' : 'hover:bg-white'
+          }`}
+        >
+          {emoji}
+        </button>
+      ))}
     </div>
   )
 }
@@ -294,6 +305,7 @@ function RoundCard({
 }) {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [trayOpen, setTrayOpen] = useState(false)
   const menuRef = useRef(null)
 
   useEffect(() => {
@@ -467,6 +479,8 @@ function RoundCard({
                   reactions={round.reactions}
                   userReacted={round.userReacted}
                   onToggle={(key) => onToggleReaction(round.id, key)}
+                  trayOpen={trayOpen}
+                  onToggleTray={() => setTrayOpen(open => !open)}
                 />
               )}
             </div>
@@ -477,10 +491,20 @@ function RoundCard({
                 className="inline-flex items-center gap-1.5 h-9 px-2.5 shrink-0 rounded-full text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-50"
               >
                 <span aria-hidden="true">🔗</span>
-                <span>Share</span>
+                <span className="max-[359px]:sr-only">Share</span>
               </button>
             )}
           </div>
+        )}
+
+        {!readOnly && trayOpen && (
+          <ReactionTray
+            userReacted={round.userReacted}
+            onPick={(key) => {
+              onToggleReaction(round.id, key)
+              setTrayOpen(false)
+            }}
+          />
         )}
 
         <CommentsSection round={round} onAddComment={onAddComment} readOnly={readOnly} />
